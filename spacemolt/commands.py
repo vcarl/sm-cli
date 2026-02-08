@@ -170,19 +170,10 @@ def cmd_nearby(api, args):
 
 
 def cmd_notifications(api, args):
+    # _post prints notifications automatically; just trigger a call
     resp = api._post("get_status")
-    notifs = resp.get("notifications") or []
-    if not notifs:
+    if not resp.get("notifications"):
         print("No notifications.")
-    else:
-        for n in notifs:
-            ntype = n.get("type", "?")
-            data = n.get("data", {})
-            msg = data.get("message") or n.get("message") or n.get("content")
-            if not msg:
-                msg_type = n.get("msg_type", "")
-                msg = f"{msg_type}: {json.dumps(data)}" if data else str(n)
-            print(f"[{ntype}] {msg}")
 
 
 def cmd_travel(api, args):
@@ -222,23 +213,9 @@ def cmd_mine(api, args):
         print(f"ERROR: {resp['error']}")
         return
     r = resp.get("result", {})
-    # Check notifications for mining_yield (result is often just {queued: true})
-    notifs = resp.get("notifications") or []
-    for n in notifs:
-        if n.get("msg_type") == "mining_yield":
-            data = n.get("data", {})
-            name = data.get("resource_name") or data.get("resource_id", "ore")
-            qty = data.get("quantity", "?")
-            print(f"Mined: {name} x{qty}")
-            return
-    # Fallback to result fields
-    resource = r.get("yield") or r.get("item") or r.get("resource") or "ore"
-    qty = r.get("quantity") or r.get("amount", "?")
-    msg = r.get("message", "")
+    msg = r.get("message")
     if msg:
         print(msg)
-    else:
-        print(f"Mined: {resource} x{qty}")
 
 
 def cmd_refuel(api, args):

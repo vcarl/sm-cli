@@ -39,7 +39,9 @@ class SpaceMoltAPI:
         )
         try:
             with urllib.request.urlopen(req) as resp:
-                return json.loads(resp.read().decode())
+                result = json.loads(resp.read().decode())
+                self._print_notifications(result)
+                return result
         except urllib.error.HTTPError as e:
             body_text = e.read().decode()
             code, msg = self._parse_error(body_text)
@@ -51,6 +53,44 @@ class SpaceMoltAPI:
                     return self._post(endpoint, body, use_session, _retried=True)
                 raise APIError("Session expired. Run: sm login")
             raise APIError(f"HTTP {e.code}: {msg}", status_code=e.code)
+
+    @staticmethod
+    def _format_notification(n):
+        """Format a notification for display, or return None to skip it."""
+        msg_type = n.get("msg_type", "")
+        data = n.get("data", {})
+
+        # Skip low-value ack notifications
+        if msg_type == "ok":
+            return None
+
+        ntype = n.get("type", "?")
+        msg = data.get("message") or n.get("message") or n.get("content")
+        if not msg:
+            if msg_type == "mining_yield":
+                name = data.get("resource_name") or data.get("resource_id", "ore")
+                qty = data.get("quantity", "?")
+                msg = f"Mined {name} x{qty}"
+            elif msg_type == "chat_message":
+                sender = data.get("sender", "?")
+                channel = data.get("channel", "?")
+                content = data.get("content", "")
+                msg = f"<{sender}@{channel}> {content}"
+            elif data:
+                msg = f"{msg_type}: {json.dumps(data)}"
+            else:
+                msg = msg_type or str(n)
+        return f"  [{ntype}] {msg}"
+
+    @staticmethod
+    def _print_notifications(resp):
+        notifs = resp.get("notifications")
+        if not notifs:
+            return
+        for n in notifs:
+            line = SpaceMoltAPI._format_notification(n)
+            if line:
+                print(line, flush=True)
 
     @staticmethod
     def _parse_error(body_text):
