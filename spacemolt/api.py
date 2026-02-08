@@ -106,10 +106,14 @@ class SpaceMoltAPI:
                 qty = data.get("quantity", "?")
                 msg = f"Mined {name} x{qty}"
             elif msg_type == "chat_message":
-                sender = data.get("sender", "?")
+                sender = data.get("sender_name") or data.get("sender", "?")
+                sender_id = data.get("sender_id", "")
                 channel = data.get("channel", "?")
                 content = data.get("content", "")
-                msg = f"<{sender}@{channel}> {content}"
+                sender_label = sender
+                if sender_id:
+                    sender_label += f"({sender_id})"
+                msg = f"<{sender_label}@{channel}> {content}"
             elif data:
                 msg = f"{msg_type}: {json.dumps(data)}"
             else:

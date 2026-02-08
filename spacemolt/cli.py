@@ -33,7 +33,7 @@ Actions (1 per 10s tick):
   sm dock / sm undock       Dock or undock
   sm mine                   Mine once
   sm refuel / sm repair     Refuel or repair
-  sm chat <ch> "msg"        Chat (system/local/faction/private)
+  sm chat <ch> "msg" [id]   Chat (private requires player ID)
 
 Advanced:
   sm raw <endpoint> [json]  Raw API call""",
@@ -55,7 +55,8 @@ Advanced:
     sub.add_parser("system", help="System overview + connections")
 
     # log
-    sub.add_parser("log", help="Recent captain's log")
+    p_log = sub.add_parser("log", help="Recent captain's log")
+    p_log.add_argument("--brief", action="store_true", help="Show only first line of each entry")
 
     # log-add
     p_log_add = sub.add_parser("log-add", help="Add captain's log entry")
@@ -63,6 +64,11 @@ Advanced:
 
     # cargo
     sub.add_parser("cargo", help="Cargo contents")
+
+    # sell
+    p_sell = sub.add_parser("sell", help="Sell an item from cargo")
+    p_sell.add_argument("item_id", help="Item ID to sell (e.g. ore_iron)")
+    p_sell.add_argument("quantity", nargs="?", type=int, default=1, help="Quantity to sell (default: 1)")
 
     # sell-all
     sub.add_parser("sell-all", help="Sell all cargo (auto-waits between items)")
@@ -99,6 +105,7 @@ Advanced:
     p_chat = sub.add_parser("chat", help="Send chat message")
     p_chat.add_argument("channel", help="Chat channel (system/local/faction/private)")
     p_chat.add_argument("message", help="Message to send")
+    p_chat.add_argument("target", nargs="?", default=None, help="Player ID for private messages (required when channel=private)")
 
     # raw
     p_raw = sub.add_parser("raw", help="Raw API call")
@@ -116,6 +123,7 @@ COMMAND_MAP = {
     "log": commands.cmd_log,
     "log-add": commands.cmd_log_add,
     "cargo": commands.cmd_cargo,
+    "sell": commands.cmd_sell,
     "sell-all": commands.cmd_sell_all,
     "skills": commands.cmd_skills,
     "nearby": commands.cmd_nearby,

@@ -13,11 +13,21 @@ def cmd_status(api, args):
     p = r.get("player", {})
     s = r.get("ship", {})
 
-    location = p.get("current_system", "?")
-    if p.get("current_poi"):
-        location += f" / {p['current_poi']}"
-    if p.get("docked_at_base"):
-        location += " (docked)"
+    sys_name = p.get("current_system_name") or p.get("current_system", "?")
+    sys_id = p.get("current_system_id") or p.get("current_system", "")
+    poi_name = p.get("current_poi_name") or p.get("current_poi", "")
+    poi_id = p.get("current_poi_id") or p.get("current_poi", "")
+    base_id = p.get("docked_at_base") or p.get("docked_base_id", "")
+
+    location = sys_name
+    if sys_id and sys_id != sys_name:
+        location += f" ({sys_id})"
+    if poi_name:
+        location += f" / {poi_name}"
+        if poi_id and poi_id != poi_name:
+            location += f" ({poi_id})"
+    if base_id:
+        location += f" [docked: {base_id}]"
 
     print(f"Credits: {p.get('credits', '?')}")
     print(f"Location: {location}")
@@ -36,8 +46,9 @@ def cmd_pois(api, args):
         line = f"{name} [{ptype}]"
         if p.get("distance") is not None:
             line += f" ({p['distance']} AU)"
-        if p.get("base_id"):
-            line += " *base*"
+        base_id = p.get("base_id")
+        if base_id:
+            line += f" *base:{base_id}*"
         line += f"\n  id: {p.get('id', '?')}"
         print(line)
 
@@ -74,11 +85,18 @@ def cmd_log(api, args):
     resp = api._post("captains_log_list")
     entries = resp.get("result", {}).get("entries", [])
     entries = entries[:5]
+    brief = getattr(args, "brief", False)
     for i, e in enumerate(entries):
-        if i > 0:
-            print("---")
         text = e.get("entry") or str(e)
-        print(f"#{i}: {text}")
+        if brief:
+            first_line = text.split("\n", 1)[0]
+            if len(first_line) > 120:
+                first_line = first_line[:117] + "..."
+            print(f"#{i}: {first_line}")
+        else:
+            if i > 0:
+                print("---")
+            print(f"#{i}: {text}")
 
 
 def cmd_log_add(api, args):
@@ -101,6 +119,17 @@ def cmd_cargo(api, args):
             name = item.get("item_id") or item.get("name") or item.get("id")
             qty = item.get("quantity", 1)
             print(f"  {name} x{qty}")
+
+
+def cmd_sell(api, args):
+    result = api._post("sell", {"item_id": args.item_id, "quantity": args.quantity})
+    err = result.get("error")
+    if err:
+        print(f"ERROR: {err}")
+    else:
+        r = result.get("result", {})
+        earned = r.get("credits_earned") or r.get("earned", "?")
+        print(f"Sold {args.item_id} x{args.quantity} (+{earned} cr)")
 
 
 def cmd_sell_all(api, args):
@@ -161,7 +190,10 @@ def cmd_nearby(api, args):
     else:
         for p in players:
             name = p.get("username") or p.get("name") or "anonymous"
+            pid = p.get("id") or p.get("player_id", "")
             line = name
+            if pid:
+                line += f" (id:{pid})"
             if p.get("ship_class"):
                 line += f" [{p['ship_class']}]"
             if p.get("clan_tag"):
@@ -196,7 +228,15 @@ def cmd_dock(api, args):
     if resp.get("error"):
         print(f"ERROR: {resp['error']}")
     else:
-        print("Docked.")
+        r = resp.get("result", {})
+        base_id = r.get("base_id") or r.get("base", {}).get("id", "")
+        base_name = r.get("base_name") or r.get("base", {}).get("name", "")
+        msg = "Docked"
+        if base_name:
+            msg += f" at {base_name}"
+        if base_id:
+            msg += f" ({base_id})"
+        print(f"{msg}.")
 
 
 def cmd_undock(api, args):
@@ -237,7 +277,14 @@ def cmd_repair(api, args):
 
 
 def cmd_chat(api, args):
-    resp = api._post("chat", {"channel": args.channel, "content": args.message})
+    body = {"channel": args.channel, "content": args.message}
+    target = getattr(args, "target", None)
+    if args.channel == "private":
+        if not target:
+            print("ERROR: private messages require a target player ID: sm chat private \"msg\" <player_id>")
+            return
+        body["target_id"] = target
+    resp = api._post("chat", body)
     if resp.get("error"):
         print(f"ERROR: {resp['error']}")
     else:
