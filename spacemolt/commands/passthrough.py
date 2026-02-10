@@ -4,7 +4,7 @@ import json
 __all__ = [
     "ENDPOINT_ARGS", "_parse_typed_value", "_arg_name",
     "cmd_passthrough", "cmd_commands", "cmd_raw",
-    "cmd_notes", "cmd_trades", "cmd_drones", "cmd_ships_list",
+    "cmd_notes", "cmd_trades", "cmd_drones", "cmd_ships",
     "cmd_chat_history", "cmd_faction_list", "cmd_faction_invites",
 ]
 
@@ -493,7 +493,7 @@ def _make_passthrough_alias(endpoint):
 cmd_notes = _make_passthrough_alias("get_notes")
 cmd_trades = _make_passthrough_alias("get_trades")
 cmd_drones = _make_passthrough_alias("get_drones")
-cmd_ships_list = _make_passthrough_alias("get_ships")
+cmd_ships = _make_passthrough_alias("get_ships")
 cmd_chat_history = _make_passthrough_alias("get_chat_history")
 cmd_faction_list = _make_passthrough_alias("faction_list")
 cmd_faction_invites = _make_passthrough_alias("faction_get_invites")

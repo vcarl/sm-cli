@@ -204,11 +204,8 @@ def cmd_sell_all(api, args):
         print("Nothing to sell (cargo empty or unreadable).")
         return
 
-    # Snapshot credits before selling to compute true total
-    status_resp = api._post("get_status")
-    credits_before = status_resp.get("result", {}).get("player", {}).get("credits")
-
     total = 0
+    sold_count = 0
     for item in items:
         item_id = item.get("item_id") or item.get("name") or item.get("id")
         qty = item.get("quantity", 1)
@@ -220,6 +217,7 @@ def cmd_sell_all(api, args):
             else:
                 r = result.get("result", {})
                 earned = _extract_earned(r)
+                sold_count += 1
                 if earned is not None:
                     print(f"  {item_id} x{qty}: sold (+{earned} cr)")
                     total += earned
@@ -227,18 +225,13 @@ def cmd_sell_all(api, args):
                     print(f"  {item_id} x{qty}: sold")
         except Exception as e:
             print(f"  {item_id} x{qty}: FAILED ({e})")
-        time.sleep(11)
+        if item is not items[-1]:
+            time.sleep(11)
 
-    # Use credit delta as the total if per-item parsing yielded nothing
-    if total == 0 and credits_before is not None:
-        status_after = api._post("get_status")
-        credits_after = status_after.get("result", {}).get("player", {}).get("credits")
-        if credits_after is not None:
-            delta = credits_after - credits_before
-            if delta > 0:
-                total = delta
-
-    print(f"Done. Total earned: {total} cr")
+    if total > 0:
+        print(f"Done. Total earned: {total} cr")
+    else:
+        print(f"Done. Sold {sold_count} item(s).")
 
 
 def cmd_buy(api, args):
@@ -274,6 +267,38 @@ def cmd_chat(api, args):
         notif = r.get("Notification", r)
         channel = notif.get("Channel") or notif.get("channel") or args.channel
         print(f"Sent to {channel}.")
+
+
+def cmd_wait(api, args):
+    """Block until the player is no longer in transit or performing an action."""
+    timeout = getattr(args, "timeout", 60)
+    elapsed = 0
+    interval = 3
+    while elapsed < timeout:
+        resp = api._post("get_status")
+        r = resp.get("result", {})
+        p = r.get("player", {})
+        s = r.get("ship", {})
+        # Check common transit/action indicators
+        in_transit = (
+            p.get("in_transit", False)
+            or p.get("is_traveling", False)
+            or s.get("in_transit", False)
+            or p.get("current_action") not in (None, "", "idle")
+        )
+        if not in_transit:
+            print("Ready.")
+            return
+        action = p.get("current_action") or "in transit"
+        eta = p.get("eta") or p.get("ticks_remaining") or s.get("eta")
+        msg = f"Waiting... ({action}"
+        if eta:
+            msg += f", ETA: {eta} ticks"
+        msg += ")"
+        print(msg, flush=True)
+        time.sleep(interval)
+        elapsed += interval
+    print(f"Timed out after {timeout}s.")
 
 
 def cmd_log(api, args):

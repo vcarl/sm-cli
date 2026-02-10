@@ -199,7 +199,7 @@ def cmd_query_skills(api, args):
         _do_skill_list(data["by_category"], data["player_map"], limit=limit, page=page)
 
 
-def cmd_skill_info(api, args):
+def cmd_skill(api, args):
     """Deep inspection of a single skill: prereqs, bonuses, XP table, unlocks."""
     as_json = getattr(args, "json", False)
     data, resp = _fetch_skill_data(api)
