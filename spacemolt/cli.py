@@ -16,56 +16,9 @@ def build_parser():
         description="sm — SpaceMolt CLI (zero-token game actions)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
-Info (no rate limit):
-  sm status                 Credits, location, ship, fuel
-  sm ship                   Detailed ship info + modules
-  sm pois                   POIs in current system
-  sm system                 System overview + connections
-  sm poi                    Current POI details + resources
-  sm base                   Docked base details + services
-  sm log                    Recent captain's log
-  sm cargo                  Cargo contents
-  sm skills                 Trained skills
-  sm nearby                 Nearby players
-  sm notifications          Pending notifications
-  sm listings               Market listings at current base
-  sm recipes                Crafting recipes (flat list)
-  sm query-recipes           Recipe progression by skill tier
-  sm query-recipes --search  Search recipes by name/item
-  sm query-recipes --trace   Full ingredient tree diagram
-  sm missions               Available missions at base
-  sm active-missions        Your active missions + progress
-  sm query-missions          Missions grouped by type
-  sm query-missions --search Search missions by name/type
-  sm query-missions --active Show active missions
-  sm query-skills            Compact skill list by category
-  sm query-skills --search   Search skills by name/bonus
-  sm query-skills --my       Your trained skills + progress
-  sm skill <skill-id>        Deep inspect: prereqs, bonuses, XP table
-  sm wrecks                 Wrecks at current location
-  sm commands               List all API endpoints
-
-Actions (1 per 10s tick):
-  sm log-add "text"         Add captain's log entry
-  sm sell <item> [qty]      Sell item from cargo (default qty: 1)
-  sm sell-all               Sell all cargo (auto-waits between items)
-  sm buy <item> [qty]       Buy item from NPC market (default qty: 1)
-  sm travel <poi-id>        Travel to POI
-  sm jump <system-id>       Jump to adjacent system
-  sm dock / sm undock       Dock or undock
-  sm mine                   Mine once
-  sm refuel / sm repair     Refuel or repair
-  sm chat <ch> "msg" [id]   Chat (private requires player ID)
-
-Passthrough (any API endpoint):
-  sm <endpoint> [args...]   Auto-maps args to API params
-  sm scan <player-id>       Example: positional arg
-  sm attack target_id=<id>  Example: key=value arg
-
-Flags:
-  sm <any-command> --json   Raw JSON output for any command
-
-Advanced:
+Tips:
+  sm <command> --json       Raw JSON output for any command
+  sm <cmd> key=value        Pass named args to any command
   sm raw <endpoint> [json]  Raw API call with JSON body""",
     )
 
@@ -205,7 +158,24 @@ Advanced:
     p_raw.add_argument("endpoint", help="API endpoint name")
     p_raw.add_argument("json_body", nargs="?", default=None, help="JSON body (optional)")
 
+    # Auto-register passthrough endpoints so they show in help
+    _register_passthrough_subparsers(sub)
+
     return parser
+
+
+def _register_passthrough_subparsers(sub):
+    """Register ENDPOINT_ARGS entries as subparsers for discoverability."""
+    existing = set(sub.choices.keys()) if sub.choices else set()
+
+    for endpoint, specs in sorted(commands.ENDPOINT_ARGS.items()):
+        cmd_name = endpoint.replace("_", "-")
+        if cmd_name in existing:
+            continue
+        arg_names = [commands._arg_name(s) for s in specs]
+        help_str = " ".join(f"<{a}>" for a in arg_names) if arg_names else "(no args)"
+        p = sub.add_parser(cmd_name, help=help_str)
+        p.add_argument("extra", nargs="*", help="Positional or key=value args")
 
 
 COMMAND_MAP = {
@@ -297,15 +267,21 @@ def main():
     args.json = json_flag
 
     handler = COMMAND_MAP.get(args.command)
-    if not handler:
-        print(f"ERROR: Unknown command: {args.command}", file=sys.stderr)
-        sys.exit(1)
-
-    try:
-        handler(api, args)
-    except APIError as e:
-        print(f"ERROR: {e}", file=sys.stderr)
-        sys.exit(1)
+    if handler:
+        try:
+            handler(api, args)
+        except APIError as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        # Auto-registered passthrough endpoint
+        endpoint = args.command.replace("-", "_")
+        extra_args = getattr(args, "extra", [])
+        try:
+            commands.cmd_passthrough(api, endpoint, extra_args, as_json=json_flag)
+        except APIError as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            sys.exit(1)
 
 
 if __name__ == "__main__":
