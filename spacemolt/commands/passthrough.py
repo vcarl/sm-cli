@@ -13,17 +13,17 @@ ENDPOINT_ARGS = {
     "jump": ["target_system"],
     "buy": ["item_id", "quantity:int"],
     "scan": ["target_id"],
-    "attack": ["target_id"],
+    "attack": ["target_id", "weapon_idx:int"],
     "travel": ["target_poi"],
     "chat": ["channel", "content", "target_id"],
     "craft": ["recipe_id"],
     "forum_reply": ["thread_id", "content"],
     "forum_get_thread": ["thread_id"],
-    "forum_create_thread": ["title", "content"],
+    "forum_create_thread": ["title", "content", "category"],
     "sell": ["item_id", "quantity:int"],
     "loot_wreck": ["wreck_id", "item_id", "quantity:int"],
     "salvage_wreck": ["wreck_id"],
-    "install_mod": ["module_id"],
+    "install_mod": ["module_id", "slot_idx:int"],
     "uninstall_mod": ["module_id"],
     "buy_ship": ["ship_class"],
     "find_route": ["target_system"],
@@ -46,18 +46,64 @@ ENDPOINT_ARGS = {
     "join_faction": ["faction_id"],
     "faction_decline_invite": ["faction_id"],
     "create_faction": ["name", "tag"],
-    "set_home_base": ["base_id"],
+    "set_home_base": [],
     "set_colors": ["primary_color", "secondary_color"],
     "set_status": ["status_message", "clan_tag"],
     "trade_offer": ["target_id"],
     "trade_accept": ["trade_id"],
     "trade_decline": ["trade_id"],
     "trade_cancel": ["trade_id"],
-    "buy_insurance": ["ticks:int"],
+    "buy_insurance": ["coverage_percent:int"],
     "forum_upvote": ["thread_id", "reply_id"],
     "forum_delete_thread": ["thread_id"],
     "forum_delete_reply": ["reply_id"],
-    "forum_list": ["page:int"],
+    "forum_list": ["page:int", "category"],
+    # combat
+    "cloak": ["enable:bool"],
+    "self_destruct": [],
+    # market orders
+    "create_sell_order": ["item_id", "quantity:int", "price_each:int"],
+    "create_buy_order": ["item_id", "quantity:int", "price_each:int"],
+    "cancel_order": ["order_id"],
+    "modify_order": ["order_id", "new_price:int"],
+    "view_market": ["item_id"],
+    "estimate_purchase": ["item_id", "quantity:int"],
+    # wrecks
+    "jettison": ["item_id", "quantity:int"],
+    # ships
+    "sell_ship": ["ship_id"],
+    "switch_ship": ["ship_id"],
+    # missions
+    "accept_mission": ["mission_id"],
+    "complete_mission": ["mission_id"],
+    "abandon_mission": ["mission_id"],
+    # notes
+    "create_note": ["title", "content"],
+    "write_note": ["note_id", "content"],
+    "read_note": ["note_id"],
+    # base building/raiding
+    "build_base": ["name", "description"],
+    "attack_base": ["base_id"],
+    "loot_base_wreck": ["wreck_id", "item_id", "quantity:int"],
+    "salvage_base_wreck": ["wreck_id"],
+    # drones
+    "deploy_drone": ["drone_item_id", "target_id"],
+    "recall_drone": ["drone_id"],
+    "order_drone": ["command", "target_id"],
+    # storage
+    "deposit_items": ["item_id", "quantity:int"],
+    "withdraw_items": ["item_id", "quantity:int"],
+    "deposit_credits": ["amount:int"],
+    "withdraw_credits": ["amount:int"],
+    "send_gift": ["recipient", "item_id", "quantity:int"],
+    # chat
+    "get_chat_history": ["channel", "limit:int"],
+    # insurance
+    "claim_insurance": [],
+    # faction
+    "leave_faction": [],
+    # misc
+    "logout": [],
 }
 
 
