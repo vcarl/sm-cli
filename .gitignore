@@ -1,5 +1,5 @@
 __pycache__/
 *.pyc
 *.pyo
-/me/credentials.txt
+*credentials.txt
 /tmp/
