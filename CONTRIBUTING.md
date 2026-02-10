@@ -100,7 +100,8 @@ For commands that call the API multiple times (like `sell-all`), just write the 
 ## Running tests
 
 ```bash
-python3 -m unittest client.tests.test_cli -v
+# From the client/ directory:
+python3 -m unittest tests.test_cli -v
 ```
 
 Tests mock `api._post()` so they never hit the network. Use `mock_api(response_dict)` to set the return value and `make_args(key=val)` to build an argparse-like namespace.

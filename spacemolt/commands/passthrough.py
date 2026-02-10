@@ -49,6 +49,7 @@ ENDPOINT_ARGS = {
     "set_home_base": [],
     "set_colors": ["primary_color", "secondary_color"],
     "set_status": ["status_message", "clan_tag"],
+    "get_trades": [],
     "trade_offer": ["target_id"],
     "trade_accept": ["trade_id"],
     "trade_decline": ["trade_id"],
@@ -71,6 +72,8 @@ ENDPOINT_ARGS = {
     # wrecks
     "jettison": ["item_id", "quantity:int"],
     # ships
+    "get_ships": [],
+    "list_ships": [],
     "sell_ship": ["ship_id"],
     "switch_ship": ["ship_id"],
     # missions
@@ -87,6 +90,7 @@ ENDPOINT_ARGS = {
     "loot_base_wreck": ["wreck_id", "item_id", "quantity:int"],
     "salvage_base_wreck": ["wreck_id"],
     # drones
+    "get_drones": [],
     "deploy_drone": ["drone_item_id", "target_id"],
     "recall_drone": ["drone_id"],
     "order_drone": ["command", "target_id"],
@@ -97,7 +101,7 @@ ENDPOINT_ARGS = {
     "withdraw_credits": ["amount:int"],
     "send_gift": ["recipient", "item_id", "quantity:int"],
     # chat
-    "get_chat_history": ["channel", "limit:int"],
+    "get_chat_history": ["channel", "limit:int", "target_id"],
     # insurance
     "claim_insurance": [],
     # faction
