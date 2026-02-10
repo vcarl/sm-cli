@@ -171,8 +171,8 @@ Tips:
     # chat
     p_chat = sub.add_parser("chat", help="Send chat message")
     p_chat.add_argument("channel", help="Chat channel (system/local/faction/private)")
-    p_chat.add_argument("message", help="Message to send")
-    p_chat.add_argument("target", nargs="?", default=None, help="Player ID for private messages (required when channel=private)")
+    p_chat.add_argument("target_or_message", help="Player ID (for private) or message (for other channels)")
+    p_chat.add_argument("message", nargs="?", default=None, help="Message to send (required for private channel)")
 
     # raw
     p_raw = sub.add_parser("raw", help="Raw API call (always outputs JSON)")

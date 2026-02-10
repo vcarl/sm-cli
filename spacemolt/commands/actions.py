@@ -251,12 +251,19 @@ def cmd_buy(api, args):
 
 
 def cmd_chat(api, args):
-    body = {"channel": args.channel, "content": args.message}
-    target = getattr(args, "target", None)
+    first = getattr(args, "target_or_message", "")
+    second = getattr(args, "message", None)
     if args.channel == "private":
-        if not target:
-            print("ERROR: private messages require a target player ID: sm chat private \"msg\" <player_id>")
+        if not second:
+            print("ERROR: private messages require a target player ID: sm chat private <player_id> \"msg\"")
             return
+        target = first
+        message = second
+    else:
+        # Non-private: first arg is the message, second is ignored
+        message = first
+    body = {"channel": args.channel, "content": message}
+    if args.channel == "private":
         body["target_id"] = target
     resp = api._post("chat", body)
     if resp.get("error"):

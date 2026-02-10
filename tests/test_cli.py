@@ -236,13 +236,14 @@ class TestBuildParser(unittest.TestCase):
     def test_chat(self):
         args = self.parser.parse_args(["chat", "local", "hello world"])
         self.assertEqual(args.channel, "local")
-        self.assertEqual(args.message, "hello world")
-        self.assertIsNone(args.target)
+        self.assertEqual(args.target_or_message, "hello world")
+        self.assertIsNone(args.message)
 
     def test_chat_private(self):
-        args = self.parser.parse_args(["chat", "private", "hi", "player-123"])
+        args = self.parser.parse_args(["chat", "private", "player-123", "hi"])
         self.assertEqual(args.channel, "private")
-        self.assertEqual(args.target, "player-123")
+        self.assertEqual(args.target_or_message, "player-123")
+        self.assertEqual(args.message, "hi")
 
     def test_log_brief(self):
         args = self.parser.parse_args(["log", "--brief"])
