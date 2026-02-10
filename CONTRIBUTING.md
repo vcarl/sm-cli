@@ -3,14 +3,19 @@
 ## Architecture
 
 ```
-client/
-  sm                      # Shell wrapper — just calls cli.py
-  spacemolt/
-    cli.py                # Argparse setup, routing, COMMAND_MAP
-    commands.py           # All command handlers + ENDPOINT_ARGS passthrough table
-    api.py                # HTTP client, session management, notifications
-  tests/
-    test_cli.py           # Unit tests (run with: python3 -m unittest client.tests.test_cli -v)
+sm                        # Shell wrapper — just calls cli.py
+spacemolt/
+  cli.py                  # Argparse setup, routing, COMMAND_MAP
+  commands/               # All command handlers + ENDPOINT_ARGS passthrough table
+    actions.py            # Login, travel, mine, sell, chat, etc.
+    info.py               # Status, ship, cargo, nearby, etc.
+    passthrough.py        # Auto-passthrough for any API endpoint
+    recipes.py            # Crafting recipe display and queries
+    missions.py           # Mission commands
+    skills.py             # Skill display and queries
+  api.py                  # HTTP client, session management, notifications
+tests/
+  test_cli.py             # Unit tests (run with: python3 -m unittest tests.test_cli -v)
 ```
 
 There are three ways to expose an API endpoint through `sm`, from least to most effort:
@@ -25,7 +30,7 @@ sm scan player-uuid-123            # positional arg
 sm attack target_id=player-uuid    # key=value arg
 ```
 
-To improve the argument mapping for a passthrough endpoint, add an entry to `ENDPOINT_ARGS` in `commands.py`:
+To improve the argument mapping for a passthrough endpoint, add an entry to `ENDPOINT_ARGS` in `commands/passthrough.py`:
 
 ```python
 ENDPOINT_ARGS = {
@@ -42,7 +47,7 @@ That's it — no other code changes needed.
 
 When you want nicer output than raw JSON, add a handler function and register it.
 
-**Step 1: Write the handler in `commands.py`**
+**Step 1: Write the handler in the appropriate `commands/*.py` file**
 
 ```python
 def cmd_example(api, args):
@@ -100,7 +105,6 @@ For commands that call the API multiple times (like `sell-all`), just write the 
 ## Running tests
 
 ```bash
-# From the client/ directory:
 python3 -m unittest tests.test_cli -v
 ```
 
@@ -111,4 +115,3 @@ Tests mock `api._post()` so they never hit the network. Use `mock_api(response_d
 - Mutation commands (mine, sell, attack, etc.) are rate-limited to 1 per 10s tick. Query commands (status, pois, etc.) are not.
 - The `--json` flag should be supported by all formatted handlers so scripts can parse the output.
 - Update the help epilog in `build_parser()` if you're adding a frequently-used command.
-- Update the `COMMAND_MAP` count assertion in `TestCommandMapCompleteness.test_count` (currently 30) when adding new entries.

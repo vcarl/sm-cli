@@ -33,8 +33,7 @@ section "NOTES";            $SM get-notes 2>&1;                d
 section "FACTIONS";         $SM faction-list 2>&1;             d
 section "CHAT (local)";     $SM get-chat-history local 2>&1;   d
 section "CHAT (system)";    $SM get-chat-history system 2>&1;  d
-section "RECIPES";          $SM query-recipes 2>&1;            d
-section "VERSION";          $SM get-version 2>&1;
+section "RECIPES";          $SM query-recipes 2>&1;
 
 echo ""
 echo "Done."
