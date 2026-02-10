@@ -47,10 +47,11 @@ Info (no rate limit):
 
 Actions (1 per 10s tick):
   sm log-add "text"         Add captain's log entry
+  sm sell <item> [qty]      Sell item from cargo (default qty: 1)
   sm sell-all               Sell all cargo (auto-waits between items)
+  sm buy <item> [qty]       Buy item from NPC market (default qty: 1)
   sm travel <poi-id>        Travel to POI
   sm jump <system-id>       Jump to adjacent system
-  sm buy <item> <qty>       Buy item from NPC market
   sm dock / sm undock       Dock or undock
   sm mine                   Mine once
   sm refuel / sm repair     Refuel or repair
