@@ -38,10 +38,10 @@ Info (no rate limit):
   sm query-missions          Missions grouped by type
   sm query-missions --search Search missions by name/type
   sm query-missions --active Show active missions
-  sm query-skills            Skill tree by category + prereqs
+  sm query-skills            Compact skill list by category
   sm query-skills --search   Search skills by name/bonus
-  sm query-skills --trace    Prerequisite tree for a skill
   sm query-skills --my       Your trained skills + progress
+  sm skill <skill-id>        Deep inspect: prereqs, bonuses, XP table
   sm wrecks                 Wrecks at current location
   sm commands               List all API endpoints
 
@@ -180,13 +180,15 @@ Advanced:
                        help="Show active missions instead of available ones")
 
     # query-skills
-    p_qs = sub.add_parser("query-skills", help="Skill tree explorer: progression, search, trace")
-    p_qs.add_argument("--trace", metavar="SKILL",
-                       help="Trace full prerequisite tree for a skill")
+    p_qs = sub.add_parser("query-skills", help="Compact skill list by category")
     p_qs.add_argument("--search", metavar="QUERY",
                        help="Search skills by name, category, or bonus")
     p_qs.add_argument("--my", action="store_true",
                        help="Show only your trained skills with progress bars")
+
+    # skill (deep inspect)
+    p_si = sub.add_parser("skill", help="Deep inspect a skill: prereqs, bonuses, XP table, unlocks")
+    p_si.add_argument("skill_id", help="Skill ID or name (fuzzy matched)")
 
     # commands
     sub.add_parser("commands", help="List all API endpoints")
@@ -237,6 +239,7 @@ COMMAND_MAP = {
     "active-missions": commands.cmd_active_missions,
     "query-missions": commands.cmd_query_missions,
     "query-skills": commands.cmd_query_skills,
+    "skill": commands.cmd_skill_info,
     "commands": commands.cmd_commands,
     "chat": commands.cmd_chat,
     "raw": commands.cmd_raw,
