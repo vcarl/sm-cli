@@ -124,6 +124,8 @@ def cmd_query_missions(api, args):
     as_json = getattr(args, "json", False)
     active = getattr(args, "active", False)
     search_query = getattr(args, "search", None)
+    limit = getattr(args, "limit", 10)
+    page = getattr(args, "page", 1)
 
     if active:
         # Delegate to active missions view
@@ -155,52 +157,55 @@ def cmd_query_missions(api, args):
             return
         print(f"Found {len(missions)} mission(s) matching '{search_query}':\n")
 
-    # Group by type
-    from collections import defaultdict
-    by_type = defaultdict(list)
-    for m in missions:
-        by_type[m.get("type", "Other")].append(m)
+    # Sort all missions by type, difficulty, reward
+    missions.sort(key=lambda m: (
+        m.get("type", "Other"),
+        m.get("difficulty", 0) if isinstance(m.get("difficulty"), (int, float)) else 0,
+        -(m.get("reward_credits", 0) or 0),
+    ))
 
-    for mtype in sorted(by_type):
-        print(f"\n{'═' * 50}")
-        print(f"  {mtype.upper()}")
-        print(f"{'═' * 50}")
+    from spacemolt.commands import paginate, print_page_footer
+    page_missions, total, total_pages, page = paginate(missions, limit, page)
 
-        # Sort by difficulty then reward
-        sorted_missions = sorted(
-            by_type[mtype],
-            key=lambda m: (m.get("difficulty", 0) if isinstance(m.get("difficulty"), (int, float)) else 0,
-                           -(m.get("reward_credits", 0) or 0))
-        )
-        for m in sorted_missions:
-            title = m.get("title") or m.get("name", "?")
-            mid = m.get("id", "")
-            diff = m.get("difficulty", "")
-            reward_cr = m.get("reward_credits") or m.get("credits", 0)
-            dist = m.get("distance")
+    prev_type = None
+    for m in page_missions:
+        mtype = m.get("type", "Other")
+        if mtype != prev_type:
+            print(f"\n{'═' * 50}")
+            print(f"  {mtype.upper()}")
+            print(f"{'═' * 50}")
+            prev_type = mtype
 
-            diff_str = f"  [diff: {diff}]" if diff else ""
-            reward_str = f"  {reward_cr} cr" if reward_cr else ""
-            dist_str = f"  ({dist} jumps)" if dist is not None else ""
+        title = m.get("title") or m.get("name", "?")
+        mid = m.get("id", "")
+        diff = m.get("difficulty", "")
+        reward_cr = m.get("reward_credits") or m.get("credits", 0)
+        dist = m.get("distance")
 
-            print(f"    {title}{diff_str}{reward_str}{dist_str}")
+        diff_str = f"  [diff: {diff}]" if diff else ""
+        reward_str = f"  {reward_cr} cr" if reward_cr else ""
+        dist_str = f"  ({dist} jumps)" if dist is not None else ""
 
-            desc = m.get("description", "")
-            if desc:
-                # Truncate long descriptions
-                if len(desc) > 80:
-                    desc = desc[:77] + "..."
-                print(f"      {desc}")
+        print(f"    {title}{diff_str}{reward_str}{dist_str}")
 
-            reward_items = m.get("reward_items") or []
-            if reward_items:
-                parts = []
-                for ri in reward_items:
-                    if isinstance(ri, dict):
-                        parts.append(f"{ri.get('item_id', '?')} x{ri.get('quantity', 1)}")
-                    else:
-                        parts.append(str(ri))
-                print(f"      + items: {', '.join(parts)}")
+        desc = m.get("description", "")
+        if desc:
+            # Truncate long descriptions
+            if len(desc) > 80:
+                desc = desc[:77] + "..."
+            print(f"      {desc}")
 
-            if mid:
-                print(f"      id: {mid}")
+        reward_items = m.get("reward_items") or []
+        if reward_items:
+            parts = []
+            for ri in reward_items:
+                if isinstance(ri, dict):
+                    parts.append(f"{ri.get('item_id', '?')} x{ri.get('quantity', 1)}")
+                else:
+                    parts.append(str(ri))
+            print(f"      + items: {', '.join(parts)}")
+
+        if mid:
+            print(f"      id: {mid}")
+
+    print_page_footer(total, total_pages, page, limit)

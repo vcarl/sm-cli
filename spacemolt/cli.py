@@ -112,7 +112,11 @@ Tips:
     sub.add_parser("listings", help="Market listings at current base")
 
     # recipes
-    sub.add_parser("recipes", help="Crafting recipes")
+    p_rec = sub.add_parser("recipes", help="Crafting recipes")
+    p_rec.add_argument("--limit", type=int, default=10, metavar="N",
+                       help="Max items per page (default: 10)")
+    p_rec.add_argument("--page", type=int, default=1, metavar="N",
+                       help="Page number (default: 1)")
 
     # query-recipes
     p_qr = sub.add_parser("query-recipes", help="Recipe progression, search, and ingredient trees")
@@ -120,6 +124,10 @@ Tips:
                        help="Trace full ingredient tree for an item or recipe")
     p_qr.add_argument("--search", metavar="QUERY",
                        help="Search recipes by name, item, or category")
+    p_qr.add_argument("--limit", type=int, default=10, metavar="N",
+                       help="Max items per page (default: 10)")
+    p_qr.add_argument("--page", type=int, default=1, metavar="N",
+                       help="Page number (default: 1)")
 
     # missions
     sub.add_parser("missions", help="Available missions at current base")
@@ -133,6 +141,10 @@ Tips:
                        help="Search missions by name, type, or description")
     p_qm.add_argument("--active", action="store_true",
                        help="Show active missions instead of available ones")
+    p_qm.add_argument("--limit", type=int, default=10, metavar="N",
+                       help="Max items per page (default: 10)")
+    p_qm.add_argument("--page", type=int, default=1, metavar="N",
+                       help="Page number (default: 1)")
 
     # query-skills
     p_qs = sub.add_parser("query-skills", help="Compact skill list by category")
@@ -140,6 +152,10 @@ Tips:
                        help="Search skills by name, category, or bonus")
     p_qs.add_argument("--my", action="store_true",
                        help="Show only your trained skills with progress bars")
+    p_qs.add_argument("--limit", type=int, default=10, metavar="N",
+                       help="Max items per page (default: 10)")
+    p_qs.add_argument("--page", type=int, default=1, metavar="N",
+                       help="Page number (default: 1)")
 
     # skill (deep inspect)
     p_si = sub.add_parser("skill", help="Deep inspect a skill: prereqs, bonuses, XP table, unlocks")
@@ -158,6 +174,18 @@ Tips:
     p_raw = sub.add_parser("raw", help="Raw API call")
     p_raw.add_argument("endpoint", help="API endpoint name")
     p_raw.add_argument("json_body", nargs="?", default=None, help="JSON body (optional)")
+
+    # Friendly aliases for common queries
+    for alias, help_text in [("notes", "List your notes"),
+                              ("trades", "List pending trades"),
+                              ("drones", "List active drones"),
+                              ("ships", "List owned ships"),
+                              ("faction-list", "List all factions"),
+                              ("faction-invites", "Pending faction invites")]:
+        p = sub.add_parser(alias, help=help_text)
+        p.add_argument("extra", nargs="*")
+    p_ch_hist = sub.add_parser("chat-history", help="Chat message history")
+    p_ch_hist.add_argument("extra", nargs="*", help="[channel] [limit] [target_id]")
 
     # Auto-register passthrough endpoints so they show in help
     _register_passthrough_subparsers(sub)
@@ -215,6 +243,13 @@ COMMAND_MAP = {
     "commands": commands.cmd_commands,
     "chat": commands.cmd_chat,
     "raw": commands.cmd_raw,
+    "chat-history": commands.cmd_chat_history,
+    "notes": commands.cmd_notes,
+    "trades": commands.cmd_trades,
+    "drones": commands.cmd_drones,
+    "ships": commands.cmd_ships_list,
+    "faction-list": commands.cmd_faction_list,
+    "faction-invites": commands.cmd_faction_invites,
 }
 
 

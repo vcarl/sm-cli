@@ -10,18 +10,24 @@ __all__ = [
 
 
 def cmd_recipes(api, args):
+    from spacemolt.commands import paginate, print_page_footer
+
     as_json = getattr(args, "json", False)
     resp = api._post("get_recipes")
     if as_json:
         print(json.dumps(resp, indent=2))
         return
     r = resp.get("result", {})
-    recipes = r.get("recipes", [])
+    recipes = r.get("recipes", {})
     if not recipes:
         print("No recipes available.")
         return
 
-    for rec in recipes:
+    all_recipes = list(recipes.values()) if isinstance(recipes, dict) else list(recipes)
+    limit = getattr(args, "limit", 10)
+    page = getattr(args, "page", 1)
+    page_recipes, total, total_pages, page = paginate(all_recipes, limit, page)
+    for rec in page_recipes:
         name = rec.get("name") or rec.get("recipe_id", "?")
         rid = rec.get("id") or rec.get("recipe_id", "")
         print(f"\n{name}" + (f" (id:{rid})" if rid and rid != name else ""))
@@ -66,6 +72,8 @@ def cmd_recipes(api, args):
                 else:
                     parts.append(str(req))
             print(f"  Requires: {', '.join(parts)}")
+
+    print_page_footer(total, total_pages, page, limit)
 
 
 # --- Recipe query / progression diagram ---
@@ -195,66 +203,70 @@ def cmd_query_recipes(api, args):
 
     trace_target = getattr(args, "trace", None)
     search_query = getattr(args, "search", None)
+    limit = getattr(args, "limit", 10)
+    page = getattr(args, "page", 1)
 
     if trace_target:
         _do_trace(trace_target, by_output, recipe_list)
     elif search_query:
-        _do_search(search_query, recipe_list)
+        _do_search(search_query, recipe_list, limit=limit, page=page)
     else:
-        _do_progression(recipe_list, by_output)
+        _do_progression(recipe_list, by_output, limit=limit, page=page)
 
 
-def _do_progression(recipe_list, by_output):
+def _do_progression(recipe_list, by_output, limit=10, page=1):
     """Show recipes grouped by skill tier, with flow arrows."""
-    from collections import defaultdict
+    from spacemolt.commands import paginate, print_page_footer
 
-    # Group by skill tier
-    tiers = defaultdict(list)
+    # Flatten into a sorted list of (tier_sort_key, tier_label, category, recipe)
+    entries = []
     for r in recipe_list:
-        _, label = _recipe_skill_tier(r)
-        tier_key = label or "No requirements"
-        tiers[tier_key].append(r)
+        tier_lvl, tier_label = _recipe_skill_tier(r)
+        tier_key = tier_label or "No requirements"
+        cat = r.get("category", "Other")
+        entries.append((tier_lvl, tier_key, cat, r))
 
-    # Sort tiers by max level
-    def tier_sort_key(item):
-        key, recipes = item
-        if key == "No requirements":
-            return (0, "")
-        return _recipe_skill_tier(recipes[0])
+    entries.sort(key=lambda e: (e[0], e[1], e[2], e[3].get("name", "")))
 
-    for tier_key, recipes in sorted(tiers.items(), key=tier_sort_key):
-        print(f"\n{'═' * 60}")
-        print(f"  {tier_key}" if tier_key != "No requirements" else "  No skill requirements")
-        print(f"{'═' * 60}")
+    page_entries, total, total_pages, page = paginate(entries, limit, page)
 
-        # Sub-group by category
-        by_cat = defaultdict(list)
-        for r in recipes:
-            by_cat[r.get("category", "Other")].append(r)
+    prev_tier = None
+    prev_cat = None
+    for tier_lvl, tier_key, cat, r in page_entries:
+        if tier_key != prev_tier:
+            print(f"\n{'═' * 60}")
+            print(f"  {tier_key}" if tier_key != "No requirements" else "  No skill requirements")
+            print(f"{'═' * 60}")
+            prev_tier = tier_key
+            prev_cat = None
 
-        for cat in sorted(by_cat):
+        if cat != prev_cat:
             print(f"\n  [{cat}]")
-            for r in sorted(by_cat[cat], key=lambda x: x.get("name", "")):
-                name = r.get("name", "?")
-                rid = r.get("id", "")
-                flow = _recipe_one_line(r)
-                crafted_inputs = [
-                    i["item_id"] for i in r.get("inputs", [])
-                    if i.get("item_id") in by_output
-                ]
-                chain_marker = " \u25c6" if crafted_inputs else ""
-                print(f"    {name}{chain_marker}")
-                print(f"      {flow}")
-                if rid:
-                    print(f"      id: {rid}")
+            prev_cat = cat
+
+        name = r.get("name", "?")
+        rid = r.get("id", "")
+        flow = _recipe_one_line(r)
+        crafted_inputs = [
+            i["item_id"] for i in r.get("inputs", [])
+            if i.get("item_id") in by_output
+        ]
+        chain_marker = " \u25c6" if crafted_inputs else ""
+        print(f"    {name}{chain_marker}")
+        print(f"      {flow}")
+        if rid:
+            print(f"      id: {rid}")
 
     # Legend
     print(f"\n{'─' * 60}")
     print("  \u25c6 = has crafted ingredients (use --trace to expand)")
+    print_page_footer(total, total_pages, page, limit)
 
 
-def _do_search(query, recipe_list):
+def _do_search(query, recipe_list, limit=10, page=1):
     """Filter recipes by name, id, or item_id."""
+    from spacemolt.commands import paginate, print_page_footer
+
     q = query.lower()
     matches = []
     for r in recipe_list:
@@ -272,8 +284,11 @@ def _do_search(query, recipe_list):
         print(f"No recipes matching '{query}'.")
         return
 
-    print(f"Found {len(matches)} recipe(s) matching '{query}':\n")
-    for r in sorted(matches, key=lambda x: x.get("name", "")):
+    matches.sort(key=lambda x: x.get("name", ""))
+    page_matches, total, total_pages, page = paginate(matches, limit, page)
+
+    print(f"Found {total} recipe(s) matching '{query}':\n")
+    for r in page_matches:
         name = r.get("name", "?")
         rid = r.get("id", "")
         skills = r.get("required_skills", {})
@@ -285,6 +300,7 @@ def _do_search(query, recipe_list):
         if rid:
             print(f"    id: {rid}")
         print()
+    print_page_footer(total, total_pages, page, limit)
 
 
 def _do_trace(query, by_output, recipe_list):

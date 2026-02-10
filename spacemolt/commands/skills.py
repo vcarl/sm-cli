@@ -187,14 +187,16 @@ def cmd_query_skills(api, args):
 
     search_query = getattr(args, "search", None)
     show_my = getattr(args, "my", False)
+    limit = getattr(args, "limit", 10)
+    page = getattr(args, "page", 1)
 
     if search_query:
-        _do_skill_search(search_query, data["skills_dict"], data["player_map"])
+        _do_skill_search(search_query, data["skills_dict"], data["player_map"], limit=limit, page=page)
     elif show_my:
         player_skills = resp.get("result", {}).get("player_skills", [])
-        _do_my_skills(player_skills, data["by_id"], data["dependents"])
+        _do_my_skills(player_skills, data["by_id"], data["dependents"], limit=limit, page=page)
     else:
-        _do_skill_list(data["by_category"], data["player_map"])
+        _do_skill_list(data["by_category"], data["player_map"], limit=limit, page=page)
 
 
 def cmd_skill_info(api, args):
@@ -211,35 +213,57 @@ def cmd_skill_info(api, args):
     _do_skill_trace(args.skill_id, data["by_id"], data["player_map"])
 
 
-def _do_skill_list(by_category, player_map):
+def _do_skill_list(by_category, player_map, limit=10, page=1):
     """Compact one-line-per-skill list grouped by category."""
+    from spacemolt.commands import paginate, print_page_footer
+
+    # Flatten into sorted list of (category, tier_key, skill)
+    entries = []
     for cat in sorted(by_category):
+        for s in sorted(by_category[cat], key=lambda x: _skill_tier(x)):
+            entries.append((cat, s))
+
+    page_entries, total, total_pages, page = paginate(entries, limit, page)
+
+    prev_cat = None
+    # Count trained per category across ALL skills (not just current page)
+    cat_trained = {}
+    cat_total = {}
+    for cat in by_category:
         skills = by_category[cat]
-        trained_count = sum(1 for s in skills if s.get("id", "") in player_map)
-        print(f"\n{cat.upper()} ({trained_count}/{len(skills)} trained)")
+        cat_total[cat] = len(skills)
+        cat_trained[cat] = sum(1 for s in skills if s.get("id", "") in player_map)
 
-        for s in sorted(skills, key=lambda x: _skill_tier(x)):
-            sid = s.get("id", "?")
-            name = s.get("name", "?")
-            max_lvl = s.get("max_level", "?")
+    for cat, s in page_entries:
+        if cat != prev_cat:
+            print(f"\n{cat.upper()} ({cat_trained.get(cat, 0)}/{cat_total.get(cat, 0)} trained)")
+            prev_cat = cat
 
-            if sid in player_map:
-                ps = player_map[sid]
-                lvl = ps.get("level", 0)
-                xp = ps.get("current_xp", 0)
-                next_xp = ps.get("next_level_xp", "?")
-                print(f"  {name:<28s} L{lvl}/{max_lvl}  ({xp}/{next_xp} XP)")
+        sid = s.get("id", "?")
+        name = s.get("name", "?")
+        max_lvl = s.get("max_level", "?")
+
+        if sid in player_map:
+            ps = player_map[sid]
+            lvl = ps.get("level", 0)
+            xp = ps.get("current_xp", 0)
+            next_xp = ps.get("next_level_xp", "?")
+            print(f"  {name:<28s} L{lvl}/{max_lvl}  ({xp}/{next_xp} XP)")
+        else:
+            reqs = s.get("required_skills") or {}
+            if reqs:
+                req_str = ", ".join(f"{r} L{l}" for r, l in sorted(reqs.items()))
+                print(f"  {name:<28s} --/{max_lvl}  needs: {req_str}")
             else:
-                reqs = s.get("required_skills") or {}
-                if reqs:
-                    req_str = ", ".join(f"{r} L{l}" for r, l in sorted(reqs.items()))
-                    print(f"  {name:<28s} --/{max_lvl}  needs: {req_str}")
-                else:
-                    print(f"  {name:<28s} --/{max_lvl}")
+                print(f"  {name:<28s} --/{max_lvl}")
+
+    print_page_footer(total, total_pages, page, limit)
 
 
-def _do_skill_search(query, skills_dict, player_map):
+def _do_skill_search(query, skills_dict, player_map, limit=10, page=1):
     """Search skills by name, description, category, or bonus."""
+    from spacemolt.commands import paginate, print_page_footer
+
     q = query.lower()
     matches = []
     for sid, s in skills_dict.items():
@@ -257,8 +281,11 @@ def _do_skill_search(query, skills_dict, player_map):
         print(f"No skills matching '{query}'.")
         return
 
-    print(f"Found {len(matches)} skill(s) matching '{query}':\n")
-    for s in sorted(matches, key=lambda x: (x.get("category", ""), x.get("name", ""))):
+    matches.sort(key=lambda x: (x.get("category", ""), x.get("name", "")))
+    page_matches, total, total_pages, page = paginate(matches, limit, page)
+
+    print(f"Found {total} skill(s) matching '{query}':\n")
+    for s in page_matches:
         sid = s.get("id", "?")
         name = s.get("name", "?")
         cat = s.get("category", "?")
@@ -288,6 +315,7 @@ def _do_skill_search(query, skills_dict, player_map):
 
         print(f"    id: {sid}")
         print()
+    print_page_footer(total, total_pages, page, limit)
 
 
 def _do_skill_trace(query, by_id, player_map):
@@ -353,16 +381,19 @@ def _do_skill_trace(query, by_id, player_map):
             print(f"  L{lvl}: {xp} XP{marker}")
 
 
-def _do_my_skills(player_skills, by_id, dependents):
+def _do_my_skills(player_skills, by_id, dependents, limit=10, page=1):
     """Show only trained skills with progress and next unlocks."""
+    from spacemolt.commands import paginate, print_page_footer
+
     if not player_skills:
         print("No skills trained yet. Start mining, trading, or fighting to gain XP!")
         return
 
     sorted_skills = sorted(player_skills, key=lambda s: (-s.get("level", 0), -s.get("current_xp", 0)))
-    print(f"Trained skills ({len(sorted_skills)}):\n")
+    page_skills, total, total_pages, page = paginate(sorted_skills, limit, page)
+    print(f"Trained skills ({total}):\n")
 
-    for ps in sorted_skills:
+    for ps in page_skills:
         sid = ps.get("skill_id") or ps.get("id", "?")
         name = ps.get("name", sid)
         lvl = ps.get("level", 0)
@@ -388,3 +419,4 @@ def _do_my_skills(player_skills, by_id, dependents):
                 next_unlocks.append(f"{dep.get('name', '?')} @L{req_lvl}")
         if next_unlocks:
             print(f"    \u2192 next unlocks: {', '.join(next_unlocks)}")
+    print_page_footer(total, total_pages, page, limit)
