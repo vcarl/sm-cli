@@ -10,6 +10,14 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 _players = {}
 
 
+def _normalize_endpoint(endpoint):
+    """Normalize endpoint names: strip path prefixes, canonicalize aliases."""
+    # Strip path prefixes like /game/ or /api/v1/
+    if "/" in endpoint:
+        endpoint = endpoint.rsplit("/", 1)[-1]
+    return endpoint
+
+
 def _resolve_player(session_prefix):
     """Try to resolve a session prefix to a player name via the game API."""
     if session_prefix in _players:
@@ -45,8 +53,14 @@ class MetricsHandler(BaseHTTPRequestHandler):
 
         ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
         session = data.get("session", "?")
-        endpoint = data.get("endpoint", "?")
-        player = _resolve_player(session)
+        endpoint = _normalize_endpoint(data.get("endpoint", "?"))
+        # Prefer client-provided username over API resolution
+        username = data.get("username")
+        if username:
+            _players[session] = username
+            player = username
+        else:
+            player = _resolve_player(session)
 
         print(f"[{ts}] {player:>20s}  {endpoint}", flush=True)
 

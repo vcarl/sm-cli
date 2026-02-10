@@ -99,6 +99,10 @@ Tips:
     # mine
     sub.add_parser("mine", help="Mine once")
 
+    # wait
+    p_wait = sub.add_parser("wait", help="Block until current action completes")
+    p_wait.add_argument("--timeout", type=int, default=60, help="Max seconds to wait (default: 60)")
+
     # refuel
     sub.add_parser("refuel", help="Refuel ship")
 
@@ -171,9 +175,11 @@ Tips:
     p_chat.add_argument("target", nargs="?", default=None, help="Player ID for private messages (required when channel=private)")
 
     # raw
-    p_raw = sub.add_parser("raw", help="Raw API call")
-    p_raw.add_argument("endpoint", help="API endpoint name")
-    p_raw.add_argument("json_body", nargs="?", default=None, help="JSON body (optional)")
+    p_raw = sub.add_parser("raw", help="Raw API call (always outputs JSON)")
+    p_raw.add_argument("endpoint", help="API endpoint name (e.g. get_map, get_system)")
+    p_raw.add_argument("json_body", nargs="?", default=None,
+                       help='Optional JSON body, e.g. \'{"target_system":"sol"}\'')
+
 
     # Friendly aliases for common queries
     for alias, help_text in [("notes", "List your notes"),
@@ -197,9 +203,21 @@ def _register_passthrough_subparsers(sub):
     """Register ENDPOINT_ARGS entries as subparsers for discoverability."""
     existing = set(sub.choices.keys()) if sub.choices else set()
 
+    # Endpoints already handled by COMMAND_MAP entries (friendly aliases)
+    handled_endpoints = set()
+    for key in COMMAND_MAP:
+        handled_endpoints.add(key.replace("-", "_"))
+    # Passthrough aliases map friendly names to endpoint names
+    _ALIASES = {
+        "notes": "get_notes", "trades": "get_trades", "drones": "get_drones",
+        "ships": "get_ships", "chat-history": "get_chat_history",
+        "faction-list": "faction_list", "faction-invites": "faction_get_invites",
+    }
+    handled_endpoints.update(_ALIASES.values())
+
     for endpoint, specs in sorted(commands.ENDPOINT_ARGS.items()):
         cmd_name = endpoint.replace("_", "-")
-        if cmd_name in existing:
+        if cmd_name in existing or endpoint in handled_endpoints:
             continue
         arg_names = [commands._arg_name(s) for s in specs]
         help_str = " ".join(f"<{a}>" for a in arg_names) if arg_names else "(no args)"
@@ -229,6 +247,7 @@ COMMAND_MAP = {
     "dock": commands.cmd_dock,
     "undock": commands.cmd_undock,
     "mine": commands.cmd_mine,
+    "wait": commands.cmd_wait,
     "refuel": commands.cmd_refuel,
     "repair": commands.cmd_repair,
     "wrecks": commands.cmd_wrecks,
@@ -239,7 +258,7 @@ COMMAND_MAP = {
     "active-missions": commands.cmd_active_missions,
     "query-missions": commands.cmd_query_missions,
     "query-skills": commands.cmd_query_skills,
-    "skill": commands.cmd_skill_info,
+    "skill": commands.cmd_skill,
     "commands": commands.cmd_commands,
     "chat": commands.cmd_chat,
     "raw": commands.cmd_raw,
@@ -247,7 +266,7 @@ COMMAND_MAP = {
     "notes": commands.cmd_notes,
     "trades": commands.cmd_trades,
     "drones": commands.cmd_drones,
-    "ships": commands.cmd_ships_list,
+    "ships": commands.cmd_ships,
     "faction-list": commands.cmd_faction_list,
     "faction-invites": commands.cmd_faction_invites,
 }

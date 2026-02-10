@@ -21,14 +21,17 @@ def _resolve_metrics_host():
 
 _metrics_url_v4 = None
 
-def _report_metric(session_id, endpoint):
+def _report_metric(session_id, endpoint, username=None):
     """Fire-and-forget POST to metrics server. Fails silently if not running."""
     global _metrics_url_v4
     if _metrics_url_v4 is None:
         _metrics_url_v4 = _resolve_metrics_host()
     def _send():
         try:
-            body = json.dumps({"session": session_id, "endpoint": endpoint}).encode()
+            payload = {"session": session_id, "endpoint": endpoint}
+            if username:
+                payload["username"] = username
+            body = json.dumps(payload).encode()
             req = urllib.request.Request(_metrics_url_v4, data=body, headers={"Content-Type": "application/json"}, method="POST")
             urllib.request.urlopen(req, timeout=1)
         except Exception:
@@ -46,6 +49,7 @@ class SpaceMoltAPI:
     def __init__(self, session_file=DEFAULT_SESSION_FILE, cred_file=DEFAULT_CRED_FILE):
         self.session_file = session_file
         self.cred_file = cred_file
+        self.username = None
 
     def _post(self, endpoint, body=None, use_session=True, _retried=False):
         if body is None:
@@ -65,7 +69,7 @@ class SpaceMoltAPI:
             headers=headers,
             method="POST",
         )
-        _report_metric(body.get("session_id", "?"), endpoint)
+        _report_metric(body.get("session_id", "?"), endpoint, self.username)
         try:
             with urllib.request.urlopen(req) as resp:
                 result = json.loads(resp.read().decode())
@@ -221,5 +225,6 @@ class SpaceMoltAPI:
                 pass
             raise APIError(f"Login failed: {err}")
 
+        self.username = username
         print(f"Logged in as {username} (session: {sid[:12]}...)")
         return result
