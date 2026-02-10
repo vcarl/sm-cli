@@ -33,6 +33,15 @@ Info (no rate limit):
   sm query-recipes           Recipe progression by skill tier
   sm query-recipes --search  Search recipes by name/item
   sm query-recipes --trace   Full ingredient tree diagram
+  sm missions               Available missions at base
+  sm active-missions        Your active missions + progress
+  sm query-missions          Missions grouped by type
+  sm query-missions --search Search missions by name/type
+  sm query-missions --active Show active missions
+  sm query-skills            Skill tree by category + prereqs
+  sm query-skills --search   Search skills by name/bonus
+  sm query-skills --trace    Prerequisite tree for a skill
+  sm query-skills --my       Your trained skills + progress
   sm wrecks                 Wrecks at current location
   sm commands               List all API endpoints
 
@@ -157,6 +166,28 @@ Advanced:
     p_qr.add_argument("--search", metavar="QUERY",
                        help="Search recipes by name, item, or category")
 
+    # missions
+    sub.add_parser("missions", help="Available missions at current base")
+
+    # active-missions
+    sub.add_parser("active-missions", help="Your active missions with progress")
+
+    # query-missions
+    p_qm = sub.add_parser("query-missions", help="Mission explorer: group by type, search, active")
+    p_qm.add_argument("--search", metavar="QUERY",
+                       help="Search missions by name, type, or description")
+    p_qm.add_argument("--active", action="store_true",
+                       help="Show active missions instead of available ones")
+
+    # query-skills
+    p_qs = sub.add_parser("query-skills", help="Skill tree explorer: progression, search, trace")
+    p_qs.add_argument("--trace", metavar="SKILL",
+                       help="Trace full prerequisite tree for a skill")
+    p_qs.add_argument("--search", metavar="QUERY",
+                       help="Search skills by name, category, or bonus")
+    p_qs.add_argument("--my", action="store_true",
+                       help="Show only your trained skills with progress bars")
+
     # commands
     sub.add_parser("commands", help="List all API endpoints")
 
@@ -202,6 +233,10 @@ COMMAND_MAP = {
     "listings": commands.cmd_listings,
     "recipes": commands.cmd_recipes,
     "query-recipes": commands.cmd_query_recipes,
+    "missions": commands.cmd_missions,
+    "active-missions": commands.cmd_active_missions,
+    "query-missions": commands.cmd_query_missions,
+    "query-skills": commands.cmd_query_skills,
     "commands": commands.cmd_commands,
     "chat": commands.cmd_chat,
     "raw": commands.cmd_raw,

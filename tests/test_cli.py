@@ -168,8 +168,8 @@ class TestCommandMapCompleteness(unittest.TestCase):
             self.assertTrue(callable(handler), f"{name} handler not callable")
 
     def test_count(self):
-        """We should have 30 registered commands."""
-        self.assertEqual(len(COMMAND_MAP), 30)
+        """We should have 34 registered commands."""
+        self.assertEqual(len(COMMAND_MAP), 34)
 
 
 # ---------------------------------------------------------------------------

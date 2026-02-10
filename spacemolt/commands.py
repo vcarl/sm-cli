@@ -975,3 +975,602 @@ def _do_trace(query, by_output, recipe_list):
         print("Raw materials needed:")
         for item_id, qty in sorted(totals.items(), key=lambda x: -x[1]):
             print(f"  {qty}x {item_id}")
+
+
+# --- Mission explorer ---
+
+def cmd_missions(api, args):
+    """Show available missions at current base."""
+    as_json = getattr(args, "json", False)
+    resp = api._post("get_missions")
+    if as_json:
+        print(json.dumps(resp, indent=2))
+        return
+    r = resp.get("result", {})
+    missions = r.get("missions") or []
+    if not missions:
+        print("No missions available. (Must be docked at a base)")
+        return
+
+    for m in missions:
+        title = m.get("title") or m.get("name", "?")
+        mid = m.get("id") or m.get("mission_id", "")
+        mtype = m.get("type", "")
+        diff = m.get("difficulty", "")
+        print(f"\n{title}")
+        meta = []
+        if mtype:
+            meta.append(mtype)
+        if diff:
+            meta.append(f"difficulty: {diff}")
+        if meta:
+            print(f"  [{', '.join(meta)}]")
+
+        desc = m.get("description", "")
+        if desc:
+            print(f"  {desc}")
+
+        reward_cr = m.get("reward_credits") or m.get("credits")
+        reward_items = m.get("reward_items") or []
+        rewards = []
+        if reward_cr:
+            rewards.append(f"{reward_cr} cr")
+        for ri in reward_items:
+            if isinstance(ri, dict):
+                rewards.append(f"{ri.get('item_id', '?')} x{ri.get('quantity', 1)}")
+            else:
+                rewards.append(str(ri))
+        if rewards:
+            print(f"  Rewards: {', '.join(rewards)}")
+
+        loc = m.get("location") or m.get("destination")
+        dist = m.get("distance")
+        if loc:
+            loc_str = f"  Location: {loc}"
+            if dist is not None:
+                loc_str += f" ({dist} jumps)"
+            print(loc_str)
+
+        if mid:
+            print(f"  id: {mid}")
+
+
+def cmd_active_missions(api, args):
+    """Show your currently accepted missions."""
+    as_json = getattr(args, "json", False)
+    resp = api._post("get_active_missions")
+    if as_json:
+        print(json.dumps(resp, indent=2))
+        return
+    r = resp.get("result", {})
+    missions = r.get("missions") or r.get("active_missions") or []
+    max_m = r.get("max_missions", 5)
+
+    if not missions:
+        print(f"No active missions. ({0}/{max_m} slots used)")
+        return
+
+    print(f"Active missions ({len(missions)}/{max_m}):\n")
+    for m in missions:
+        title = m.get("title") or m.get("name", "?")
+        mid = m.get("id") or m.get("mission_id", "")
+        status = m.get("status", "")
+        progress = m.get("progress")
+        deadline = m.get("deadline_tick") or m.get("deadline")
+
+        line = title
+        if status:
+            line += f"  [{status}]"
+        print(line)
+
+        if progress is not None:
+            if isinstance(progress, dict):
+                current = progress.get("current", 0)
+                target = progress.get("target", "?")
+                print(f"  Progress: {current}/{target}")
+            else:
+                print(f"  Progress: {progress}")
+
+        if deadline is not None:
+            print(f"  Deadline: tick {deadline}")
+
+        rewards = m.get("rewards") or {}
+        reward_parts = []
+        if isinstance(rewards, dict):
+            cr = rewards.get("credits")
+            if cr:
+                reward_parts.append(f"{cr} cr")
+            items = rewards.get("items", [])
+            for ri in items:
+                if isinstance(ri, dict):
+                    reward_parts.append(f"{ri.get('item_id', '?')} x{ri.get('quantity', 1)}")
+                else:
+                    reward_parts.append(str(ri))
+        elif isinstance(rewards, list):
+            for ri in rewards:
+                reward_parts.append(str(ri))
+        if reward_parts:
+            print(f"  Rewards: {', '.join(reward_parts)}")
+
+        if mid:
+            print(f"  id: {mid}")
+        print()
+
+
+def cmd_query_missions(api, args):
+    """Mission explorer: list available, show active, or search."""
+    as_json = getattr(args, "json", False)
+    active = getattr(args, "active", False)
+    search_query = getattr(args, "search", None)
+
+    if active:
+        # Delegate to active missions view
+        cmd_active_missions(api, args)
+        return
+
+    resp = api._post("get_missions")
+    if as_json:
+        print(json.dumps(resp, indent=2))
+        return
+
+    r = resp.get("result", {})
+    missions = r.get("missions") or []
+
+    if not missions:
+        print("No missions available. (Must be docked at a base)")
+        return
+
+    if search_query:
+        q = search_query.lower()
+        missions = [m for m in missions if q in " ".join([
+            m.get("title", ""),
+            m.get("description", ""),
+            m.get("type", ""),
+            m.get("id", ""),
+        ]).lower()]
+        if not missions:
+            print(f"No missions matching '{search_query}'.")
+            return
+        print(f"Found {len(missions)} mission(s) matching '{search_query}':\n")
+
+    # Group by type
+    from collections import defaultdict
+    by_type = defaultdict(list)
+    for m in missions:
+        by_type[m.get("type", "Other")].append(m)
+
+    for mtype in sorted(by_type):
+        print(f"\n{'═' * 50}")
+        print(f"  {mtype.upper()}")
+        print(f"{'═' * 50}")
+
+        # Sort by difficulty then reward
+        sorted_missions = sorted(
+            by_type[mtype],
+            key=lambda m: (m.get("difficulty", 0) if isinstance(m.get("difficulty"), (int, float)) else 0,
+                           -(m.get("reward_credits", 0) or 0))
+        )
+        for m in sorted_missions:
+            title = m.get("title") or m.get("name", "?")
+            mid = m.get("id", "")
+            diff = m.get("difficulty", "")
+            reward_cr = m.get("reward_credits") or m.get("credits", 0)
+            dist = m.get("distance")
+
+            diff_str = f"  [diff: {diff}]" if diff else ""
+            reward_str = f"  {reward_cr} cr" if reward_cr else ""
+            dist_str = f"  ({dist} jumps)" if dist is not None else ""
+
+            print(f"    {title}{diff_str}{reward_str}{dist_str}")
+
+            desc = m.get("description", "")
+            if desc:
+                # Truncate long descriptions
+                if len(desc) > 80:
+                    desc = desc[:77] + "..."
+                print(f"      {desc}")
+
+            reward_items = m.get("reward_items") or []
+            if reward_items:
+                parts = []
+                for ri in reward_items:
+                    if isinstance(ri, dict):
+                        parts.append(f"{ri.get('item_id', '?')} x{ri.get('quantity', 1)}")
+                    else:
+                        parts.append(str(ri))
+                print(f"      + items: {', '.join(parts)}")
+
+            if mid:
+                print(f"      id: {mid}")
+
+
+# --- Skill tree explorer ---
+
+def _build_skill_tree(skills_dict):
+    """Build lookup structures for the skill tree."""
+    by_id = {}
+    by_category = {}
+    dependents = {}  # skill_id -> list of skills that require it
+
+    for sid, s in skills_dict.items():
+        by_id[sid] = s
+        cat = s.get("category", "Other")
+        by_category.setdefault(cat, []).append(s)
+        for req_id in (s.get("required_skills") or {}):
+            dependents.setdefault(req_id, []).append(s)
+
+    return by_id, by_category, dependents
+
+
+def _skill_tier(skill):
+    """Return (max_prereq_level, prereq_count) for ordering."""
+    reqs = skill.get("required_skills") or {}
+    if not reqs:
+        return (0, 0)
+    return (max(reqs.values()), len(reqs))
+
+
+def _skill_one_line(skill, player_map=None):
+    """Format a skill as a compact one-liner."""
+    sid = skill.get("id", "?")
+    name = skill.get("name", "?")
+    max_lvl = skill.get("max_level", "?")
+
+    progress = ""
+    if player_map and sid in player_map:
+        ps = player_map[sid]
+        lvl = ps.get("level", 0)
+        xp = ps.get("current_xp", 0)
+        next_xp = ps.get("next_level_xp", "?")
+        progress = f"  L{lvl}/{max_lvl} ({xp}/{next_xp} XP)"
+    else:
+        progress = f"  (max L{max_lvl})"
+
+    return f"{name}{progress}"
+
+
+def _trace_skill_tree(skill_id, by_id, depth=0, seen=None):
+    """Recursively build a prerequisite tree: what do you need to train first?"""
+    if seen is None:
+        seen = set()
+    skill = by_id.get(skill_id)
+    if skill is None or skill_id in seen:
+        return (depth, skill_id, None, [])
+    seen = seen | {skill_id}
+    children = []
+    for req_id, req_lvl in sorted((skill.get("required_skills") or {}).items()):
+        child = _trace_skill_tree(req_id, by_id, depth + 1, seen)
+        # Annotate the required level
+        children.append((child, req_lvl))
+    return (depth, skill_id, skill, children)
+
+
+def _render_skill_tree(node, by_id, player_map=None, prefix="", is_last=True, lines=None):
+    """Render a skill prerequisite tree with box-drawing connectors."""
+    if lines is None:
+        lines = []
+    depth, skill_id, skill, children = node
+
+    if skill:
+        name = skill.get("name", skill_id)
+        max_lvl = skill.get("max_level", "?")
+        label = f"{name} (max L{max_lvl})"
+        if player_map and skill_id in player_map:
+            ps = player_map[skill_id]
+            label += f"  [YOU: L{ps.get('level', 0)}, {ps.get('current_xp', 0)}/{ps.get('next_level_xp', '?')} XP]"
+    else:
+        label = f"{skill_id} (unknown)"
+
+    if depth == 0:
+        lines.append(label)
+        desc = (skill or {}).get("description", "")
+        if desc:
+            lines.append(f"  {desc}")
+        bonuses = (skill or {}).get("bonus_per_level", {})
+        if bonuses:
+            parts = [f"{k}: +{v}/lvl" for k, v in sorted(bonuses.items())]
+            lines.append(f"  Bonuses: {', '.join(parts)}")
+    else:
+        connector = "└── " if is_last else "├── "
+        lines.append(f"{prefix}{connector}{label}")
+
+    child_prefix = prefix + ("    " if is_last else "│   ")
+    for i, (child_node, req_lvl) in enumerate(children):
+        child_is_last = (i == len(children) - 1)
+        # Show required level on the branch
+        child_depth, child_sid, child_skill, _ = child_node
+        req_marker = f" (need L{req_lvl})"
+        # Temporarily patch the label
+        if child_skill:
+            orig_name = child_skill.get("name", child_sid)
+            label_with_req = f"{orig_name} (max L{child_skill.get('max_level', '?')}){req_marker}"
+            if player_map and child_sid in player_map:
+                ps = player_map[child_sid]
+                lvl = ps.get("level", 0)
+                met = "✓" if lvl >= req_lvl else "✗"
+                label_with_req += f"  [{met} YOU: L{lvl}]"
+        else:
+            label_with_req = f"{child_sid} (unknown){req_marker}"
+
+        conn = "└── " if child_is_last else "├── "
+        lines.append(f"{child_prefix}{conn}{label_with_req}")
+
+        # Recurse into grandchildren
+        inner_prefix = child_prefix + ("    " if child_is_last else "│   ")
+        _, _, _, grandchildren = child_node
+        for j, (gc_node, gc_req_lvl) in enumerate(grandchildren):
+            _render_skill_tree(gc_node, by_id, player_map, inner_prefix,
+                              j == len(grandchildren) - 1, lines)
+
+    return lines
+
+
+def _find_unlocks(skill_id, level, by_id):
+    """Find what other skills/recipes become available at a given skill level."""
+    unlocks = []
+    for sid, s in by_id.items():
+        reqs = s.get("required_skills") or {}
+        if skill_id in reqs and reqs[skill_id] <= level:
+            unlocks.append(s)
+    return unlocks
+
+
+def cmd_query_skills(api, args):
+    """Skill tree explorer: progression, search, trace prerequisites."""
+    as_json = getattr(args, "json", False)
+    resp = api._post("get_skills")
+    if as_json:
+        print(json.dumps(resp, indent=2))
+        return
+
+    r = resp.get("result", {})
+    skills_dict = r.get("skills", {})
+    player_skills = r.get("player_skills", [])
+
+    if not skills_dict:
+        print("No skill data available.")
+        return
+
+    by_id, by_category, dependents = _build_skill_tree(skills_dict)
+
+    # Build player skill lookup: skill_id -> player_skill record
+    player_map = {}
+    for ps in player_skills:
+        sid = ps.get("skill_id") or ps.get("id", "")
+        if sid:
+            player_map[sid] = ps
+
+    trace_target = getattr(args, "trace", None)
+    search_query = getattr(args, "search", None)
+    show_my = getattr(args, "my", False)
+
+    if trace_target:
+        _do_skill_trace(trace_target, by_id, player_map)
+    elif search_query:
+        _do_skill_search(search_query, skills_dict, player_map)
+    elif show_my:
+        _do_my_skills(player_skills, by_id, dependents)
+    else:
+        _do_skill_progression(by_category, by_id, dependents, player_map)
+
+
+def _do_skill_progression(by_category, by_id, dependents, player_map):
+    """Show all skills grouped by category, ordered by prerequisite depth."""
+    from collections import defaultdict
+
+    for cat in sorted(by_category):
+        skills = by_category[cat]
+        print(f"\n{'═' * 60}")
+        print(f"  {cat.upper()} ({len(skills)} skills)")
+        print(f"{'═' * 60}")
+
+        # Separate into tiers: no prereqs, then by prereq depth
+        tiers = defaultdict(list)
+        for s in skills:
+            reqs = s.get("required_skills") or {}
+            if not reqs:
+                tiers["Base skills"].append(s)
+            else:
+                label = ", ".join(f"{r} L{l}" for r, l in sorted(reqs.items()))
+                tiers[f"Requires: {label}"].append(s)
+
+        # Sort tiers: base first, then by max required level
+        def tier_key(item):
+            key, _ = item
+            if key == "Base skills":
+                return (0, "")
+            return (1, key)
+
+        for tier_label, tier_skills in sorted(tiers.items(), key=tier_key):
+            print(f"\n  [{tier_label}]")
+            for s in sorted(tier_skills, key=lambda x: x.get("name", "")):
+                sid = s.get("id", "?")
+                name = s.get("name", "?")
+                max_lvl = s.get("max_level", "?")
+                desc = s.get("description", "")
+
+                # Player progress
+                trained = ""
+                if sid in player_map:
+                    ps = player_map[sid]
+                    lvl = ps.get("level", 0)
+                    xp = ps.get("current_xp", 0)
+                    next_xp = ps.get("next_level_xp", "?")
+                    trained = f"  ★ L{lvl}/{max_lvl} ({xp}/{next_xp} XP)"
+                else:
+                    trained = f"  (max L{max_lvl})"
+
+                # What does this unlock?
+                unlock_names = []
+                for dep in (dependents.get(sid) or []):
+                    dep_reqs = dep.get("required_skills", {})
+                    dep_lvl = dep_reqs.get(sid, "?")
+                    unlock_names.append(f"{dep.get('name', '?')} @L{dep_lvl}")
+                unlock_str = ""
+                if unlock_names:
+                    unlock_str = f" → unlocks: {', '.join(unlock_names)}"
+
+                print(f"    {name}{trained}{unlock_str}")
+                if desc:
+                    if len(desc) > 76:
+                        desc = desc[:73] + "..."
+                    print(f"      {desc}")
+
+                # Show bonuses
+                bonuses = s.get("bonus_per_level", {})
+                if bonuses:
+                    parts = [f"{k}: +{v}/lvl" for k, v in sorted(bonuses.items())]
+                    print(f"      Bonuses: {', '.join(parts)}")
+
+
+def _do_skill_search(query, skills_dict, player_map):
+    """Search skills by name, description, category, or bonus."""
+    q = query.lower()
+    matches = []
+    for sid, s in skills_dict.items():
+        searchable = " ".join([
+            s.get("name", ""),
+            s.get("id", ""),
+            s.get("description", ""),
+            s.get("category", ""),
+            " ".join(s.get("bonus_per_level", {}).keys()),
+        ]).lower()
+        if q in searchable:
+            matches.append(s)
+
+    if not matches:
+        print(f"No skills matching '{query}'.")
+        return
+
+    print(f"Found {len(matches)} skill(s) matching '{query}':\n")
+    for s in sorted(matches, key=lambda x: (x.get("category", ""), x.get("name", ""))):
+        sid = s.get("id", "?")
+        name = s.get("name", "?")
+        cat = s.get("category", "?")
+        max_lvl = s.get("max_level", "?")
+        desc = s.get("description", "")
+
+        progress = ""
+        if sid in player_map:
+            ps = player_map[sid]
+            progress = f"  ★ L{ps.get('level', 0)}/{max_lvl}"
+        else:
+            progress = f"  (max L{max_lvl})"
+
+        print(f"  [{cat}] {name}{progress}")
+        if desc:
+            print(f"    {desc}")
+
+        reqs = s.get("required_skills") or {}
+        if reqs:
+            parts = [f"{r} L{l}" for r, l in sorted(reqs.items())]
+            print(f"    Requires: {', '.join(parts)}")
+
+        bonuses = s.get("bonus_per_level", {})
+        if bonuses:
+            parts = [f"{k}: +{v}/lvl" for k, v in sorted(bonuses.items())]
+            print(f"    Bonuses: {', '.join(parts)}")
+
+        print(f"    id: {sid}")
+        print()
+
+
+def _do_skill_trace(query, by_id, player_map):
+    """Trace the full prerequisite tree for a skill."""
+    # Find the skill
+    target = None
+    if query in by_id:
+        target = query
+    else:
+        # Fuzzy match
+        q = query.lower()
+        candidates = [sid for sid, s in by_id.items()
+                       if q in sid.lower() or q in s.get("name", "").lower()]
+        if len(candidates) == 1:
+            target = candidates[0]
+        elif candidates:
+            print("Ambiguous — did you mean one of these?")
+            for c in sorted(candidates):
+                s = by_id[c]
+                print(f"  {s.get('name', c)} (id: {c})")
+            return
+        else:
+            print(f"No skill matching '{query}'. Try: sm query-skills --search {query}")
+            return
+
+    skill = by_id[target]
+    tree = _trace_skill_tree(target, by_id)
+    lines = _render_skill_tree(tree, by_id, player_map)
+
+    print(f"Prerequisite tree for {skill.get('name', target)}:\n")
+    for line in lines:
+        print(line)
+
+    # Show what this skill unlocks at each level
+    print(f"\n{'─' * 40}")
+    print("Unlocks at each level:")
+    found_any = False
+    for lvl in range(1, (skill.get("max_level") or 10) + 1):
+        unlocks = _find_unlocks(target, lvl, by_id)
+        # Filter to exactly this level (not lower)
+        exact = [u for u in unlocks if (u.get("required_skills") or {}).get(target) == lvl]
+        if exact:
+            found_any = True
+            names = [u.get("name", u.get("id", "?")) for u in exact]
+            print(f"  L{lvl}: {', '.join(names)}")
+    if not found_any:
+        print("  (none — this is a leaf skill)")
+
+    # XP table
+    xp_levels = skill.get("xp_per_level", [])
+    if xp_levels:
+        print(f"\n{'─' * 40}")
+        print("XP requirements:")
+        for i, xp in enumerate(xp_levels):
+            lvl = i + 1
+            marker = ""
+            if target in player_map:
+                ps = player_map[target]
+                if ps.get("level", 0) >= lvl:
+                    marker = " ✓"
+                elif ps.get("level", 0) == lvl - 1:
+                    marker = f" ← ({ps.get('current_xp', 0)}/{xp} XP)"
+            print(f"  L{lvl}: {xp} XP{marker}")
+
+
+def _do_my_skills(player_skills, by_id, dependents):
+    """Show only trained skills with progress and next unlocks."""
+    if not player_skills:
+        print("No skills trained yet. Start mining, trading, or fighting to gain XP!")
+        return
+
+    sorted_skills = sorted(player_skills, key=lambda s: (-s.get("level", 0), -s.get("current_xp", 0)))
+    print(f"Trained skills ({len(sorted_skills)}):\n")
+
+    for ps in sorted_skills:
+        sid = ps.get("skill_id") or ps.get("id", "?")
+        name = ps.get("name", sid)
+        lvl = ps.get("level", 0)
+        max_lvl = ps.get("max_level") or (by_id.get(sid, {}).get("max_level", "?"))
+        xp = ps.get("current_xp", 0)
+        next_xp = ps.get("next_level_xp", "?")
+
+        # Progress bar
+        bar = ""
+        if isinstance(next_xp, (int, float)) and next_xp > 0:
+            pct = min(xp / next_xp, 1.0)
+            filled = int(pct * 20)
+            bar = f"  [{'█' * filled}{'░' * (20 - filled)}] {pct:.0%}"
+
+        print(f"  {name}: L{lvl}/{max_lvl} ({xp}/{next_xp} XP){bar}")
+
+        # What will next levels unlock?
+        skill_def = by_id.get(sid, {})
+        next_unlocks = []
+        for dep in (dependents.get(sid) or []):
+            dep_reqs = dep.get("required_skills", {})
+            req_lvl = dep_reqs.get(sid, 0)
+            if req_lvl > lvl:
+                next_unlocks.append(f"{dep.get('name', '?')} @L{req_lvl}")
+        if next_unlocks:
+            print(f"    → next unlocks: {', '.join(next_unlocks)}")
