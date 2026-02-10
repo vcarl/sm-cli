@@ -106,7 +106,7 @@ ENDPOINT_ARGS = {
     "withdraw_credits": ["amount:int"],
     "send_gift": ["recipient", "item_id", "quantity:int"],
     # chat
-    "get_chat_history": ["channel", "limit:int", "target_id"],
+    "get_chat_history": ["channel", "limit:int", "target_id?"],
     # insurance
     "claim_insurance": [],
     # faction
@@ -130,9 +130,14 @@ def _parse_typed_value(spec, value):
     return value
 
 
+def _is_optional(spec):
+    """Check if a spec is optional (trailing '?', e.g. 'target_id?')."""
+    return spec.rstrip(":").endswith("?") or spec.split(":")[0].endswith("?")
+
+
 def _arg_name(spec):
-    """Extract the parameter name from a spec like 'quantity:int'."""
-    return spec.split(":")[0]
+    """Extract the parameter name from a spec like 'quantity:int' or 'target_id?'."""
+    return spec.split(":")[0].rstrip("?")
 
 
 # ---------------------------------------------------------------------------
@@ -392,13 +397,18 @@ def cmd_passthrough(api, endpoint, extra_args, as_json=False):
             print(f"Warning: extra argument ignored: {val}")
 
     # Check for missing required args (specs not covered by positional or key=value)
+    required_specs = [s for s in specs if not _is_optional(s)]
     if specs and not body:
-        arg_names = " ".join(f"<{_arg_name(s)}>" for s in specs)
+        arg_names = " ".join(
+            f"[{_arg_name(s)}]" if _is_optional(s) else f"<{_arg_name(s)}>"
+            for s in specs)
         print(f"Usage: sm {endpoint.replace('_', '-')} {arg_names}")
         return
-    missing = [_arg_name(s) for s in specs if _arg_name(s) not in body]
+    missing = [_arg_name(s) for s in required_specs if _arg_name(s) not in body]
     if missing:
-        provided = " ".join(f"<{_arg_name(s)}>" for s in specs)
+        provided = " ".join(
+            f"[{_arg_name(s)}]" if _is_optional(s) else f"<{_arg_name(s)}>"
+            for s in specs)
         print(f"Usage: sm {endpoint.replace('_', '-')} {provided}")
         print(f"Missing: {', '.join(missing)}")
         return
