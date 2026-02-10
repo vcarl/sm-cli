@@ -155,6 +155,18 @@ def cmd_passthrough(api, endpoint, extra_args, as_json=False):
             # Extra positional with no spec — skip with warning
             print(f"Warning: extra argument ignored: {val}")
 
+    # Check for missing required args (specs not covered by positional or key=value)
+    if specs and not body:
+        arg_names = " ".join(f"<{_arg_name(s)}>" for s in specs)
+        print(f"Usage: sm {endpoint.replace('_', '-')} {arg_names}")
+        return
+    missing = [_arg_name(s) for s in specs if _arg_name(s) not in body]
+    if missing:
+        provided = " ".join(f"<{_arg_name(s)}>" for s in specs)
+        print(f"Usage: sm {endpoint.replace('_', '-')} {provided}")
+        print(f"Missing: {', '.join(missing)}")
+        return
+
     resp = api._post(endpoint, body)
     if as_json:
         print(json.dumps(resp, indent=2))

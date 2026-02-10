@@ -44,24 +44,46 @@ def cmd_ship(api, args):
     print(f"Hull: {s.get('hull', '?')}/{s.get('max_hull', '?')} | Shield: {s.get('shield', '?')}/{s.get('max_shield', '?')}")
     print(f"Fuel: {s.get('fuel', '?')}/{s.get('max_fuel', '?')}")
     print(f"Cargo: {s.get('cargo_used', '?')}/{s.get('cargo_capacity', '?')}")
-    print(f"CPU: {s.get('cpu_used', '?')}/{s.get('cpu', '?')} | Power: {s.get('power_used', '?')}/{s.get('power', '?')}")
+    print(f"CPU: {s.get('cpu_used', '?')}/{s.get('cpu_capacity') or s.get('cpu', '?')} | Power: {s.get('power_used', '?')}/{s.get('power_capacity') or s.get('power', '?')}")
 
-    modules = s.get("modules") or s.get("installed_modules", [])
-    if modules:
+    # Prefer the rich module list at result.modules over ship.modules (which may be just IDs)
+    modules = r.get("modules") or s.get("modules") or s.get("installed_modules", [])
+    # Filter to only rich dicts if we got a mix
+    rich_modules = [m for m in modules if isinstance(m, dict)]
+    if rich_modules:
+        print(f"\nModules ({len(rich_modules)}):")
+        for m in rich_modules:
+            name = m.get("name") or m.get("module_id") or m.get("id", "?")
+            mtype = m.get("type") or m.get("type_id", "")
+            quality = m.get("quality_grade") or ""
+            wear = m.get("wear_status") or ""
+            line = f"  {name}"
+            if mtype:
+                line += f" [{mtype}]"
+            parts = []
+            if quality:
+                parts.append(quality)
+            if wear and wear != "Pristine":
+                parts.append(wear)
+            if parts:
+                line += f" ({', '.join(parts)})"
+            print(line)
+    elif modules:
         print(f"\nModules ({len(modules)}):")
         for m in modules:
-            if isinstance(m, dict):
-                name = m.get("name") or m.get("module_id") or m.get("id", "?")
-                mid = m.get("id") or m.get("module_id", "")
-                slot = m.get("slot", "")
-                line = f"  {name}"
-                if slot:
-                    line += f" [{slot}]"
-                if mid and mid != name:
-                    line += f" (id:{mid})"
-                print(line)
+            print(f"  {m}")
+
+    # Cargo / inventory
+    cargo = s.get("cargo") or r.get("cargo", [])
+    if cargo:
+        print(f"\nCargo ({s.get('cargo_used', '?')}/{s.get('cargo_capacity', '?')}):")
+        for item in cargo:
+            if isinstance(item, dict):
+                name = item.get("item_id") or item.get("name", "?")
+                qty = item.get("quantity", 1)
+                print(f"  {name} x{qty}")
             else:
-                print(f"  {m}")
+                print(f"  {item}")
 
 
 def cmd_pois(api, args):
@@ -265,40 +287,69 @@ def _threat_level(nearby_info, scan_info=None):
     return level, reasons
 
 
-def _threat_label(level):
-    if level >= 5:
-        return "EXTREME"
-    labels = {0: "NONE", 1: "LOW", 2: "MODERATE", 3: "HIGH", 4: "DANGEROUS"}
-    return labels.get(level, "UNKNOWN")
+CIVILIAN_SHIPS = {
+    "mining", "hauler", "transport", "starter", "shuttle", "explorer",
+    "prospector", "freighter", "cargo", "mule", "barge",
+}
 
 
-def _threat_bar(level):
-    filled = min(level, 5)
-    empty = 5 - filled
-    return "[" + "#" * filled + "." * empty + "]"
+def _ship_role(ship_class):
+    """Classify a ship as civilian or military."""
+    sc = (ship_class or "").lower()
+    if any(tag in sc for tag in CIVILIAN_SHIPS):
+        return "civilian"
+    return "military"
+
+
+def _threat_emoji(level):
+    if level <= 0:
+        return "\u2b1c"       # white square
+    elif level <= 2:
+        return "\U0001f7e8"   # yellow square
+    elif level <= 4:
+        return "\U0001f7e7"   # orange square
+    elif level <= 6:
+        return "\U0001f7e5"   # red square
+    else:
+        return "\u2620\ufe0f" # skull and crossbones
+
+
+def _extract_notifications(resp):
+    """Pull notifications out of an API response without printing them."""
+    notifs = list(resp.get("notifications") or [])
+    result = resp.get("result")
+    if isinstance(result, dict):
+        nested = result.get("notifications")
+        if nested:
+            notifs = notifs + list(nested)
+    return notifs
 
 
 def cmd_nearby(api, args):
     scan = getattr(args, "scan", False)
     as_json = getattr(args, "json", False)
-    resp = api._post("get_nearby")
+
+    # Suppress auto-printing of notifications so we can parse them
+    orig_print = api._print_notifications
+    api._print_notifications = lambda resp: None
+    try:
+        resp = api._post("get_nearby")
+        poi_resp = api._post("get_poi")
+    finally:
+        api._print_notifications = orig_print
+
+    notifs = _extract_notifications(resp)
+    notifs += _extract_notifications(poi_resp)
     r = resp.get("result", {})
+    poi_r = poi_resp.get("result", {})
+    poi_info = poi_r.get("poi") or poi_r
     players = r.get("nearby") or r.get("players", [])
     pirates = r.get("pirates", [])
-
-    if not players and not pirates:
-        print("No one nearby.")
-        return
-
-    if as_json and not scan:
-        print(json.dumps(r, indent=2))
-        return
 
     # Scan each player if requested
     scan_results = {}
     has_scanner = None
     if scan and players:
-        # Check if we have a scanner module equipped
         try:
             ship_resp = api._post("get_ship")
             modules = ship_resp.get("result", {}).get("modules", [])
@@ -307,7 +358,7 @@ def cmd_nearby(api, args):
                 for m in modules if isinstance(m, dict)
             )
         except Exception:
-            has_scanner = None  # unknown
+            has_scanner = None
 
         for i, p in enumerate(players):
             pid = p.get("player_id") or p.get("id", "")
@@ -319,83 +370,137 @@ def cmd_nearby(api, args):
             try:
                 scan_resp = api._post("scan", {"target_id": pid})
                 sr = scan_resp.get("result", {})
-                # Handle nested Result key
                 scan_data = sr.get("Result", sr)
                 scan_results[pid] = scan_data
             except Exception as e:
                 scan_results[pid] = {"success": False, "error": str(e)}
 
-    # Display results
-    total_players = len(players)
-    pirate_count = r.get("pirate_count", len(pirates))
-    poi_id = r.get("poi_id", "")
-    if poi_id:
-        print(f"Location: {poi_id}")
-    print(f"Players: {total_players}  |  Pirates: {pirate_count}")
+    if as_json and not scan:
+        print(json.dumps(r, indent=2))
+        return
+
+    # --- Header: POI ---
+    poi_name = poi_info.get("name") or r.get("poi_name") or r.get("poi_id", "?")
+    poi_id = poi_info.get("id") or r.get("poi_id", "")
+    poi_type = poi_info.get("type", "")
+    sys_id = poi_info.get("system_id", "")
+    pos = poi_info.get("position") or {}
+    header = f"`{poi_name}`(poi:{poi_id}) [{poi_type}]"
+    if sys_id:
+        header += f" in {sys_id}"
+    if pos:
+        header += f" @({pos.get('x', '?')},{pos.get('y', '?')})"
+    print(header)
+
+    desc = poi_info.get("description", "")
+    if desc:
+        print(f"  {desc}")
+
+    base_info = poi_r.get("base") or poi_info.get("base")
+    if base_info and isinstance(base_info, dict):
+        bname = base_info.get("name", "?")
+        bid = base_info.get("id", "?")
+        print(f"  \U0001f3ed base: `{bname}`({bid})")
+
+    # --- Resources ---
+    resources = poi_r.get("resources") or poi_info.get("resources", [])
+    if resources:
+        parts = []
+        for res in resources:
+            if isinstance(res, dict):
+                name = res.get("name") or res.get("resource_id", "?")
+                richness = res.get("richness", "")
+                remaining = res.get("remaining_display") or res.get("remaining", "")
+                part = f"{name}({richness})"
+                if remaining and remaining != "unlimited" and remaining != -1:
+                    part += f"[{remaining}]"
+                parts.append(part)
+        print("  " + "  ".join(parts))
+
     print()
 
+    # --- Counts ---
+    player_count = len(players)
+    pirate_count = r.get("pirate_count", len(pirates))
+    print(f"\U0001f468\u200d\U0001f468\u200d\U0001f467\u200d\U0001f467 {player_count} / \U0001f3f4\u200d\u2620\ufe0f {pirate_count}")
+    print()
+
+    # --- Player/pirate table ---
+    rows = []
     for p in players:
         name = p.get("username") or p.get("name") or "anonymous"
         pid = p.get("player_id") or p.get("id", "")
         ship = p.get("ship_class", "?")
         clan = p.get("clan_tag", "")
         in_combat = p.get("in_combat", False)
+        anon = p.get("anonymous", False)
+        status_msg = p.get("status_message", "")
+        pri_color = p.get("primary_color", "")
+        sec_color = p.get("secondary_color", "")
 
         scan_data = scan_results.get(pid)
-        level, reasons = _threat_level(p, scan_data)
-        label = _threat_label(level)
-        bar = _threat_bar(level)
+        level, _ = _threat_level(p, scan_data)
+        emoji = _threat_emoji(level)
+        role = _ship_role(ship)
 
-        # Header line
-        header = f"  {name}"
-        if clan:
-            header += f" <{clan}>"
-        header += f"  [{ship}]"
+        ship_col = f"{role}({ship}:{pid[:8]})"
+        clan_str = f"[{clan}] " if clan else ""
+        display_name = "\u2753" if anon else name
+        name_col = f"{clan_str}`{display_name}`(user:{pid[:8]})"
         if in_combat:
-            header += "  *IN COMBAT*"
-        print(header)
+            name_col += " \u2694\ufe0f"
+        # Annotations after the main columns
+        notes = []
+        if status_msg:
+            notes.append(f"\u2709 {status_msg}")
+        if pri_color and pri_color != "#FFFFFF":
+            notes.append(f"\U0001f3a8{pri_color}")
+        if anon:
+            notes.append("anon")
+        note_str = "  " + " | ".join(notes) if notes else ""
+        rows.append((level, emoji, ship_col, name_col, note_str))
 
-        # Threat line
-        rating = f" ({level})" if level >= 5 else ""
-        print(f"    Threat: {bar} {label}{rating}")
-        if reasons:
-            print(f"    Basis:  {', '.join(reasons)}")
+    for p in pirates:
+        name = p.get("name") or p.get("type", "pirate")
+        plevel = p.get("level", "?")
+        pid = p.get("id") or p.get("pirate_id", "")
+        pid_short = pid[:8] if pid else "npc"
+        rows.append((5, "\U0001f7e5", f"pirate(L{plevel}:{pid_short})", f"`{name}`", ""))
 
-        # Scan details if available
-        if scan_data:
-            success = scan_data.get("success", False)
-            if success:
-                revealed = scan_data.get("revealed_info") or {}
-                details = []
-                for key in ("hull", "max_hull", "shield", "max_shield",
-                            "weapons", "cargo_used", "cargo_capacity"):
-                    val = revealed.get(key)
-                    if val is not None:
-                        details.append(f"{key}={val}")
-                if details:
-                    print(f"    Scan:   {', '.join(details)}")
-            else:
-                error = scan_data.get("error")
-                if error:
-                    reason = str(error)
-                elif has_scanner is False:
-                    reason = "no scanner module equipped"
-                else:
-                    reason = "target may have countermeasures"
-                print(f"    Scan:   FAILED ({reason})")
+    if rows:
+        # Column widths
+        level_w = max(len(str(r[0])) for r in rows)
+        ship_w = max(len(r[2]) for r in rows)
 
-        # Player ID
-        if pid:
-            print(f"    ID:     {pid}")
+        for level, emoji, ship_col, name_col, note_str in rows:
+            lvl_str = str(level).rjust(level_w) if level > 0 else " " * level_w
+            print(f" {lvl_str} {emoji} {ship_col:<{ship_w}}  {name_col}{note_str}")
+    else:
+        print("  No one nearby.")
+
+    # --- Legend ---
+    print(f"\n\u2b1c safe  \U0001f7e8  \U0001f7e7  \U0001f7e5  \u2620\ufe0f dangerous")
+
+    # --- Arrival/departure log ---
+    movements = []
+    for n in notifs:
+        msg_type = n.get("msg_type", "")
+        data = n.get("data") or {}
+        if msg_type == "poi_arrival":
+            uname = data.get("username", "?")
+            clan = data.get("clan_tag", "")
+            clan_str = f"[{clan}] " if clan else ""
+            movements.append(f"  \U0001f6ec {clan_str}`{uname}`")
+        elif msg_type == "poi_departure":
+            uname = data.get("username", "?")
+            clan = data.get("clan_tag", "")
+            clan_str = f"[{clan}] " if clan else ""
+            movements.append(f"  \U0001f4a8 {clan_str}`{uname}`")
+
+    if movements:
         print()
-
-    # NPC pirates
-    if pirates:
-        print("NPC Pirates:")
-        for p in pirates:
-            name = p.get("name") or p.get("type", "pirate")
-            plevel = p.get("level", "?")
-            print(f"  {name} (level {plevel})")
+        for m in movements:
+            print(m)
 
     if as_json:
         combined = {"nearby": r, "scans": scan_results}
