@@ -193,36 +193,7 @@ Tips:
     p_ch_hist = sub.add_parser("chat-history", help="Chat message history")
     p_ch_hist.add_argument("extra", nargs="*", help="[channel] [limit] [target_id]")
 
-    # Auto-register passthrough endpoints so they show in help
-    _register_passthrough_subparsers(sub)
-
     return parser
-
-
-def _register_passthrough_subparsers(sub):
-    """Register ENDPOINT_ARGS entries as subparsers for discoverability."""
-    existing = set(sub.choices.keys()) if sub.choices else set()
-
-    # Endpoints already handled by COMMAND_MAP entries (friendly aliases)
-    handled_endpoints = set()
-    for key in COMMAND_MAP:
-        handled_endpoints.add(key.replace("-", "_"))
-    # Passthrough aliases map friendly names to endpoint names
-    _ALIASES = {
-        "notes": "get_notes", "trades": "get_trades", "drones": "get_drones",
-        "ships": "get_ships", "chat-history": "get_chat_history",
-        "faction-list": "faction_list", "faction-invites": "faction_get_invites",
-    }
-    handled_endpoints.update(_ALIASES.values())
-
-    for endpoint, specs in sorted(commands.ENDPOINT_ARGS.items()):
-        cmd_name = endpoint.replace("_", "-")
-        if cmd_name in existing or endpoint in handled_endpoints:
-            continue
-        arg_names = [commands._arg_name(s) for s in specs]
-        help_str = " ".join(f"<{a}>" for a in arg_names) if arg_names else "(no args)"
-        p = sub.add_parser(cmd_name, help=help_str)
-        p.add_argument("extra", nargs="*", help="Positional or key=value args")
 
 
 COMMAND_MAP = {
