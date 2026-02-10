@@ -1543,6 +1543,45 @@ class TestCmdActiveMissions(unittest.TestCase):
         self.assertIn("No active missions", printed)
         self.assertIn("0/5", printed)
 
+    def test_description_displayed(self):
+        api = mock_api({"result": {"missions": [
+            {"title": "Copper Requisition", "id": "m1", "status": "in_progress",
+             "description": "Mine 25 copper ore",
+             "progress": {"current": 10, "target": 25},
+             "rewards": {"credits": 1800}},
+        ], "max_missions": 5}})
+        with patch("builtins.print") as mock_print:
+            cmd_active_missions(api, make_args(json=False))
+        output = "\n".join(str(c) for c in mock_print.call_args_list)
+        self.assertIn("Mine 25 copper ore", output)
+        self.assertIn("10/25", output)
+
+    def test_objectives_displayed(self):
+        api = mock_api({"result": {"missions": [
+            {"title": "Supply Run", "id": "m1", "status": "in_progress",
+             "objectives": [
+                 {"description": "Mine copper", "current": 10, "target": 25},
+                 {"description": "Deliver to Sol", "current": 0, "target": 1},
+             ],
+             "rewards": {"credits": 1800}},
+        ], "max_missions": 5}})
+        with patch("builtins.print") as mock_print:
+            cmd_active_missions(api, make_args(json=False))
+        output = "\n".join(str(c) for c in mock_print.call_args_list)
+        self.assertIn("Mine copper: 10/25", output)
+        self.assertIn("Deliver to Sol: 0/1", output)
+
+    def test_objectives_string_format(self):
+        api = mock_api({"result": {"missions": [
+            {"title": "Scout", "id": "m1", "status": "active",
+             "objectives": ["Scan 3 sectors", "Return to base"]},
+        ], "max_missions": 5}})
+        with patch("builtins.print") as mock_print:
+            cmd_active_missions(api, make_args(json=False))
+        output = "\n".join(str(c) for c in mock_print.call_args_list)
+        self.assertIn("Scan 3 sectors", output)
+        self.assertIn("Return to base", output)
+
 
 class TestCmdQueryMissions(unittest.TestCase):
 

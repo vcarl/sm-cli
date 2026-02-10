@@ -85,6 +85,20 @@ def cmd_active_missions(api, args):
             line += f"  [{status}]"
         print(line)
 
+        desc = m.get("description", "")
+        if desc:
+            print(f"  {desc}")
+        objectives = m.get("objectives") or []
+        for obj in objectives:
+            if isinstance(obj, dict):
+                obj_desc = obj.get("description") or obj.get("name", "")
+                obj_cur = obj.get("current", 0)
+                obj_tgt = obj.get("target", "?")
+                if obj_desc:
+                    print(f"  - {obj_desc}: {obj_cur}/{obj_tgt}")
+            else:
+                print(f"  - {obj}")
+
         if progress is not None:
             if isinstance(progress, dict):
                 current = progress.get("current", 0)
