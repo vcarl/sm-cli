@@ -34,6 +34,24 @@ from spacemolt.commands import (
     cmd_recipes,
     cmd_query_recipes,
     cmd_commands,
+    cmd_travel,
+    cmd_login,
+    cmd_repair,
+    cmd_log,
+    cmd_pois,
+    cmd_system,
+    cmd_notifications,
+    cmd_missions,
+    cmd_active_missions,
+    cmd_query_missions,
+    cmd_skills,
+    cmd_query_skills,
+    cmd_skill,
+    cmd_nearby,
+    cmd_cargo,
+    cmd_sell,
+    cmd_mine,
+    cmd_refuel,
 )
 
 
@@ -1281,6 +1299,674 @@ class TestAliasCommands(unittest.TestCase):
                      "faction-list", "faction-invites", "chat-history"]:
             args = parser.parse_args([cmd])
             self.assertEqual(args.command, cmd)
+
+
+# ---------------------------------------------------------------------------
+# Step 2: Unit tests for previously untested commands (#11)
+# ---------------------------------------------------------------------------
+
+class TestCmdTravel(unittest.TestCase):
+
+    def test_success(self):
+        api = mock_api({"result": {
+            "destination": "Asteroid Belt Alpha",
+            "ticks": 5,
+            "fuel_cost": 1,
+        }})
+        with patch("builtins.print") as mock_print:
+            cmd_travel(api, make_args(poi_id="poi-abc"))
+        printed = mock_print.call_args[0][0]
+        self.assertIn("Asteroid Belt Alpha", printed)
+        self.assertIn("5 ticks", printed)
+        self.assertIn("fuel: 1", printed)
+
+    def test_error(self):
+        api = mock_api({"error": "not_at_poi"})
+        with patch("builtins.print") as mock_print:
+            cmd_travel(api, make_args(poi_id="poi-bad"))
+        self.assertIn("ERROR", mock_print.call_args[0][0])
+
+    def test_no_fuel_cost(self):
+        api = mock_api({"result": {"destination": "Station X", "ticks": 3}})
+        with patch("builtins.print") as mock_print:
+            cmd_travel(api, make_args(poi_id="poi-x"))
+        printed = mock_print.call_args[0][0]
+        self.assertIn("Station X", printed)
+        self.assertNotIn("fuel", printed)
+
+
+class TestCmdLogin(unittest.TestCase):
+
+    def test_success(self):
+        api = MagicMock()
+        api.login.return_value = {"result": {
+            "player": {"credits": 500, "current_system": "Sol", "current_poi": "Station",
+                        "empire": 10, "docked_at_base": None},
+            "ship": {"name": "Scout", "class_id": "starter",
+                      "hull": 100, "max_hull": 100,
+                      "shield": 50, "max_shield": 50,
+                      "fuel": 40, "max_fuel": 50,
+                      "cargo_used": 2, "cargo_capacity": 10},
+            "system": {"name": "Sol"},
+            "poi": {"name": "Station Alpha"},
+        }}
+        with patch("builtins.print") as mock_print:
+            cmd_login(api, make_args(cred_file=None, json=False))
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("Sol", output)
+        self.assertIn("500 cr", output)
+
+    def test_login_failure_returns_none(self):
+        api = MagicMock()
+        api.login.return_value = None
+        with patch("builtins.print") as mock_print:
+            cmd_login(api, make_args(cred_file=None, json=False))
+        mock_print.assert_not_called()
+
+    def test_json_mode(self):
+        resp = {"result": {"player": {"credits": 100}}}
+        api = MagicMock()
+        api.login.return_value = resp
+        with patch("builtins.print") as mock_print:
+            cmd_login(api, make_args(cred_file=None, json=True))
+        self.assertEqual(json.loads(mock_print.call_args[0][0]), resp)
+
+
+class TestCmdRepair(unittest.TestCase):
+
+    def test_success(self):
+        api = mock_api({"result": {"hull": 200, "max_hull": 200}})
+        with patch("builtins.print") as mock_print:
+            cmd_repair(api, make_args())
+        printed = mock_print.call_args[0][0]
+        self.assertIn("Repaired", printed)
+        self.assertIn("200/200", printed)
+
+    def test_error(self):
+        api = mock_api({"error": "not_docked"})
+        with patch("builtins.print") as mock_print:
+            cmd_repair(api, make_args())
+        self.assertIn("ERROR", mock_print.call_args[0][0])
+
+
+class TestCmdLog(unittest.TestCase):
+
+    def test_with_entries(self):
+        api = mock_api({"result": {"entries": [
+            {"entry": "Found a rare asteroid field today.\nLots of platinum."},
+            {"entry": "Sold cargo at Sol Station."},
+        ]}})
+        with patch("builtins.print") as mock_print:
+            cmd_log(api, make_args(brief=False))
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("rare asteroid", output)
+        self.assertIn("Sold cargo", output)
+
+    def test_brief_mode(self):
+        api = mock_api({"result": {"entries": [
+            {"entry": "Line one\nLine two\nLine three"},
+        ]}})
+        with patch("builtins.print") as mock_print:
+            cmd_log(api, make_args(brief=True))
+        printed = mock_print.call_args[0][0]
+        self.assertIn("Line one", printed)
+        self.assertNotIn("Line two", printed)
+
+    def test_empty_entries(self):
+        api = mock_api({"result": {"entries": []}})
+        with patch("builtins.print") as mock_print:
+            cmd_log(api, make_args(brief=False))
+        mock_print.assert_not_called()
+
+
+class TestCmdPois(unittest.TestCase):
+
+    def test_with_pois(self):
+        api = mock_api({"result": {"pois": [
+            {"name": "Asteroid Belt", "type": "asteroid_belt", "id": "poi-1", "distance": 2.5},
+            {"name": "Station Alpha", "type": "station", "id": "poi-2", "distance": 0.1, "base_id": "base-1"},
+        ]}})
+        with patch("builtins.print") as mock_print:
+            cmd_pois(api, make_args())
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("Asteroid Belt", output)
+        self.assertIn("Station Alpha", output)
+        self.assertIn("base:base-1", output)
+        self.assertIn("2.5 AU", output)
+
+    def test_empty_pois(self):
+        api = mock_api({"result": {"pois": []}})
+        with patch("builtins.print") as mock_print:
+            cmd_pois(api, make_args())
+        mock_print.assert_not_called()
+
+
+class TestCmdSystem(unittest.TestCase):
+
+    def test_basic_output(self):
+        api = mock_api({"result": {
+            "system": {"name": "Sol", "police_level": 5, "connections": [
+                {"name": "Alpha Centauri", "id": "sys-ac"},
+            ]},
+            "pois": [
+                {"name": "Station", "type": "station", "id": "poi-1"},
+            ],
+        }})
+        with patch("builtins.print") as mock_print:
+            cmd_system(api, make_args())
+        output = "\n".join(str(c) for c in mock_print.call_args_list)
+        self.assertIn("Sol", output)
+        self.assertIn("Station", output)
+        self.assertIn("Alpha Centauri", output)
+
+    def test_string_connections(self):
+        api = mock_api({"result": {
+            "system": {"name": "Vega", "connections": ["sys-1", "sys-2"]},
+            "pois": [],
+        }})
+        with patch("builtins.print") as mock_print:
+            cmd_system(api, make_args())
+        output = "\n".join(str(c) for c in mock_print.call_args_list)
+        self.assertIn("sys-1", output)
+
+
+class TestCmdNotifications(unittest.TestCase):
+
+    def test_with_notifications(self):
+        api = mock_api({"result": {}, "notifications": [{"msg": "test"}]})
+        with patch("builtins.print") as mock_print:
+            cmd_notifications(api, make_args())
+        # Should NOT print "No notifications" since there are some
+        for call in mock_print.call_args_list:
+            self.assertNotIn("No notifications", call[0][0])
+
+    def test_no_notifications(self):
+        api = mock_api({"result": {}})
+        with patch("builtins.print") as mock_print:
+            cmd_notifications(api, make_args())
+        self.assertIn("No notifications", mock_print.call_args[0][0])
+
+
+class TestCmdMissions(unittest.TestCase):
+
+    def test_with_missions(self):
+        api = mock_api({"result": {"missions": [
+            {"title": "Deliver Iron", "type": "delivery", "difficulty": "easy",
+             "id": "m1", "description": "Bring iron to Sol",
+             "reward_credits": 500, "location": "Sol", "distance": 2},
+        ]}})
+        with patch("builtins.print") as mock_print:
+            cmd_missions(api, make_args(json=False))
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("Deliver Iron", output)
+        self.assertIn("delivery", output)
+        self.assertIn("500 cr", output)
+        self.assertIn("Sol", output)
+
+    def test_no_missions(self):
+        api = mock_api({"result": {"missions": []}})
+        with patch("builtins.print") as mock_print:
+            cmd_missions(api, make_args(json=False))
+        self.assertIn("No missions", mock_print.call_args[0][0])
+
+    def test_json_mode(self):
+        resp = {"result": {"missions": [{"title": "Test"}]}}
+        api = mock_api(resp)
+        with patch("builtins.print") as mock_print:
+            cmd_missions(api, make_args(json=True))
+        self.assertEqual(json.loads(mock_print.call_args[0][0]), resp)
+
+
+class TestCmdActiveMissions(unittest.TestCase):
+
+    def test_with_active_missions(self):
+        api = mock_api({"result": {"missions": [
+            {"title": "Mine 100 Iron", "id": "m1", "status": "in_progress",
+             "progress": {"current": 50, "target": 100},
+             "deadline_tick": 500,
+             "rewards": {"credits": 1000, "items": [{"item_id": "fuel_cell", "quantity": 5}]}},
+        ], "max_missions": 3}})
+        with patch("builtins.print") as mock_print:
+            cmd_active_missions(api, make_args(json=False))
+        output = "\n".join(str(c) for c in mock_print.call_args_list)
+        self.assertIn("Mine 100 Iron", output)
+        self.assertIn("in_progress", output)
+        self.assertIn("50/100", output)
+        self.assertIn("tick 500", output)
+        self.assertIn("1000 cr", output)
+
+    def test_no_active_missions(self):
+        api = mock_api({"result": {"missions": [], "max_missions": 5}})
+        with patch("builtins.print") as mock_print:
+            cmd_active_missions(api, make_args(json=False))
+        printed = mock_print.call_args[0][0]
+        self.assertIn("No active missions", printed)
+        self.assertIn("0/5", printed)
+
+
+class TestCmdQueryMissions(unittest.TestCase):
+
+    def test_search(self):
+        api = mock_api({"result": {"missions": [
+            {"title": "Deliver Iron", "type": "delivery", "id": "m1",
+             "difficulty": 1, "reward_credits": 500},
+            {"title": "Kill Pirates", "type": "combat", "id": "m2",
+             "difficulty": 3, "reward_credits": 2000},
+        ]}})
+        with patch("builtins.print") as mock_print:
+            cmd_query_missions(api, make_args(
+                json=False, active=False, search="iron", limit=10, page=1))
+        output = "\n".join(str(c) for c in mock_print.call_args_list)
+        self.assertIn("Deliver Iron", output)
+        self.assertNotIn("Kill Pirates", output)
+
+    def test_active_delegates(self):
+        """--active should delegate to cmd_active_missions."""
+        api = mock_api({"result": {"missions": [], "max_missions": 5}})
+        with patch("builtins.print") as mock_print:
+            cmd_query_missions(api, make_args(
+                json=False, active=True, search=None, limit=10, page=1))
+        printed = mock_print.call_args[0][0]
+        self.assertIn("No active missions", printed)
+
+    def test_no_results_search(self):
+        api = mock_api({"result": {"missions": [
+            {"title": "Deliver Iron", "type": "delivery", "id": "m1"},
+        ]}})
+        with patch("builtins.print") as mock_print:
+            cmd_query_missions(api, make_args(
+                json=False, active=False, search="nonexistent", limit=10, page=1))
+        self.assertIn("No missions matching", mock_print.call_args[0][0])
+
+
+class TestCmdSkills(unittest.TestCase):
+
+    def test_with_skills(self):
+        api = mock_api({"result": {"player_skills": [
+            {"name": "Mining", "level": 3, "current_xp": 150, "next_level_xp": 300},
+            {"name": "Trading", "level": 1, "current_xp": 10, "next_level_xp": 100},
+        ]}})
+        with patch("builtins.print") as mock_print:
+            cmd_skills(api, make_args())
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("Mining", output)
+        self.assertIn("L3", output)
+        self.assertIn("Trading", output)
+
+    def test_no_skills(self):
+        api = mock_api({"result": {"player_skills": []}})
+        with patch("builtins.print") as mock_print:
+            cmd_skills(api, make_args())
+        self.assertIn("no skills", mock_print.call_args[0][0])
+
+
+SAMPLE_SKILL_DATA = {
+    "mining_basic": {
+        "id": "mining_basic", "name": "Basic Mining", "category": "Resource",
+        "max_level": 5, "required_skills": {},
+        "description": "Improves mining yield",
+        "bonus_per_level": {"mining_yield": 0.1},
+        "xp_per_level": [100, 250, 500, 1000, 2000],
+    },
+    "mining_advanced": {
+        "id": "mining_advanced", "name": "Advanced Mining", "category": "Resource",
+        "max_level": 3, "required_skills": {"mining_basic": 3},
+        "description": "Unlocks rare ore mining",
+        "bonus_per_level": {"rare_ore_chance": 0.05},
+        "xp_per_level": [500, 1500, 4000],
+    },
+    "trading_basic": {
+        "id": "trading_basic", "name": "Basic Trading", "category": "Commerce",
+        "max_level": 5, "required_skills": {},
+        "description": "Better trade prices",
+        "bonus_per_level": {"price_bonus": 0.02},
+        "xp_per_level": [100, 200, 400, 800, 1600],
+    },
+}
+
+
+class TestCmdQuerySkills(unittest.TestCase):
+
+    def _make_api(self, player_skills=None):
+        return mock_api({"result": {
+            "skills": SAMPLE_SKILL_DATA,
+            "player_skills": player_skills or [],
+        }})
+
+    def test_list_by_category(self):
+        api = self._make_api()
+        with patch("builtins.print") as mock_print:
+            cmd_query_skills(api, make_args(
+                json=False, search=None, my=False, limit=10, page=1))
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("RESOURCE", output)
+        self.assertIn("COMMERCE", output)
+        self.assertIn("Basic Mining", output)
+
+    def test_search(self):
+        api = self._make_api()
+        with patch("builtins.print") as mock_print:
+            cmd_query_skills(api, make_args(
+                json=False, search="mining", my=False, limit=10, page=1))
+        output = "\n".join(str(c) for c in mock_print.call_args_list)
+        self.assertIn("Basic Mining", output)
+        self.assertIn("Advanced Mining", output)
+        self.assertNotIn("Trading", output)
+
+    def test_no_skill_data(self):
+        api = mock_api({"result": {"skills": {}, "player_skills": []}})
+        with patch("builtins.print") as mock_print:
+            cmd_query_skills(api, make_args(
+                json=False, search=None, my=False, limit=10, page=1))
+        self.assertIn("No skill data", mock_print.call_args[0][0])
+
+    def test_json_mode(self):
+        resp = {"result": {"skills": SAMPLE_SKILL_DATA, "player_skills": []}}
+        api = mock_api(resp)
+        with patch("builtins.print") as mock_print:
+            cmd_query_skills(api, make_args(
+                json=True, search=None, my=False, limit=10, page=1))
+        self.assertEqual(json.loads(mock_print.call_args[0][0]), resp)
+
+    def test_my_skills(self):
+        api = self._make_api(player_skills=[
+            {"skill_id": "mining_basic", "name": "Basic Mining", "level": 3,
+             "current_xp": 400, "next_level_xp": 1000, "max_level": 5},
+        ])
+        with patch("builtins.print") as mock_print:
+            cmd_query_skills(api, make_args(
+                json=False, search=None, my=True, limit=10, page=1))
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("Basic Mining", output)
+        self.assertIn("L3", output)
+
+
+class TestCmdSkill(unittest.TestCase):
+
+    def _make_api(self, player_skills=None):
+        return mock_api({"result": {
+            "skills": SAMPLE_SKILL_DATA,
+            "player_skills": player_skills or [],
+        }})
+
+    def test_exact_match(self):
+        api = self._make_api()
+        with patch("builtins.print") as mock_print:
+            cmd_skill(api, make_args(
+                json=False, skill_id="mining_basic"))
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("Basic Mining", output)
+        self.assertIn("Prerequisite tree", output)
+
+    def test_fuzzy_match(self):
+        api = self._make_api()
+        with patch("builtins.print") as mock_print:
+            cmd_skill(api, make_args(
+                json=False, skill_id="trading"))
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("Basic Trading", output)
+
+    def test_not_found(self):
+        api = self._make_api()
+        with patch("builtins.print") as mock_print:
+            cmd_skill(api, make_args(
+                json=False, skill_id="nonexistent_skill"))
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("No skill matching", output)
+
+    def test_no_skill_data(self):
+        api = mock_api({"result": {"skills": {}, "player_skills": []}})
+        with patch("builtins.print") as mock_print:
+            cmd_skill(api, make_args(
+                json=False, skill_id="mining_basic"))
+        self.assertIn("No skill data", mock_print.call_args[0][0])
+
+    def test_shows_unlocks(self):
+        """Should show what skills are unlocked at each level."""
+        api = self._make_api()
+        with patch("builtins.print") as mock_print:
+            cmd_skill(api, make_args(
+                json=False, skill_id="mining_basic"))
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        # mining_basic L3 unlocks mining_advanced
+        self.assertIn("Advanced Mining", output)
+
+    def test_shows_xp_table(self):
+        api = self._make_api()
+        with patch("builtins.print") as mock_print:
+            cmd_skill(api, make_args(
+                json=False, skill_id="mining_basic"))
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("XP requirements", output)
+        self.assertIn("L1:", output)
+
+
+# ---------------------------------------------------------------------------
+# Step 3: Error-path and edge-case tests (#12)
+# ---------------------------------------------------------------------------
+
+class TestCmdStatusErrors(unittest.TestCase):
+
+    def test_empty_result(self):
+        """cmd_status with empty result should not crash."""
+        api = mock_api({"result": {}})
+        with patch("builtins.print") as mock_print:
+            cmd_status(api, make_args())
+        # Should still print something (defaults to '?')
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("?", output)
+
+    def test_missing_ship_key(self):
+        """Result with player but no ship data."""
+        api = mock_api({"result": {"player": {"credits": 100}}})
+        with patch("builtins.print") as mock_print:
+            cmd_status(api, make_args())
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("100", output)
+
+
+class TestCmdShipErrors(unittest.TestCase):
+
+    def test_empty_ship(self):
+        api = mock_api({"result": {"ship": {}}})
+        with patch("builtins.print") as mock_print:
+            cmd_ship(api, make_args(json=False))
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("?", output)
+
+    def test_modules_as_string_ids(self):
+        """When modules are just string IDs, not rich dicts."""
+        api = mock_api({"result": {"ship": {
+            "class_id": "hauler",
+            "hull": 100, "max_hull": 100,
+            "shield": 50, "max_shield": 50,
+            "fuel": 50, "max_fuel": 50,
+            "cargo_used": 0, "cargo_capacity": 20,
+            "cpu_used": 0, "cpu": 10,
+            "power_used": 0, "power": 10,
+            "modules": ["mod-id-1", "mod-id-2"],
+            "cargo": [],
+        }}})
+        with patch("builtins.print") as mock_print:
+            cmd_ship(api, make_args(json=False))
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("Modules (2)", output)
+        self.assertIn("mod-id-1", output)
+
+
+class TestCmdNearbyErrors(unittest.TestCase):
+
+    def test_empty_nearby(self):
+        api = MagicMock()
+        api._post.return_value = {"result": {"nearby": [], "pirates": [], "pirate_count": 0}}
+        api._print_notifications = MagicMock()
+        with patch("builtins.print") as mock_print:
+            cmd_nearby(api, make_args(scan=False, json=False))
+        output = "\n".join(str(c) for c in mock_print.call_args_list)
+        self.assertIn("No one nearby", output)
+
+    def test_with_anonymous_player(self):
+        api = MagicMock()
+        api._post.side_effect = [
+            {"result": {"nearby": [
+                {"username": "hidden", "player_id": "p1", "ship_class": "starter",
+                 "anonymous": True, "in_combat": False},
+            ], "pirates": [], "pirate_count": 0}},
+            {"result": {"poi": {"name": "Belt", "id": "poi-1", "type": "asteroid_belt"}}},
+        ]
+        api._print_notifications = MagicMock()
+        with patch("builtins.print") as mock_print:
+            cmd_nearby(api, make_args(scan=False, json=False))
+        output = "\n".join(str(c) for c in mock_print.call_args_list)
+        self.assertIn("anon", output)
+
+
+class TestCmdPassthroughErrors(unittest.TestCase):
+
+    def test_missing_args_shows_usage(self):
+        """Calling an endpoint that requires args with no args shows usage."""
+        api = mock_api({})
+        with patch("builtins.print") as mock_print:
+            cmd_passthrough(api, "scan", [])
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("Usage:", output)
+        # Should NOT have called the API
+        api._post.assert_not_called()
+
+    def test_partial_args_shows_missing(self):
+        """Providing some but not all required args."""
+        api = mock_api({})
+        with patch("builtins.print") as mock_print:
+            cmd_passthrough(api, "list_item", ["ore_iron", "10"])
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("Missing:", output)
+        self.assertIn("price_each", output)
+
+    def test_result_as_string(self):
+        """API returning a plain string result."""
+        api = mock_api({"result": "Action completed successfully."})
+        with patch("builtins.print") as mock_print:
+            cmd_passthrough(api, "get_map", [])
+        self.assertIn("Action completed", mock_print.call_args[0][0])
+
+
+class TestCmdQueryRecipesErrors(unittest.TestCase):
+
+    def test_trace_nonexistent_item(self):
+        api = mock_api({"result": {"recipes": SAMPLE_RECIPES}})
+        with patch("builtins.print") as mock_print:
+            cmd_query_recipes(api, make_args(
+                json=False, trace="totally_fake_item", search=None))
+        printed = mock_print.call_args[0][0]
+        self.assertIn("No recipe produces", printed)
+
+    def test_empty_api_response(self):
+        """Completely empty recipes from API."""
+        api = mock_api({"result": {}})
+        with patch("builtins.print") as mock_print:
+            cmd_query_recipes(api, make_args(
+                json=False, trace=None, search=None))
+        self.assertIn("No recipes", mock_print.call_args[0][0])
+
+    def test_error_response(self):
+        """API returns an error for get_recipes."""
+        api = mock_api({"result": {"recipes": {}}})
+        with patch("builtins.print") as mock_print:
+            cmd_query_recipes(api, make_args(
+                json=False, trace=None, search=None))
+        self.assertIn("No recipes", mock_print.call_args[0][0])
+
+
+class TestCmdMissionsErrors(unittest.TestCase):
+
+    def test_mission_with_reward_items(self):
+        """Mission with item rewards but no credit reward."""
+        api = mock_api({"result": {"missions": [
+            {"title": "Salvage Run", "type": "salvage", "id": "m1",
+             "reward_items": [{"item_id": "rare_ore", "quantity": 3}]},
+        ]}})
+        with patch("builtins.print") as mock_print:
+            cmd_missions(api, make_args(json=False))
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("rare_ore x3", output)
+
+    def test_active_mission_scalar_progress(self):
+        """Active mission with progress as a plain string."""
+        api = mock_api({"result": {"missions": [
+            {"title": "Explore", "id": "m1", "status": "active",
+             "progress": "3/10 sectors scanned",
+             "rewards": {"credits": 500}},
+        ], "max_missions": 5}})
+        with patch("builtins.print") as mock_print:
+            cmd_active_missions(api, make_args(json=False))
+        output = "\n".join(str(c) for c in mock_print.call_args_list)
+        self.assertIn("3/10 sectors scanned", output)
+
+    def test_active_mission_list_rewards(self):
+        """Active mission with rewards as a list instead of dict."""
+        api = mock_api({"result": {"missions": [
+            {"title": "Bounty", "id": "m1", "status": "active",
+             "rewards": ["500 cr", "rare_gem x1"]},
+        ], "max_missions": 5}})
+        with patch("builtins.print") as mock_print:
+            cmd_active_missions(api, make_args(json=False))
+        output = "\n".join(str(c) for c in mock_print.call_args_list)
+        self.assertIn("500 cr", output)
+
+
+class TestCmdCargoErrors(unittest.TestCase):
+
+    def test_api_error_graceful(self):
+        """Cargo with missing fields should use defaults."""
+        api = mock_api({"result": {}})
+        with patch("builtins.print") as mock_print:
+            cmd_cargo(api, make_args())
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("0/", output)
+
+
+class TestCmdSellErrors(unittest.TestCase):
+
+    def test_sell_error(self):
+        api = mock_api({"error": "not_docked"})
+        with patch("builtins.print") as mock_print:
+            cmd_sell(api, make_args(item_id="ore_iron", quantity=5))
+        self.assertIn("ERROR", mock_print.call_args[0][0])
+
+    def test_sell_no_credits_field(self):
+        """Sell response with no recognizable credits field."""
+        api = mock_api({"result": {"status": "ok"}})
+        with patch("builtins.print") as mock_print:
+            cmd_sell(api, make_args(item_id="ore_iron", quantity=1))
+        printed = mock_print.call_args[0][0]
+        self.assertIn("Sold", printed)
+        self.assertIn("ore_iron", printed)
+
+
+class TestCmdMineErrors(unittest.TestCase):
+
+    def test_mine_error(self):
+        api = mock_api({"error": "not_at_asteroid_belt"})
+        with patch("builtins.print") as mock_print:
+            cmd_mine(api, make_args())
+        self.assertIn("ERROR", mock_print.call_args[0][0])
+
+    def test_mine_no_message(self):
+        """Mine success but result has no message field."""
+        api = mock_api({"result": {}})
+        with patch("builtins.print") as mock_print:
+            cmd_mine(api, make_args())
+        # Should not crash; just doesn't print anything
+        mock_print.assert_not_called()
+
+
+class TestCmdRefuelErrors(unittest.TestCase):
+
+    def test_refuel_error(self):
+        api = mock_api({"error": "not_docked"})
+        with patch("builtins.print") as mock_print:
+            cmd_refuel(api, make_args())
+        self.assertIn("ERROR", mock_print.call_args[0][0])
 
 
 if __name__ == "__main__":
