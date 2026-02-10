@@ -443,10 +443,10 @@ def cmd_nearby(api, args):
         emoji = _threat_emoji(level)
         role = _ship_role(ship)
 
-        ship_col = f"{role}({ship}:{pid[:8]})"
+        ship_col = f"{role}({ship}:{pid})"
         clan_str = f"[{clan}] " if clan else ""
         display_name = "\u2753" if anon else name
-        name_col = f"{clan_str}`{display_name}`(user:{pid[:8]})"
+        name_col = f"{clan_str}`{display_name}`(user:{pid})"
         if in_combat:
             name_col += " \u2694\ufe0f"
         # Annotations after the main columns
@@ -464,8 +464,8 @@ def cmd_nearby(api, args):
         name = p.get("name") or p.get("type", "pirate")
         plevel = p.get("level", "?")
         pid = p.get("id") or p.get("pirate_id", "")
-        pid_short = pid[:8] if pid else "npc"
-        rows.append((5, "\U0001f7e5", f"pirate(L{plevel}:{pid_short})", f"`{name}`", ""))
+        pid_label = pid if pid else "npc"
+        rows.append((5, "\U0001f7e5", f"pirate(L{plevel}:{pid_label})", f"`{name}`", ""))
 
     if rows:
         # Column widths

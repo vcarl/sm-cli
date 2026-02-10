@@ -114,6 +114,14 @@ class SpaceMoltAPI:
                 if sender_id:
                     sender_label += f"({sender_id})"
                 msg = f"<{sender_label}@{channel}> {content}"
+            elif msg_type in ("poi_arrival", "poi_departure"):
+                uname = data.get("username", "?")
+                clan = data.get("clan_tag", "")
+                clan_str = f"[{clan}] " if clan else ""
+                emoji = "\U0001f6ec" if msg_type == "poi_arrival" else "\U0001f4a8"
+                poi_name = data.get("poi_name", "")
+                poi_str = f" at {poi_name}" if poi_name else ""
+                msg = f"{emoji} {clan_str}{uname}{poi_str}"
             elif data:
                 msg = f"{msg_type}: {json.dumps(data)}"
             else:
