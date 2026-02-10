@@ -214,3 +214,4 @@ class SpaceMoltAPI:
             raise APIError(f"Login failed: {err}")
 
         print(f"Logged in as {username} (session: {sid[:12]}...)")
+        return result

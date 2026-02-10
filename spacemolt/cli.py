@@ -76,7 +76,8 @@ Tips:
     sub.add_parser("skills", help="Trained skills")
 
     # nearby
-    sub.add_parser("nearby", help="Nearby players")
+    p_nearby = sub.add_parser("nearby", help="Nearby players + threat assessment")
+    p_nearby.add_argument("--scan", action="store_true", help="Scan each player (rate-limited, ~11s per player)")
 
     # notifications
     sub.add_parser("notifications", help="Pending notifications")

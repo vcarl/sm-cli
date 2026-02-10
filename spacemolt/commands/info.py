@@ -1,4 +1,5 @@
 import json
+import time
 
 
 def cmd_status(api, args):
@@ -188,24 +189,217 @@ def cmd_cargo(api, args):
             print(f"  {name} x{qty}")
 
 
+COMBAT_SHIP_CLASSES = {
+    "fighter", "heavy_fighter", "interceptor", "assault", "destroyer",
+    "battlecruiser", "dreadnought", "pirate", "raider",
+    "combat_frigate", "war_barge",
+}
+
+ARMED_SHIP_CLASSES = {
+    "corvette", "frigate", "gunship", "cruiser",
+}
+
+
+def _threat_level(nearby_info, scan_info=None):
+    """Estimate threat from nearby data + optional scan results.
+
+    Returns (level, reasons) where level is 0-5 and reasons is a list of strings.
+    """
+    level = 0
+    reasons = []
+
+    ship = (nearby_info.get("ship_class") or "").lower()
+    in_combat = nearby_info.get("in_combat", False)
+
+    # Ship class analysis
+    if any(tag in ship for tag in ("combat", "fighter", "assault", "pirate",
+                                    "raider", "destroyer", "interceptor",
+                                    "dreadnought", "war", "battlecruiser")):
+        level += 3
+        reasons.append(f"combat ship ({ship})")
+    elif any(tag in ship for tag in ("corvette", "frigate", "gunship", "cruiser")):
+        level += 2
+        reasons.append(f"armed ship ({ship})")
+    elif any(tag in ship for tag in ("mining", "hauler", "transport", "starter",
+                                      "shuttle", "explorer", "prospector")):
+        level += 0
+        reasons.append(f"civilian ship ({ship})")
+    elif ship:
+        level += 1
+        reasons.append(f"unknown class ({ship})")
+
+    if in_combat:
+        level += 1
+        reasons.append("currently in combat")
+
+    # Scan data enrichment
+    if scan_info and scan_info.get("success"):
+        revealed = scan_info.get("revealed_info") or {}
+
+        # Weapons
+        weapons = revealed.get("weapons") or revealed.get("weapon_count", 0)
+        if isinstance(weapons, list):
+            weapons = len(weapons)
+        if weapons and weapons > 0:
+            level += min(weapons, 2)
+            reasons.append(f"{weapons} weapon(s)")
+
+        # Hull/shield strength
+        hull = revealed.get("hull") or revealed.get("max_hull", 0)
+        shield = revealed.get("shield") or revealed.get("max_shield", 0)
+        if hull and hull > 200:
+            level += 1
+            reasons.append(f"heavy hull ({hull})")
+        if shield and shield > 100:
+            level += 1
+            reasons.append(f"strong shields ({shield})")
+
+        # Cargo (low cargo on a combat ship = hunting)
+        cargo_used = revealed.get("cargo_used", None)
+        cargo_cap = revealed.get("cargo_capacity", None)
+        if cargo_used is not None and cargo_cap and cargo_cap > 0:
+            if cargo_used / cargo_cap < 0.1 and level >= 2:
+                level += 1
+                reasons.append("empty cargo (likely hunting)")
+
+    return level, reasons
+
+
+def _threat_label(level):
+    if level >= 5:
+        return "EXTREME"
+    labels = {0: "NONE", 1: "LOW", 2: "MODERATE", 3: "HIGH", 4: "DANGEROUS"}
+    return labels.get(level, "UNKNOWN")
+
+
+def _threat_bar(level):
+    filled = min(level, 5)
+    empty = 5 - filled
+    return "[" + "#" * filled + "." * empty + "]"
+
+
 def cmd_nearby(api, args):
+    scan = getattr(args, "scan", False)
+    as_json = getattr(args, "json", False)
     resp = api._post("get_nearby")
     r = resp.get("result", {})
     players = r.get("nearby") or r.get("players", [])
-    if not players:
+    pirates = r.get("pirates", [])
+
+    if not players and not pirates:
         print("No one nearby.")
-    else:
-        for p in players:
-            name = p.get("username") or p.get("name") or "anonymous"
-            pid = p.get("id") or p.get("player_id", "")
-            line = name
-            if pid:
-                line += f" (id:{pid})"
-            if p.get("ship_class"):
-                line += f" [{p['ship_class']}]"
-            if p.get("clan_tag"):
-                line += f" <{p['clan_tag']}>"
-            print(line)
+        return
+
+    if as_json and not scan:
+        print(json.dumps(r, indent=2))
+        return
+
+    # Scan each player if requested
+    scan_results = {}
+    has_scanner = None
+    if scan and players:
+        # Check if we have a scanner module equipped
+        try:
+            ship_resp = api._post("get_ship")
+            modules = ship_resp.get("result", {}).get("modules", [])
+            has_scanner = any(
+                "scan" in (m.get("type") or m.get("type_id") or m.get("name") or "").lower()
+                for m in modules if isinstance(m, dict)
+            )
+        except Exception:
+            has_scanner = None  # unknown
+
+        for i, p in enumerate(players):
+            pid = p.get("player_id") or p.get("id", "")
+            if not pid:
+                continue
+            if i > 0:
+                print(f"  scanning... (waiting for rate limit)", flush=True)
+                time.sleep(11)
+            try:
+                scan_resp = api._post("scan", {"target_id": pid})
+                sr = scan_resp.get("result", {})
+                # Handle nested Result key
+                scan_data = sr.get("Result", sr)
+                scan_results[pid] = scan_data
+            except Exception as e:
+                scan_results[pid] = {"success": False, "error": str(e)}
+
+    # Display results
+    total_players = len(players)
+    pirate_count = r.get("pirate_count", len(pirates))
+    poi_id = r.get("poi_id", "")
+    if poi_id:
+        print(f"Location: {poi_id}")
+    print(f"Players: {total_players}  |  Pirates: {pirate_count}")
+    print()
+
+    for p in players:
+        name = p.get("username") or p.get("name") or "anonymous"
+        pid = p.get("player_id") or p.get("id", "")
+        ship = p.get("ship_class", "?")
+        clan = p.get("clan_tag", "")
+        in_combat = p.get("in_combat", False)
+
+        scan_data = scan_results.get(pid)
+        level, reasons = _threat_level(p, scan_data)
+        label = _threat_label(level)
+        bar = _threat_bar(level)
+
+        # Header line
+        header = f"  {name}"
+        if clan:
+            header += f" <{clan}>"
+        header += f"  [{ship}]"
+        if in_combat:
+            header += "  *IN COMBAT*"
+        print(header)
+
+        # Threat line
+        rating = f" ({level})" if level >= 5 else ""
+        print(f"    Threat: {bar} {label}{rating}")
+        if reasons:
+            print(f"    Basis:  {', '.join(reasons)}")
+
+        # Scan details if available
+        if scan_data:
+            success = scan_data.get("success", False)
+            if success:
+                revealed = scan_data.get("revealed_info") or {}
+                details = []
+                for key in ("hull", "max_hull", "shield", "max_shield",
+                            "weapons", "cargo_used", "cargo_capacity"):
+                    val = revealed.get(key)
+                    if val is not None:
+                        details.append(f"{key}={val}")
+                if details:
+                    print(f"    Scan:   {', '.join(details)}")
+            else:
+                error = scan_data.get("error")
+                if error:
+                    reason = str(error)
+                elif has_scanner is False:
+                    reason = "no scanner module equipped"
+                else:
+                    reason = "target may have countermeasures"
+                print(f"    Scan:   FAILED ({reason})")
+
+        # Player ID
+        if pid:
+            print(f"    ID:     {pid}")
+        print()
+
+    # NPC pirates
+    if pirates:
+        print("NPC Pirates:")
+        for p in pirates:
+            name = p.get("name") or p.get("type", "pirate")
+            plevel = p.get("level", "?")
+            print(f"  {name} (level {plevel})")
+
+    if as_json:
+        combined = {"nearby": r, "scans": scan_results}
+        print(json.dumps(combined, indent=2))
 
 
 def cmd_notifications(api, args):

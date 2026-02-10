@@ -4,7 +4,81 @@ import time
 
 def cmd_login(api, args):
     cred_file = args.cred_file if args.cred_file else None
-    api.login(cred_file)
+    as_json = getattr(args, "json", False)
+    resp = api.login(cred_file)
+    if not resp:
+        return
+    if as_json:
+        print(json.dumps(resp, indent=2))
+        return
+    r = resp.get("result", {})
+    _print_login_summary(r)
+
+
+def _print_login_summary(r):
+    """Print a compact status summary from the login response."""
+    player = r.get("player", {})
+    ship = r.get("ship", {})
+    system = r.get("system", {})
+    poi = r.get("poi", {})
+    unread = r.get("unread_chat", {})
+    release = r.get("release_info", {})
+    log_entries = r.get("captains_log", [])
+    trades = r.get("pending_trades")
+
+    # Location
+    sys_name = system.get("name") or player.get("current_system", "?")
+    poi_name = poi.get("name") or player.get("current_poi", "?")
+    police = system.get("police_level")
+    loc_line = f"{sys_name} > {poi_name}"
+    if player.get("docked_at_base"):
+        loc_line += " (docked)"
+    if police is not None:
+        loc_line += f"  [police: {police}]"
+    print(loc_line)
+
+    # Credits & empire
+    print(f"{player.get('credits', '?')} cr  |  {player.get('empire', '?')} empire")
+
+    # Ship
+    ship_name = ship.get("name") or ship.get("class_id", "?")
+    parts = [
+        ship_name,
+        f"Hull: {ship.get('hull', '?')}/{ship.get('max_hull', '?')}",
+        f"Shield: {ship.get('shield', '?')}/{ship.get('max_shield', '?')}",
+        f"Fuel: {ship.get('fuel', '?')}/{ship.get('max_fuel', '?')}",
+        f"Cargo: {ship.get('cargo_used', '?')}/{ship.get('cargo_capacity', '?')}",
+    ]
+    print("  ".join(parts))
+
+    # Unread chat
+    if unread:
+        counts = [f"{ch}:{ct}" for ch, ct in unread.items() if ct]
+        if counts:
+            print(f"Unread: {' '.join(counts)}")
+
+    # Pending trades
+    if trades:
+        print(f"Pending trades: {len(trades)}")
+
+    # Captain's log (most recent)
+    if log_entries:
+        latest = log_entries[0]
+        text = latest.get("entry", "")
+        first_line = text.split("\n", 1)[0]
+        if len(first_line) > 100:
+            first_line = first_line[:97] + "..."
+        ts = latest.get("created_at", "")[:10]
+        print(f"Last log ({ts}): {first_line}")
+
+    # Release info
+    if release:
+        ver = release.get("version", "?")
+        notes = release.get("notes", [])
+        note_str = notes[0] if notes else ""
+        if len(note_str) > 80:
+            note_str = note_str[:77] + "..."
+        print(f"v{ver}: {note_str}")
 
 
 def cmd_travel(api, args):
@@ -102,8 +176,23 @@ def cmd_sell(api, args):
         print(f"ERROR: {err}")
     else:
         r = result.get("result", {})
-        earned = r.get("credits_earned") or r.get("earned", "?")
-        print(f"Sold {args.item_id} x{args.quantity} (+{earned} cr)")
+        earned = _extract_earned(r)
+        if earned is not None:
+            print(f"Sold {args.item_id} x{args.quantity} (+{earned} cr)")
+        else:
+            print(f"Sold {args.item_id} x{args.quantity}")
+
+
+def _extract_earned(result_dict):
+    """Extract credits earned from a sell response, returning int or None."""
+    for key in ("credits_earned", "earned", "total_price", "price", "amount"):
+        val = result_dict.get(key)
+        if val is not None:
+            try:
+                return int(val)
+            except (ValueError, TypeError):
+                pass
+    return None
 
 
 def cmd_sell_all(api, args):
@@ -114,6 +203,10 @@ def cmd_sell_all(api, args):
     if not items:
         print("Nothing to sell (cargo empty or unreadable).")
         return
+
+    # Snapshot credits before selling to compute true total
+    status_resp = api._post("get_status")
+    credits_before = status_resp.get("result", {}).get("player", {}).get("credits")
 
     total = 0
     for item in items:
@@ -126,16 +219,24 @@ def cmd_sell_all(api, args):
                 print(f"  {item_id} x{qty}: FAILED ({err})")
             else:
                 r = result.get("result", {})
-                earned = r.get("credits_earned") or r.get("earned", "?")
-                print(f"  {item_id} x{qty}: sold (+{earned} cr)")
-                if earned != "?":
-                    try:
-                        total += int(earned)
-                    except (ValueError, TypeError):
-                        pass
+                earned = _extract_earned(r)
+                if earned is not None:
+                    print(f"  {item_id} x{qty}: sold (+{earned} cr)")
+                    total += earned
+                else:
+                    print(f"  {item_id} x{qty}: sold")
         except Exception as e:
             print(f"  {item_id} x{qty}: FAILED ({e})")
         time.sleep(11)
+
+    # Use credit delta as the total if per-item parsing yielded nothing
+    if total == 0 and credits_before is not None:
+        status_after = api._post("get_status")
+        credits_after = status_after.get("result", {}).get("player", {}).get("credits")
+        if credits_after is not None:
+            delta = credits_after - credits_before
+            if delta > 0:
+                total = delta
 
     print(f"Done. Total earned: {total} cr")
 
