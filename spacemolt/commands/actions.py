@@ -189,6 +189,7 @@ def cmd_travel(api, args):
         if fuel is not None:
             line += f" (fuel: {fuel})"
         print(line)
+        print("  Hint: sm wait")
 
 
 def cmd_jump(api, args):
@@ -209,6 +210,7 @@ def cmd_jump(api, args):
         if fuel is not None:
             line += f" (fuel: {fuel})"
         print(line)
+        print("  Hint: sm wait")
 
 
 def cmd_dock(api, args):
@@ -225,6 +227,7 @@ def cmd_dock(api, args):
         if base_id:
             msg += f" ({base_id})"
         print(f"{msg}.")
+        print("  Hint: sm base  |  sm listings  |  sm repair")
 
 
 def cmd_undock(api, args):

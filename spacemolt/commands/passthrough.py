@@ -426,6 +426,48 @@ def _fmt_forum_get_thread(resp):
                     print(f"    {line}")
 
 
+def _fmt_attack(resp):
+    r = resp.get("result", {})
+    msg = r.get("message")
+    if msg:
+        print(msg)
+    else:
+        hit = r.get("hit", r.get("success", False))
+        damage = r.get("damage", 0)
+        target = r.get("target") or r.get("target_name", "target")
+        if hit:
+            print(f"Hit {target} for {damage} damage!")
+        else:
+            print(f"Missed {target}.")
+    # Show extra result fields
+    for k in ("target_hull", "target_shield", "hull", "shield"):
+        v = r.get(k)
+        if v is not None:
+            print(f"  {k}: {v}")
+    print("\n  Hint: sm status  |  sm nearby")
+
+
+def _fmt_scan(resp):
+    r = resp.get("result", {})
+    scan = r.get("Result", r)
+    success = scan.get("success", True)
+    if not success:
+        print(f"Scan failed: {scan.get('error', scan.get('message', 'unknown'))}")
+        return
+    target = scan.get("target") or scan.get("target_name") or scan.get("target_id", "?")
+    print(f"Scan of {target}:")
+    revealed = scan.get("revealed_info") or scan
+    for k, v in revealed.items():
+        if k in ("success", "target", "target_name", "target_id", "revealed_info"):
+            continue
+        if isinstance(v, list):
+            print(f"  {k}: {', '.join(str(i) for i in v)}")
+        else:
+            print(f"  {k}: {v}")
+    target_id = scan.get("target_id") or target
+    print(f"\n  Hint: sm attack {target_id}  |  sm trade-offer {target_id}")
+
+
 _FORMATTERS = {
     "get_chat_history": _fmt_chat_history,
     "get_notes": _fmt_notes,
@@ -439,6 +481,8 @@ _FORMATTERS = {
     "faction_get_invites": _fmt_faction_invites,
     "forum_list": _fmt_forum_list,
     "forum_get_thread": _fmt_forum_get_thread,
+    "attack": _fmt_attack,
+    "scan": _fmt_scan,
 }
 
 

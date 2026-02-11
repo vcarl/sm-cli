@@ -140,6 +140,35 @@ class SpaceMoltAPI:
                     parts.append(f"in {system}")
                 parts.append("\n  Tip: sm buy-insurance <ticks>  |  sm claim-insurance")
                 msg = "  ".join(parts)
+            elif msg_type in ("combat_start", "combat_end", "attack_hit",
+                             "attack_miss", "under_attack"):
+                attacker = data.get("attacker") or data.get("attacker_name", "")
+                target = data.get("target") or data.get("target_name", "")
+                damage = data.get("damage")
+                parts = []
+                if msg_type == "combat_start":
+                    parts.append(f"Combat started with {target or attacker}")
+                elif msg_type == "combat_end":
+                    parts.append(f"Combat ended")
+                elif msg_type == "under_attack":
+                    parts.append(f"Under attack from {attacker}")
+                elif damage is not None:
+                    verb = "Hit" if msg_type == "attack_hit" else "Missed"
+                    parts.append(f"{verb} {target or attacker}")
+                    if msg_type == "attack_hit":
+                        parts.append(f"for {damage} damage")
+                else:
+                    parts.append(msg_type.replace("_", " ").title())
+                parts.append("\n  Hint: sm status  |  sm nearby")
+                msg = "  ".join(parts)
+            elif msg_type in ("trade_offer", "trade_received"):
+                partner = data.get("from") or data.get("sender") or data.get("partner", "?")
+                trade_id = data.get("trade_id") or data.get("id", "")
+                msg = f"Trade offer from {partner}"
+                if trade_id:
+                    msg += f"\n  Hint: sm trades  |  sm trade-accept {trade_id}"
+                else:
+                    msg += "\n  Hint: sm trades"
             elif msg_type in ("poi_arrival", "poi_departure"):
                 uname = data.get("username", "?")
                 clan = data.get("clan_tag", "")

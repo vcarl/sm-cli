@@ -495,7 +495,7 @@ class TestCmdJump(unittest.TestCase):
         }})
         with patch("builtins.print") as mock_print:
             cmd_jump(api, make_args(target_system="sys-vega", json=False))
-        printed = mock_print.call_args[0][0]
+        printed = mock_print.call_args_list[0][0][0]
         self.assertIn("Vega", printed)
         self.assertIn("10 ticks", printed)
         self.assertIn("fuel: 2", printed)
@@ -1110,7 +1110,7 @@ class TestExistingCommandsRegression(unittest.TestCase):
         with patch("builtins.print") as mock_print:
             from spacemolt.commands import cmd_dock
             cmd_dock(api, make_args())
-        self.assertIn("Starport", mock_print.call_args[0][0])
+        self.assertIn("Starport", mock_print.call_args_list[0][0][0])
 
     def test_cmd_undock(self):
         api = mock_api({"result": {}})
@@ -1316,7 +1316,7 @@ class TestCmdTravel(unittest.TestCase):
         }})
         with patch("builtins.print") as mock_print:
             cmd_travel(api, make_args(poi_id="poi-abc"))
-        printed = mock_print.call_args[0][0]
+        printed = mock_print.call_args_list[0][0][0]
         self.assertIn("Asteroid Belt Alpha", printed)
         self.assertIn("5 ticks", printed)
         self.assertIn("fuel: 1", printed)
@@ -1331,7 +1331,7 @@ class TestCmdTravel(unittest.TestCase):
         api = mock_api({"result": {"destination": "Station X", "ticks": 3}})
         with patch("builtins.print") as mock_print:
             cmd_travel(api, make_args(poi_id="poi-x"))
-        printed = mock_print.call_args[0][0]
+        printed = mock_print.call_args_list[0][0][0]
         self.assertIn("Station X", printed)
         self.assertNotIn("fuel", printed)
 

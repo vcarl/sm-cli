@@ -491,6 +491,12 @@ def cmd_nearby(api, args):
     # --- Legend ---
     print(f"\n\u2b1c safe  \U0001f7e8  \U0001f7e7  \U0001f7e5  \u2620\ufe0f dangerous")
 
+    # --- Command hints ---
+    if players:
+        first = players[0]
+        example_id = first.get("player_id") or first.get("id", "<id>")
+        print(f"\n  Hint: sm scan {example_id}  |  sm attack {example_id}  |  sm trade-offer {example_id}")
+
     # --- Arrival/departure log ---
     movements = []
     for n in notifs:
@@ -557,6 +563,8 @@ def cmd_wrecks(api, args):
                 else:
                     print(f"  [mod] {m}")
 
+    print("\n  Hint: sm loot-wreck <wreck_id> <item_id> <qty>  |  sm salvage-wreck <wreck_id>")
+
 
 def cmd_listings(api, args):
     as_json = getattr(args, "json", False)
@@ -580,3 +588,5 @@ def cmd_listings(api, args):
         seller = l.get("seller_name") or l.get("seller", "?")
         lid = l.get("id") or l.get("listing_id", "?")
         print(f"{item:<25} {qty:>5} {price:>10} {seller:<20} {lid}")
+
+    print(f"\n  Hint: sm buy-listing <listing_id>")
