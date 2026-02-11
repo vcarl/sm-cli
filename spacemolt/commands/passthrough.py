@@ -674,6 +674,248 @@ def _fmt_view_market(resp):
         print(f"\n  Hint: sm buy {item_id} <qty>  |  sm sell {item_id} <qty>")
 
 
+def _fmt_find_route(resp):
+    """Format find_route response."""
+    r = resp.get("result", resp)
+    route = r.get("route", [])
+    distance = r.get("distance") or r.get("jumps")
+    target = r.get("target_system") or r.get("destination", "?")
+
+    if not route:
+        print(f"No route found to {target}")
+        return
+
+    print(f"Route to {target} ({len(route)} jumps):")
+    for i, system in enumerate(route):
+        if isinstance(system, dict):
+            sys_name = system.get("name") or system.get("system_id", "?")
+            sys_id = system.get("id") or system.get("system_id", "")
+        else:
+            sys_name = str(system)
+            sys_id = ""
+
+        prefix = "  └─" if i == len(route) - 1 else "  ├─"
+        line = f"{prefix} {sys_name}"
+        if sys_id and sys_id != sys_name:
+            line += f" ({sys_id})"
+        print(line)
+
+    if distance:
+        print(f"\nTotal distance: {distance} jumps")
+    print("\n  Hint: sm jump <system_id>")
+
+
+def _fmt_search_systems(resp):
+    """Format search_systems response."""
+    r = resp.get("result", resp)
+    systems = r.get("systems", [])
+    query = r.get("query", "")
+
+    if not systems:
+        print(f"No systems found matching '{query}'")
+        return
+
+    print(f"Found {len(systems)} system(s) matching '{query}':")
+    for sys in systems[:20]:  # Limit to 20
+        if isinstance(sys, dict):
+            name = sys.get("name", "?")
+            sys_id = sys.get("id") or sys.get("system_id", "")
+            coords = sys.get("coordinates", {})
+            x = coords.get("x") if isinstance(coords, dict) else "?"
+            y = coords.get("y") if isinstance(coords, dict) else "?"
+            police = sys.get("police_level")
+
+            line = f"  {name}"
+            if sys_id:
+                line += f" ({sys_id})"
+            line += f" @ ({x}, {y})"
+            if police is not None:
+                line += f"  [police: {police}]"
+            print(line)
+        else:
+            print(f"  {sys}")
+
+    if len(systems) > 20:
+        print(f"\n... and {len(systems) - 20} more")
+    print("\n  Hint: sm find-route <system_id>  |  sm jump <system_id>")
+
+
+def _fmt_estimate_purchase(resp):
+    """Format estimate_purchase response."""
+    r = resp.get("result", resp)
+    item_id = r.get("item_id", "?")
+    quantity = r.get("quantity", 0)
+    total_cost = r.get("total_cost", 0)
+    avg_price = r.get("average_price", 0)
+    available = r.get("available", 0)
+
+    print(f"Purchase estimate for {item_id} x{quantity}:")
+    print(f"  Total cost: {total_cost:,} cr")
+    if avg_price:
+        print(f"  Average price: {avg_price:.2f} cr per unit")
+    if available is not None:
+        print(f"  Available: {available} units")
+        if available < quantity:
+            print(f"  ⚠️  Warning: Only {available} units available (need {quantity})")
+
+    print(f"\n  Hint: sm buy {item_id} {quantity}")
+
+
+def _fmt_craft(resp):
+    """Format craft response."""
+    r = resp.get("result", resp)
+    recipe_id = r.get("recipe_id", "?")
+    item_id = r.get("item_id") or r.get("output_item", "?")
+    quantity = r.get("quantity", 1)
+    success = r.get("success", True)
+
+    if success:
+        print(f"✓ Crafted {item_id} x{quantity}")
+    else:
+        print(f"✗ Failed to craft {recipe_id}")
+        reason = r.get("reason") or r.get("error", "")
+        if reason:
+            print(f"  Reason: {reason}")
+
+    # Show what was consumed
+    consumed = r.get("consumed", [])
+    if consumed:
+        print("\n  Consumed:")
+        for item in consumed:
+            if isinstance(item, dict):
+                iid = item.get("item_id", "?")
+                qty = item.get("quantity", 1)
+                print(f"    - {iid} x{qty}")
+
+    print("\n  Hint: sm cargo  |  sm recipes")
+
+
+def _fmt_jettison(resp):
+    """Format jettison response."""
+    r = resp.get("result", resp)
+    item_id = r.get("item_id", "?")
+    quantity = r.get("quantity", 0)
+
+    print(f"Jettisoned {item_id} x{quantity}")
+    remaining = r.get("remaining_quantity")
+    if remaining is not None:
+        print(f"  Remaining in cargo: {remaining}")
+
+    print("\n  Hint: sm cargo  |  sm nearby (to see if anyone picks it up)")
+
+
+def _fmt_buy_ship(resp):
+    """Format buy_ship response."""
+    r = resp.get("result", resp)
+    ship_class = r.get("ship_class") or r.get("class_id", "?")
+    cost = r.get("cost", 0)
+    ship_id = r.get("ship_id") or r.get("id", "")
+
+    print(f"✓ Purchased {ship_class}")
+    print(f"  Cost: {cost:,} cr")
+    if ship_id:
+        sid_short = ship_id[:8] if len(ship_id) > 8 else ship_id
+        print(f"  Ship ID: {sid_short}")
+
+    print("\n  Hint: sm switch-ship <ship_id>  |  sm ships")
+
+
+def _fmt_switch_ship(resp):
+    """Format switch_ship response."""
+    r = resp.get("result", resp)
+    ship_class = r.get("ship_class") or r.get("class_id", "?")
+    ship_id = r.get("ship_id") or r.get("id", "")
+
+    print(f"Switched to {ship_class}")
+    if ship_id:
+        sid_short = ship_id[:8] if len(ship_id) > 8 else ship_id
+        print(f"  Ship ID: {sid_short}")
+
+    print("\n  Hint: sm ship  |  sm status")
+
+
+def _fmt_install_mod(resp):
+    """Format install_mod response."""
+    r = resp.get("result", resp)
+    module_id = r.get("module_id", "?")
+    slot_idx = r.get("slot_idx") or r.get("slot", "?")
+
+    print(f"✓ Installed {module_id}")
+    print(f"  Slot: {slot_idx}")
+
+    # Show any bonuses
+    bonuses = r.get("bonuses", {})
+    if bonuses:
+        print("\n  Bonuses:")
+        for key, val in bonuses.items():
+            print(f"    {key}: +{val}")
+
+    print("\n  Hint: sm ship  |  sm listings")
+
+
+def _fmt_uninstall_mod(resp):
+    """Format uninstall_mod response."""
+    r = resp.get("result", resp)
+    module_id = r.get("module_id", "?")
+
+    print(f"✓ Uninstalled {module_id}")
+    print(f"  Module returned to cargo")
+
+    print("\n  Hint: sm ship  |  sm cargo")
+
+
+def _fmt_loot_wreck(resp):
+    """Format loot_wreck response."""
+    r = resp.get("result", resp)
+    item_id = r.get("item_id", "?")
+    quantity = r.get("quantity", 0)
+    wreck_id = r.get("wreck_id", "")
+
+    print(f"Looted {item_id} x{quantity} from wreck")
+
+    remaining = r.get("remaining_items", [])
+    if remaining:
+        print(f"\n  Wreck still contains {len(remaining)} item types")
+
+    print("\n  Hint: sm wrecks  |  sm salvage-wreck <wreck_id>")
+
+
+def _fmt_salvage_wreck(resp):
+    """Format salvage_wreck response."""
+    r = resp.get("result", resp)
+    wreck_id = r.get("wreck_id", "")
+    items = r.get("items", [])
+
+    print(f"Salvaged wreck")
+    if items:
+        print(f"\n  Recovered:")
+        for item in items:
+            if isinstance(item, dict):
+                iid = item.get("item_id", "?")
+                qty = item.get("quantity", 1)
+                print(f"    - {iid} x{qty}")
+
+    print("\n  Hint: sm cargo  |  sm wrecks")
+
+
+def _fmt_jump(resp):
+    """Format jump response."""
+    r = resp.get("result", resp)
+    target = r.get("target_system") or r.get("system", "?")
+    fuel_cost = r.get("fuel_cost") or r.get("fuel_used")
+
+    print(f"Jumped to {target}")
+    if fuel_cost:
+        print(f"  Fuel used: {fuel_cost}")
+
+    # Show arrival info
+    arrived_at = r.get("arrived_at") or r.get("location")
+    if arrived_at:
+        print(f"  Location: {arrived_at}")
+
+    print("\n  Hint: sm system  |  sm pois  |  sm nearby")
+
+
 _FORMATTERS = {
     "get_chat_history": _fmt_chat_history,
     "get_notes": _fmt_notes,
@@ -697,6 +939,18 @@ _FORMATTERS = {
     "raid_status": _fmt_raid_status,
     "help": _fmt_help,
     "view_market": _fmt_view_market,
+    "find_route": _fmt_find_route,
+    "search_systems": _fmt_search_systems,
+    "estimate_purchase": _fmt_estimate_purchase,
+    "craft": _fmt_craft,
+    "jettison": _fmt_jettison,
+    "buy_ship": _fmt_buy_ship,
+    "switch_ship": _fmt_switch_ship,
+    "install_mod": _fmt_install_mod,
+    "uninstall_mod": _fmt_uninstall_mod,
+    "loot_wreck": _fmt_loot_wreck,
+    "salvage_wreck": _fmt_salvage_wreck,
+    "jump": _fmt_jump,
 }
 
 
