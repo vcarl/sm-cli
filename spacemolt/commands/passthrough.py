@@ -620,6 +620,60 @@ def _fmt_help(resp):
         print(json.dumps(r, indent=2))
 
 
+def _fmt_view_market(resp):
+    """Format view_market response for a specific item."""
+    r = resp.get("result", resp)
+    items = r.get("items", [])
+    if not items:
+        print("No market data available.")
+        return
+
+    for item_data in items:
+        item_id = item_data.get("item_id", "?")
+        item_name = item_data.get("item_name", item_id)
+        best_buy = item_data.get("best_buy")
+        best_sell = item_data.get("best_sell")
+        spread = item_data.get("spread")
+
+        print(f"{item_name} ({item_id})")
+
+        # Sell orders (what NPCs/players are selling TO you - you can buy from them)
+        sell_orders = item_data.get("sell_orders", [])
+        if sell_orders:
+            print(f"\n  Sell Orders (you can BUY at these prices):")
+            for order in sell_orders[:10]:  # Show top 10
+                price = order.get("price_each", "?")
+                qty = order.get("quantity", "?")
+                is_npc = order.get("is_npc", False)
+                seller_type = "NPC" if is_npc else "Player"
+                print(f"    {qty:>6} @ {price:>5} cr  [{seller_type}]")
+        else:
+            print("\n  No sell orders (cannot buy this item here)")
+
+        # Buy orders (what NPCs/players want to buy FROM you - you can sell to them)
+        buy_orders = item_data.get("buy_orders", [])
+        if buy_orders:
+            print(f"\n  Buy Orders (you can SELL at these prices):")
+            for order in buy_orders[:10]:  # Show top 10
+                price = order.get("price_each", "?")
+                qty = order.get("quantity", "?")
+                is_npc = order.get("is_npc", False)
+                buyer_type = "NPC" if is_npc else "Player"
+                print(f"    {qty:>6} @ {price:>5} cr  [{buyer_type}]")
+        else:
+            print("\n  No buy orders (no one buying this item here)")
+
+        # Summary
+        if best_buy and best_sell:
+            print(f"\n  Best buy: {best_buy} cr  |  Best sell: {best_sell} cr  |  Spread: {spread} cr")
+        elif best_sell:
+            print(f"\n  Best sell: {best_sell} cr")
+        elif best_buy:
+            print(f"\n  Best buy: {best_buy} cr")
+
+        print(f"\n  Hint: sm buy {item_id} <qty>  |  sm sell {item_id} <qty>")
+
+
 _FORMATTERS = {
     "get_chat_history": _fmt_chat_history,
     "get_notes": _fmt_notes,
@@ -642,6 +696,7 @@ _FORMATTERS = {
     "view_storage": _fmt_view_storage,
     "raid_status": _fmt_raid_status,
     "help": _fmt_help,
+    "view_market": _fmt_view_market,
 }
 
 
@@ -803,7 +858,11 @@ def cmd_passthrough(api, endpoint, extra_args, as_json=False):
         else:
             formatter = _FORMATTERS.get(endpoint)
             if formatter:
-                formatter(resp)
+                try:
+                    formatter(resp)
+                except Exception as e:
+                    print(f"Formatter error: {e}", file=__import__('sys').stderr)
+                    print(json.dumps(resp, indent=2))
             else:
                 result = resp.get("result", resp)
                 # Try to extract a human-readable message from action results
@@ -820,6 +879,7 @@ def cmd_passthrough(api, endpoint, extra_args, as_json=False):
                 if isinstance(result, str):
                     print(result)
                 else:
+                    # Fall back to JSON with a note
                     print(json.dumps(result, indent=2))
 
 
