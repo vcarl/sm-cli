@@ -1236,6 +1236,208 @@ def _fmt_abandon_mission(resp):
     print("\n  Hint: sm missions")
 
 
+def _fmt_buy_insurance(resp):
+    """Format buy_insurance response."""
+    r = resp.get("result", resp)
+    cost = r.get("cost") or r.get("premium", 0)
+    coverage = r.get("coverage_percent") or r.get("coverage", "?")
+    ticks = r.get("ticks") or r.get("duration", "?")
+
+    print(f"✓ Insurance purchased: {coverage}% coverage for {ticks} ticks")
+    print(f"  Cost: {cost:,} cr")
+
+    print("\n  Hint: sm insurance  |  sm status")
+
+
+def _fmt_claim_insurance(resp):
+    """Format claim_insurance response."""
+    r = resp.get("result", resp)
+    payout = r.get("payout", 0)
+
+    print(f"✓ Insurance claimed")
+    print(f"  Payout: {payout:,} cr")
+
+    print("\n  Hint: sm status  |  sm shipyard")
+
+
+def _fmt_sell_ship(resp):
+    """Format sell_ship response."""
+    r = resp.get("result", resp)
+    ship_class = r.get("ship_class") or r.get("class_id", "?")
+    value = r.get("value") or r.get("price", 0)
+
+    print(f"✓ Sold {ship_class}")
+    print(f"  Value: {value:,} cr")
+
+    print("\n  Hint: sm ships  |  sm status")
+
+
+def _fmt_forum_reply(resp):
+    """Format forum_reply response."""
+    r = resp.get("result", resp)
+    thread_title = r.get("thread_title") or r.get("title", "")
+    reply_id = r.get("reply_id") or r.get("id", "")
+
+    print("✓ Reply posted" + (f" to: {thread_title}" if thread_title else ""))
+    if reply_id:
+        rid_short = reply_id[:8] if len(reply_id) > 8 else reply_id
+        print(f"  Reply ID: {rid_short}")
+
+    print("\n  Hint: sm forum-get-thread <thread_id>")
+
+
+def _fmt_forum_create_thread(resp):
+    """Format forum_create_thread response."""
+    r = resp.get("result", resp)
+    title = r.get("title", "?")
+    thread_id = r.get("thread_id") or r.get("id", "")
+    category = r.get("category", "")
+
+    cat_str = f" [{category}]" if category else ""
+    print(f"✓ Thread created{cat_str}: {title}")
+    if thread_id:
+        tid_short = thread_id[:8] if len(thread_id) > 8 else thread_id
+        print(f"  Thread ID: {tid_short}")
+
+    print("\n  Hint: sm forum-list  |  sm forum-get-thread " + (thread_id or "<thread_id>"))
+
+
+def _fmt_forum_upvote(resp):
+    """Format forum_upvote response."""
+    r = resp.get("result", resp)
+    upvotes = r.get("upvotes") or r.get("total_upvotes", "?")
+
+    print(f"✓ Upvoted (now {upvotes} upvotes)")
+    print("\n  Hint: sm forum-list")
+
+
+def _fmt_forum_delete_thread(resp):
+    """Format forum_delete_thread response."""
+    print("✓ Thread deleted")
+    print("\n  Hint: sm forum-list")
+
+
+def _fmt_forum_delete_reply(resp):
+    """Format forum_delete_reply response."""
+    print("✓ Reply deleted")
+    print("\n  Hint: sm forum-get-thread <thread_id>")
+
+
+def _fmt_set_anonymous(resp):
+    """Format set_anonymous response."""
+    r = resp.get("result", resp)
+    anonymous = r.get("anonymous", False)
+
+    if anonymous:
+        print("✓ Anonymous mode enabled")
+        print("  Your identity is hidden from casual observers")
+    else:
+        print("Anonymous mode disabled")
+        print("  Your identity is visible")
+
+    print("\n  Hint: sm status  |  sm nearby")
+
+
+def _fmt_set_colors(resp):
+    """Format set_colors response."""
+    r = resp.get("result", resp)
+    primary = r.get("primary_color", "?")
+    secondary = r.get("secondary_color", "?")
+
+    print(f"✓ Ship colors set")
+    print(f"  Primary: {primary}")
+    print(f"  Secondary: {secondary}")
+
+    print("\n  Hint: sm ship")
+
+
+def _fmt_set_status(resp):
+    """Format set_status response."""
+    r = resp.get("result", resp)
+    status = r.get("status_message", "")
+    clan_tag = r.get("clan_tag", "")
+
+    print("✓ Status updated")
+    if status:
+        print(f"  Message: {status}")
+    if clan_tag:
+        print(f"  Clan tag: {clan_tag}")
+
+    print("\n  Hint: sm status")
+
+
+def _fmt_build_base(resp):
+    """Format build_base response."""
+    r = resp.get("result", resp)
+    base_name = r.get("name") or r.get("base_name", "?")
+    base_id = r.get("base_id") or r.get("id", "")
+    cost = r.get("cost", 0)
+
+    print(f"✓ Base constructed: {base_name}")
+    if base_id:
+        bid_short = base_id[:8] if len(base_id) > 8 else base_id
+        print(f"  Base ID: {bid_short}")
+    if cost:
+        print(f"  Cost: {cost:,} cr")
+
+    print("\n  Hint: sm base  |  sm set-home-base <base_id>")
+
+
+def _fmt_attack_base(resp):
+    """Format attack_base response."""
+    r = resp.get("result", resp)
+    base_name = r.get("base_name") or r.get("target", "?")
+    damage = r.get("damage", 0)
+    base_hull = r.get("base_hull")
+
+    print(f"Attacked {base_name}")
+    if damage:
+        print(f"  Damage dealt: {damage}")
+    if base_hull is not None:
+        print(f"  Base hull remaining: {base_hull}")
+
+    print("\n  Hint: sm raid-status <base_id>  |  sm nearby")
+
+
+def _fmt_deploy_drone(resp):
+    """Format deploy_drone response."""
+    r = resp.get("result", resp)
+    drone_type = r.get("drone_type") or r.get("type", "?")
+    drone_id = r.get("drone_id") or r.get("id", "")
+
+    print(f"✓ Deployed {drone_type}")
+    if drone_id:
+        did_short = drone_id[:8] if len(drone_id) > 8 else drone_id
+        print(f"  Drone ID: {did_short}")
+
+    print("\n  Hint: sm drones  |  sm order-drone <command> <target>")
+
+
+def _fmt_recall_drone(resp):
+    """Format recall_drone response."""
+    r = resp.get("result", resp)
+    drone_type = r.get("drone_type") or r.get("type", "?")
+
+    print(f"✓ Recalled {drone_type}")
+    print("\n  Hint: sm drones")
+
+
+def _fmt_order_drone(resp):
+    """Format order_drone response."""
+    r = resp.get("result", resp)
+    command = r.get("command", "?")
+    target = r.get("target") or r.get("target_id", "")
+
+    print(f"✓ Drone order: {command}" + (f" -> {target}" if target else ""))
+    print("\n  Hint: sm drones")
+
+
+def _fmt_logout(resp):
+    """Format logout response."""
+    print("✓ Logged out")
+    print("\n  Hint: sm login")
+
+
 _FORMATTERS = {
     "get_chat_history": _fmt_chat_history,
     "get_notes": _fmt_notes,
@@ -1300,6 +1502,30 @@ _FORMATTERS = {
     "accept_mission": _fmt_accept_mission,
     "complete_mission": _fmt_complete_mission,
     "abandon_mission": _fmt_abandon_mission,
+    # Insurance
+    "buy_insurance": _fmt_buy_insurance,
+    "claim_insurance": _fmt_claim_insurance,
+    # Ships
+    "sell_ship": _fmt_sell_ship,
+    # Forum
+    "forum_reply": _fmt_forum_reply,
+    "forum_create_thread": _fmt_forum_create_thread,
+    "forum_upvote": _fmt_forum_upvote,
+    "forum_delete_thread": _fmt_forum_delete_thread,
+    "forum_delete_reply": _fmt_forum_delete_reply,
+    # Player settings
+    "set_anonymous": _fmt_set_anonymous,
+    "set_colors": _fmt_set_colors,
+    "set_status": _fmt_set_status,
+    # Base building
+    "build_base": _fmt_build_base,
+    "attack_base": _fmt_attack_base,
+    # Drones
+    "deploy_drone": _fmt_deploy_drone,
+    "recall_drone": _fmt_recall_drone,
+    "order_drone": _fmt_order_drone,
+    # Misc
+    "logout": _fmt_logout,
 }
 
 
