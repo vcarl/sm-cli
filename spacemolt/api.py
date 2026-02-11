@@ -334,7 +334,9 @@ class SpaceMoltAPI:
         """Raise APIError if not currently docked at a station."""
         status = self._get_cached_status()
         result = status.get("result", {})
-        docked = result.get("docked") or result.get("is_docked", False)
+        # Check both old format (result.docked) and new format (result.player.docked_at_base)
+        player = result.get("player", {})
+        docked = result.get("docked") or result.get("is_docked") or bool(player.get("docked_at_base"))
         if not docked:
             raise APIError(hint)
 
@@ -342,7 +344,9 @@ class SpaceMoltAPI:
         """Raise APIError if currently docked at a station."""
         status = self._get_cached_status()
         result = status.get("result", {})
-        docked = result.get("docked") or result.get("is_docked", False)
+        # Check both old format (result.docked) and new format (result.player.docked_at_base)
+        player = result.get("player", {})
+        docked = result.get("docked") or result.get("is_docked") or bool(player.get("docked_at_base"))
         if docked:
             raise APIError(hint)
 
