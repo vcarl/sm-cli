@@ -89,8 +89,7 @@ def cmd_insurance_buy(api, args):
         if expires:
             print(f"  Expires: {expires}")
 
-    print(f"\n  Coverage: {coverage_percent}% of ship value")
-    print("  Hint: sm insurance (check status)")
+    print("\n  Hint: sm insurance (check status)")
 
 
 def cmd_insurance_claim(api, args):
