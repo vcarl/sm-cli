@@ -115,6 +115,8 @@ ENDPOINT_ARGS = {
     "leave_faction": [],
     # misc
     "logout": [],
+    # registration
+    "register": ["username", "empire"],
 }
 
 

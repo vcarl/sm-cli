@@ -2,6 +2,101 @@ import json
 import time
 
 
+def cmd_register(api, args):
+    """Register a new user account."""
+    username = args.username
+    empire = args.empire
+    as_json = getattr(args, "json", False)
+
+    # Step 1: Create a session (no auth required)
+    session_resp = api._post("session", {}, use_session=False)
+    session = session_resp.get("session", {})
+    sid = session.get("id") or session.get("session_id") or session_resp.get("session_id")
+    if not sid:
+        if as_json:
+            print(json.dumps(session_resp, indent=2))
+        else:
+            print(f"ERROR: Failed to create session: {json.dumps(session_resp)}")
+        return
+
+    # Step 2: Save session ID temporarily so we can use it for registration
+    import os
+    with open(api.session_file, "w") as f:
+        f.write(sid)
+
+    # Step 3: Call the register endpoint with the session
+    try:
+        resp = api._post("register", {"username": username, "empire": empire})
+    except Exception as e:
+        # Clean up session file on registration failure
+        try:
+            os.remove(api.session_file)
+        except OSError:
+            pass
+        raise
+
+    if as_json:
+        print(json.dumps(resp, indent=2))
+        return
+
+    # Check for errors
+    err = resp.get("error")
+    if err:
+        if isinstance(err, dict):
+            print(f"ERROR: {err.get('message', err)}")
+        else:
+            print(f"ERROR: {err}")
+        return
+
+    r = resp.get("result", {})
+    password = r.get("password")
+    final_username = r.get('username', username)
+
+    # Check if output is being piped (not a TTY)
+    import sys
+    is_pipe = not sys.stdout.isatty()
+
+    if is_pipe:
+        # Pipe-friendly output: just the credentials format
+        print(f"Username: {final_username}")
+        print(f"Password: {password}")
+    else:
+        # Interactive mode: show detailed output with warnings
+        print("=" * 60)
+        print("  REGISTRATION SUCCESSFUL!")
+        print("=" * 60)
+        print()
+        print(f"Username: {final_username}")
+        print(f"Empire:   {r.get('empire', empire)}")
+        print()
+
+        # Show password prominently
+        if password:
+            print("⚠️  YOUR PASSWORD (SAVE THIS NOW!):")
+            print("=" * 60)
+            print(f"  {password}")
+            print("=" * 60)
+            print()
+            print("⚠️  WARNING: There is NO password recovery!")
+            print("   Save this password in a safe place.")
+            print()
+
+        # Show session info
+        session_id = r.get("session_id")
+        if session_id:
+            print(f"Session ID: {session_id[:16]}...")
+            print()
+
+        print("To save credentials, run:")
+        print(f"  sm register {final_username} {empire} > me/credentials.txt")
+        print()
+        print("Or manually create ./me/credentials.txt with:")
+        print(f"  Username: {final_username}")
+        print(f"  Password: {password}")
+        print()
+        print("Then login with: sm login")
+
+
 def cmd_login(api, args):
     cred_file = args.cred_file if args.cred_file else None
     as_json = getattr(args, "json", False)

@@ -26,6 +26,12 @@ Tips:
 
     sub = parser.add_subparsers(dest="command")
 
+    # register
+    p_register = sub.add_parser("register", help="Register a new user account")
+    p_register.add_argument("username", help="Your unique username (3-24 chars)")
+    p_register.add_argument("empire", choices=["solarian", "voidborn", "crimson", "nebula", "outerrim"],
+                           help="Your starting empire (solarian=mining/trade, voidborn=stealth/shields, crimson=combat, nebula=exploration, outerrim=crafting/cargo)")
+
     # login
     p_login = sub.add_parser("login", help="Login and save session")
     p_login.add_argument("cred_file", nargs="?", default=None, help="Path to credentials file (default: ./me/credentials.txt)")
@@ -250,6 +256,7 @@ Tips:
 
 
 COMMAND_MAP = {
+    "register": commands.cmd_register,
     "login": commands.cmd_login,
     "status": commands.cmd_status,
     "ship": commands.cmd_ship,
