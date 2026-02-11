@@ -347,6 +347,7 @@ def main():
             sys.exit(1)
 
         extra_args = argv[1:]
+        api.set_command_context(first_arg, extra_args or None)
         try:
             commands.cmd_passthrough(api, endpoint, extra_args, as_json=json_flag)
         except APIError as e:
@@ -364,6 +365,14 @@ def main():
     # Inject --json into args for formatted handlers
     args.json = json_flag
 
+    # Build command args list for metrics
+    cmd_args = [v for k, v in sorted(vars(args).items())
+                if k not in ("command", "json") and v is not None
+                and v is not False and v != []]
+    # Flatten to strings
+    cmd_args = [str(a) for a in cmd_args]
+    api.set_command_context(args.command, cmd_args or None)
+
     handler = COMMAND_MAP.get(args.command)
     if handler:
         try:
@@ -378,6 +387,7 @@ def main():
         # Auto-registered passthrough endpoint
         endpoint = args.command.replace("-", "_")
         extra_args = getattr(args, "extra", [])
+        api.set_command_context(args.command, extra_args or None)
         try:
             commands.cmd_passthrough(api, endpoint, extra_args, as_json=json_flag)
         except APIError as e:

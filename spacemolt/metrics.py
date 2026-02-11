@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
-"""Tiny metrics server — logs every sm API call."""
+"""Tiny metrics server — logs every sm API call to stdout and a JSONL file.
+
+Log file (default /tmp/sm-metrics.jsonl) is append-only JSONL, one record per
+CLI invocation.  Other processes can tail or read it for analysis.
+"""
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
+DEFAULT_LOG_FILE = "/tmp/sm-metrics.jsonl"
+
 # session_id prefix -> player name, filled lazily
 _players = {}
+_log_path = DEFAULT_LOG_FILE
 
 
 def _normalize_endpoint(endpoint):
@@ -42,6 +50,15 @@ def _resolve_player(session_prefix):
     return _players[session_prefix]
 
 
+def _append_log(record):
+    """Append a JSON record to the log file."""
+    try:
+        with open(_log_path, "a") as f:
+            f.write(json.dumps(record, separators=(",", ":")) + "\n")
+    except OSError:
+        pass
+
+
 class MetricsHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
@@ -51,9 +68,13 @@ class MetricsHandler(BaseHTTPRequestHandler):
         except json.JSONDecodeError:
             data = {}
 
-        ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
+        now = datetime.now(timezone.utc)
+        ts = now.strftime("%H:%M:%S")
         session = data.get("session", "?")
         endpoint = _normalize_endpoint(data.get("endpoint", "?"))
+        command = data.get("command")
+        command_args = data.get("command_args")
+
         # Prefer client-provided username over API resolution
         username = data.get("username")
         if username:
@@ -62,7 +83,22 @@ class MetricsHandler(BaseHTTPRequestHandler):
         else:
             player = _resolve_player(session)
 
-        print(f"[{ts}] {player:>20s}  {endpoint}", flush=True)
+        # Pretty-print to stdout
+        cmd_label = f" (cmd: {command})" if command else ""
+        print(f"[{ts}] {player:>20s}  {endpoint}{cmd_label}", flush=True)
+
+        # Append structured record to log file
+        record = {
+            "ts": now.isoformat(),
+            "player": player,
+            "endpoint": endpoint,
+            "session": session,
+        }
+        if command:
+            record["command"] = command
+        if command_args:
+            record["command_args"] = command_args
+        _append_log(record)
 
         self.send_response(204)
         self.end_headers()
@@ -78,9 +114,13 @@ class MetricsHandler(BaseHTTPRequestHandler):
 
 
 def main():
+    global _log_path
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 9100
+    if len(sys.argv) > 2:
+        _log_path = sys.argv[2]
     server = HTTPServer(("0.0.0.0", port), MetricsHandler)
     print(f"Metrics server listening on :{port}", flush=True)
+    print(f"Logging to {_log_path}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

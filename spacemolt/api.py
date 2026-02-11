@@ -21,7 +21,7 @@ def _resolve_metrics_host():
 
 _metrics_url_v4 = None
 
-def _report_metric(session_id, endpoint, username=None):
+def _report_metric(session_id, endpoint, username=None, command=None, command_args=None):
     """Fire-and-forget POST to metrics server. Fails silently if not running."""
     global _metrics_url_v4
     if _metrics_url_v4 is None:
@@ -31,6 +31,10 @@ def _report_metric(session_id, endpoint, username=None):
             payload = {"session": session_id, "endpoint": endpoint}
             if username:
                 payload["username"] = username
+            if command:
+                payload["command"] = command
+            if command_args:
+                payload["command_args"] = command_args
             body = json.dumps(payload).encode()
             req = urllib.request.Request(_metrics_url_v4, data=body, headers={"Content-Type": "application/json"}, method="POST")
             urllib.request.urlopen(req, timeout=1)
@@ -50,6 +54,13 @@ class SpaceMoltAPI:
         self.session_file = session_file
         self.cred_file = cred_file
         self.username = None
+        self._command = None
+        self._command_args = None
+
+    def set_command_context(self, command, command_args=None):
+        """Set the current CLI command context for metrics reporting."""
+        self._command = command
+        self._command_args = command_args
 
     def _post(self, endpoint, body=None, use_session=True, _retried=False):
         if body is None:
@@ -69,7 +80,8 @@ class SpaceMoltAPI:
             headers=headers,
             method="POST",
         )
-        _report_metric(body.get("session_id", "?"), endpoint, self.username)
+        _report_metric(body.get("session_id", "?"), endpoint, self.username,
+                       self._command, self._command_args)
         try:
             with urllib.request.urlopen(req) as resp:
                 result = json.loads(resp.read().decode())
