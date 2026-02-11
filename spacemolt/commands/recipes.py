@@ -2,7 +2,7 @@ import json
 
 
 __all__ = [
-    "cmd_recipes", "cmd_query_recipes",
+    "cmd_recipes", "cmd_query_recipes", "cmd_recipes_router",
     "_normalize_recipes", "_build_recipe_indexes", "_recipe_skill_tier",
     "_recipe_one_line", "_trace_ingredient_tree", "_render_tree",
     "_collect_raw_totals",
@@ -356,3 +356,38 @@ def _do_trace(query, by_output, recipe_list):
         print("Raw materials needed:")
         for item_id, qty in sorted(totals.items(), key=lambda x: -x[1]):
             print(f"  {qty}x {item_id}")
+
+
+# ---------------------------------------------------------------------------
+# Hierarchical command router
+# ---------------------------------------------------------------------------
+
+def cmd_recipes_router(api, args):
+    """Route recipes subcommands to appropriate handlers."""
+    import sys
+    from spacemolt.commands.passthrough import cmd_passthrough
+
+    subcmd = getattr(args, "recipes_cmd", None)
+
+    if not subcmd:
+        # No subcommand: show recipes list (default view)
+        cmd_recipes(api, args)
+    elif subcmd == "list":
+        cmd_recipes(api, args)
+    elif subcmd == "query":
+        # Map query subcommand args to cmd_query_recipes
+        args.trace = getattr(args, "trace_query", None)
+        args.search = getattr(args, "search_query", None)
+        cmd_query_recipes(api, args)
+    elif subcmd == "craft":
+        # Passthrough to craft endpoint
+        recipe_id = getattr(args, "recipe_id", None)
+        count = getattr(args, "count", None)
+        extra_args = [recipe_id] if recipe_id else []
+        if count:
+            extra_args.append(str(count))
+        as_json = getattr(args, "json", False)
+        cmd_passthrough(api, "craft", extra_args, as_json=as_json)
+    else:
+        print(f"Unknown recipes subcommand: {subcmd}", file=sys.stderr)
+        sys.exit(1)

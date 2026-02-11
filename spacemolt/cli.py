@@ -72,8 +72,7 @@ Tips:
     p_buy.add_argument("item_id", help="Item ID to buy (e.g. ore_iron)")
     p_buy.add_argument("quantity", nargs="?", type=int, default=1, help="Quantity to buy (default: 1)")
 
-    # skills
-    sub.add_parser("skills", help="Trained skills")
+    # NOTE: Old flat "skills" parser removed - replaced with hierarchical version below
 
     # nearby
     p_nearby = sub.add_parser("nearby", help="Nearby players + threat assessment")
@@ -115,12 +114,7 @@ Tips:
     # listings
     sub.add_parser("listings", help="Market listings at current base")
 
-    # recipes
-    p_rec = sub.add_parser("recipes", help="Crafting recipes")
-    p_rec.add_argument("--limit", type=int, default=10, metavar="N",
-                       help="Max items per page (default: 10)")
-    p_rec.add_argument("--page", type=int, default=1, metavar="N",
-                       help="Page number (default: 1)")
+    # NOTE: Old flat "recipes" parser removed - replaced with hierarchical version below
 
     # query-recipes
     p_qr = sub.add_parser("query-recipes", help="Recipe progression, search, and ingredient trees")
@@ -133,8 +127,7 @@ Tips:
     p_qr.add_argument("--page", type=int, default=1, metavar="N",
                        help="Page number (default: 1)")
 
-    # missions
-    sub.add_parser("missions", help="Available missions at current base")
+    # NOTE: Old flat "missions" parser removed - replaced with hierarchical version below
 
     # active-missions
     sub.add_parser("active-missions", help="Your active missions with progress")
@@ -180,6 +173,66 @@ Tips:
     p_raw.add_argument("json_body", nargs="?", default=None,
                        help='Optional JSON body, e.g. \'{"target_system":"sol"}\'')
 
+    # ========================================================================
+    # HIERARCHICAL COMMAND GROUPS (new syntax alongside old flat commands)
+    # ========================================================================
+
+    # missions group (with backwards-compatible subcommand routing)
+    # Note: This creates a NEW "missions" parser that overrides the old one above.
+    # The router will handle showing the combined view by default.
+    p_missions_hier = sub.add_parser("missions", help="Mission management (shows active + available by default)")
+    missions_sub = p_missions_hier.add_subparsers(dest="missions_cmd")
+
+    missions_sub.add_parser("active", help="Your active missions")
+    missions_sub.add_parser("available", help="Available missions at base")
+
+    p_mq = missions_sub.add_parser("query", help="Search missions")
+    p_mq.add_argument("--search", metavar="QUERY", help="Search missions by name, type, or description")
+    p_mq.add_argument("--active", action="store_true", help="Show active missions instead of available ones")
+    p_mq.add_argument("--limit", type=int, default=10, metavar="N", help="Max items per page (default: 10)")
+    p_mq.add_argument("--page", type=int, default=1, metavar="N", help="Page number (default: 1)")
+
+    p_ma = missions_sub.add_parser("accept", help="Accept mission")
+    p_ma.add_argument("mission_id", help="Mission ID")
+
+    p_mc = missions_sub.add_parser("complete", help="Complete mission")
+    p_mc.add_argument("mission_id", help="Mission ID")
+
+    p_mab = missions_sub.add_parser("abandon", help="Abandon mission")
+    p_mab.add_argument("mission_id", help="Mission ID")
+
+    # skills group
+    p_skills_hier = sub.add_parser("skills", help="Skill management (shows trained skills by default)")
+    skills_sub = p_skills_hier.add_subparsers(dest="skills_cmd")
+
+    skills_sub.add_parser("list", help="List trained skills (default)")
+
+    p_sq = skills_sub.add_parser("query", help="Search all skills")
+    p_sq.add_argument("--search", metavar="QUERY", help="Search skills by name, category, or bonus")
+    p_sq.add_argument("--my", action="store_true", help="Show only your trained skills with progress bars")
+    p_sq.add_argument("--limit", type=int, default=10, metavar="N", help="Max items per page (default: 10)")
+    p_sq.add_argument("--page", type=int, default=1, metavar="N", help="Page number (default: 1)")
+
+    p_si = skills_sub.add_parser("inspect", help="Deep inspect a skill")
+    p_si.add_argument("skill_id_inspect", metavar="skill_id", help="Skill ID or name (fuzzy matched)")
+
+    # recipes group
+    p_recipes_hier = sub.add_parser("recipes", help="Recipe management (shows recipe list by default)")
+    recipes_sub = p_recipes_hier.add_subparsers(dest="recipes_cmd")
+
+    p_rl = recipes_sub.add_parser("list", help="List recipes (default)")
+    p_rl.add_argument("--limit", type=int, default=10, metavar="N", help="Max items per page (default: 10)")
+    p_rl.add_argument("--page", type=int, default=1, metavar="N", help="Page number (default: 1)")
+
+    p_rq = recipes_sub.add_parser("query", help="Recipe progression, search, and ingredient trees")
+    p_rq.add_argument("--trace", metavar="ITEM", dest="trace_query", help="Trace full ingredient tree for an item or recipe")
+    p_rq.add_argument("--search", metavar="QUERY", dest="search_query", help="Search recipes by name, item, or category")
+    p_rq.add_argument("--limit", type=int, default=10, metavar="N", help="Max items per page (default: 10)")
+    p_rq.add_argument("--page", type=int, default=1, metavar="N", help="Page number (default: 1)")
+
+    p_rc = recipes_sub.add_parser("craft", help="Craft a recipe")
+    p_rc.add_argument("recipe_id", help="Recipe ID")
+    p_rc.add_argument("count", nargs="?", type=int, help="Quantity to craft (optional)")
 
     # Friendly aliases for common queries
     for alias, help_text in [("notes", "List your notes"),
@@ -210,7 +263,7 @@ COMMAND_MAP = {
     "sell": commands.cmd_sell,
     "sell-all": commands.cmd_sell_all,
     "buy": commands.cmd_buy,
-    "skills": commands.cmd_skills,
+    "skills": commands.cmd_skills_router,  # NEW: hierarchical router
     "nearby": commands.cmd_nearby,
     "notifications": commands.cmd_notifications,
     "travel": commands.cmd_travel,
@@ -223,13 +276,13 @@ COMMAND_MAP = {
     "repair": commands.cmd_repair,
     "wrecks": commands.cmd_wrecks,
     "listings": commands.cmd_listings,
-    "recipes": commands.cmd_recipes,
-    "query-recipes": commands.cmd_query_recipes,
-    "missions": commands.cmd_missions,
-    "active-missions": commands.cmd_active_missions,
-    "query-missions": commands.cmd_query_missions,
-    "query-skills": commands.cmd_query_skills,
-    "skill": commands.cmd_skill,
+    "recipes": commands.cmd_recipes_router,  # NEW: hierarchical router
+    "query-recipes": commands.cmd_query_recipes,  # Keep for backwards compatibility
+    "missions": commands.cmd_missions_router,     # NEW: hierarchical router
+    "active-missions": commands.cmd_active_missions,  # Keep for backwards compatibility
+    "query-missions": commands.cmd_query_missions,     # Keep for backwards compatibility
+    "query-skills": commands.cmd_query_skills,  # Keep for backwards compatibility
+    "skill": commands.cmd_skill,  # Keep for backwards compatibility
     "commands": commands.cmd_commands,
     "chat": commands.cmd_chat,
     "raw": commands.cmd_raw,
@@ -274,6 +327,18 @@ def main():
     if first_arg and first_arg not in known and not first_arg.startswith("-"):
         # Passthrough: treat first arg as an API endpoint
         endpoint = first_arg.replace("-", "_")
+
+        # Validate endpoint exists before attempting passthrough
+        from spacemolt.commands.passthrough import ENDPOINT_ARGS
+        if endpoint not in ENDPOINT_ARGS:
+            from spacemolt.suggestions import suggest_command
+            suggestion = suggest_command(first_arg)
+            print(f"ERROR: Unknown command '{first_arg}'", file=sys.stderr)
+            if suggestion:
+                print(suggestion, file=sys.stderr)
+            print("\nRun 'sm commands' to see all available commands.", file=sys.stderr)
+            sys.exit(1)
+
         extra_args = argv[1:]
         try:
             commands.cmd_passthrough(api, endpoint, extra_args, as_json=json_flag)
@@ -296,6 +361,9 @@ def main():
     if handler:
         try:
             handler(api, args)
+            # Show contextual help after successful command execution
+            from spacemolt.context_help import show_contextual_help
+            show_contextual_help(args.command, args)
         except APIError as e:
             print(f"ERROR: {e}", file=sys.stderr)
             sys.exit(1)

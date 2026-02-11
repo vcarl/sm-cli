@@ -132,19 +132,23 @@ def extract_endpoints_from_implementation():
 
 def parse_arg_spec(arg_spec):
     """
-    Parse an arg spec like "target_system:str" or "quantity?:int".
+    Parse an arg spec like "target_system:str", "quantity?:int", or "target_id?".
 
     Returns: {name: str, type: str, required: bool}
     """
-    optional = arg_spec.endswith("?")
-    if optional:
-        arg_spec = arg_spec[:-1]
+    # Check for optional marker (handles both "param?" and "param?:type")
+    optional = arg_spec.endswith("?") or (":not" in arg_spec and arg_spec.split(":")[0].endswith("?"))
 
+    # Handle "param?:type" format
     if ":" in arg_spec:
-        name, arg_type = arg_spec.split(":", 1)
+        name_part, arg_type = arg_spec.split(":", 1)
+        name = name_part.rstrip("?")
+        optional = name_part.endswith("?")
     else:
-        name = arg_spec
+        # Handle "param?" or "param" format
+        name = arg_spec.rstrip("?")
         arg_type = "str"
+        optional = arg_spec.endswith("?")
 
     return {
         "name": name,

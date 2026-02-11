@@ -1,8 +1,100 @@
 import json
+import sys
 
 
-def cmd_missions(api, args):
-    """Show available missions at current base."""
+def cmd_missions_combined(api, args):
+    """Show both active missions and available missions (combined view)."""
+    as_json = getattr(args, "json", False)
+
+    # Fetch both active and available missions
+    active_resp = api._post("get_active_missions")
+    available_resp = api._post("get_missions")
+
+    if as_json:
+        # Return combined JSON
+        print(json.dumps({
+            "active": active_resp,
+            "available": available_resp
+        }, indent=2))
+        return
+
+    # Format active missions
+    active_r = active_resp.get("result", {})
+    active_missions = active_r.get("missions") or active_r.get("active_missions") or []
+    max_m = active_r.get("max_missions", 5)
+
+    print(f"Active missions ({len(active_missions)}/{max_m}):")
+    if active_missions:
+        for m in active_missions:
+            title = m.get("title") or m.get("name", "?")
+            mid = m.get("id") or m.get("mission_id", "")
+            status = m.get("status", "")
+
+            line = f"  {title}"
+            if status:
+                line += f"  [{status}]"
+            print(line)
+
+            desc = m.get("description", "")
+            if desc:
+                # Truncate for combined view
+                if len(desc) > 60:
+                    desc = desc[:57] + "..."
+                print(f"    {desc}")
+
+            objectives = m.get("objectives") or []
+            for obj in objectives[:2]:  # Show max 2 objectives in compact view
+                if isinstance(obj, dict):
+                    obj_desc = obj.get("description") or obj.get("name", "")
+                    obj_cur = obj.get("current", 0)
+                    obj_tgt = obj.get("target", "?")
+                    if obj_desc:
+                        print(f"    - {obj_desc}: {obj_cur}/{obj_tgt}")
+
+            if mid:
+                print(f"    id: {mid}")
+            print()
+    else:
+        print("  (none)\n")
+
+    # Format available missions
+    avail_r = available_resp.get("result", {})
+    available_missions = avail_r.get("missions") or []
+
+    print("Available missions:")
+    if available_missions:
+        for m in available_missions[:5]:  # Show first 5 in combined view
+            title = m.get("title") or m.get("name", "?")
+            mid = m.get("id") or m.get("mission_id", "")
+            mtype = m.get("type", "")
+            diff = m.get("difficulty", "")
+            reward_cr = m.get("reward_credits") or m.get("credits")
+
+            meta = []
+            if mtype:
+                meta.append(mtype)
+            if diff:
+                meta.append(f"diff: {diff}")
+            if reward_cr:
+                meta.append(f"{reward_cr} cr")
+
+            line = f"  {title}"
+            if meta:
+                line += f"  [{', '.join(meta)}]"
+            print(line)
+
+            if mid:
+                print(f"    id: {mid}")
+
+        if len(available_missions) > 5:
+            print(f"\n  ... and {len(available_missions) - 5} more")
+            print("  Use 'sm missions available' to see all available missions")
+    else:
+        print("  (none - not docked at a base)")
+
+
+def cmd_missions_available(api, args):
+    """Show available missions at current base only."""
     as_json = getattr(args, "json", False)
     resp = api._post("get_missions")
     if as_json:
@@ -55,6 +147,15 @@ def cmd_missions(api, args):
 
         if mid:
             print(f"  id: {mid}")
+
+
+def cmd_missions(api, args):
+    """
+    Backwards-compatible wrapper: shows available missions only (old behavior).
+
+    For the new combined view, use cmd_missions_combined via hierarchical routing.
+    """
+    cmd_missions_available(api, args)
 
 
 def cmd_active_missions(api, args):
@@ -223,3 +324,40 @@ def cmd_query_missions(api, args):
             print(f"      id: {mid}")
 
     print_page_footer(total, total_pages, page, limit)
+
+
+# ---------------------------------------------------------------------------
+# Hierarchical command router
+# ---------------------------------------------------------------------------
+
+def cmd_missions_router(api, args):
+    """Route missions subcommands to appropriate handlers."""
+    subcmd = getattr(args, "missions_cmd", None)
+
+    if not subcmd:
+        # No subcommand: show combined view (active + available)
+        cmd_missions_combined(api, args)
+    elif subcmd == "active":
+        cmd_active_missions(api, args)
+    elif subcmd == "available":
+        cmd_missions_available(api, args)
+    elif subcmd == "query":
+        cmd_query_missions(api, args)
+    elif subcmd == "accept":
+        _passthrough_mission_action(api, "accept_mission", args)
+    elif subcmd == "complete":
+        _passthrough_mission_action(api, "complete_mission", args)
+    elif subcmd == "abandon":
+        _passthrough_mission_action(api, "abandon_mission", args)
+    else:
+        print(f"Unknown missions subcommand: {subcmd}", file=sys.stderr)
+        sys.exit(1)
+
+
+def _passthrough_mission_action(api, endpoint, args):
+    """Helper to call passthrough for mission actions (accept, complete, abandon)."""
+    from spacemolt.commands.passthrough import cmd_passthrough
+    mission_id = getattr(args, "mission_id", None)
+    extra_args = [mission_id] if mission_id else []
+    as_json = getattr(args, "json", False)
+    cmd_passthrough(api, endpoint, extra_args, as_json=as_json)

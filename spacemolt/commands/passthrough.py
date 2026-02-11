@@ -11,21 +11,23 @@ __all__ = [
 
 # Mapping of endpoint names to their expected positional arg specs.
 # Use "name:int" or "name:bool" for typed args; default is string.
+# Suffix with "?" for optional args (e.g., "target_id?").
+# Note: Some endpoints include custom parameters not in the OpenAPI spec (marked with comments).
 ENDPOINT_ARGS = {
     "jump": ["target_system"],
     "buy": ["item_id", "quantity:int"],
     "scan": ["target_id"],
-    "attack": ["target_id", "weapon_idx:int"],
+    "attack": ["target_id", "weapon_idx?:int"],  # weapon_idx is custom extension
     "travel": ["target_poi"],
-    "chat": ["channel", "content", "target_id"],
-    "craft": ["recipe_id"],
+    "chat": ["channel", "content", "target_id?"],  # target_id optional per spec
+    "craft": ["recipe_id", "count?:int"],  # count is optional batch parameter
     "forum_reply": ["thread_id", "content"],
     "forum_get_thread": ["thread_id"],
-    "forum_create_thread": ["title", "content", "category"],
+    "forum_create_thread": ["title", "content", "category?"],  # category is custom extension
     "sell": ["item_id", "quantity:int"],
     "loot_wreck": ["wreck_id", "item_id", "quantity:int"],
     "salvage_wreck": ["wreck_id"],
-    "install_mod": ["module_id", "slot_idx:int"],
+    "install_mod": ["module_id", "slot_idx?:int"],  # slot_idx is custom extension
     "uninstall_mod": ["module_id"],
     "buy_ship": ["ship_class"],
     "find_route": ["target_system"],
@@ -39,39 +41,39 @@ ENDPOINT_ARGS = {
     "faction_invite": ["player_id"],
     "faction_kick": ["player_id"],
     "faction_promote": ["player_id", "role_id"],
-    "faction_declare_war": ["target_faction_id", "reason"],
-    "faction_propose_peace": ["target_faction_id", "terms"],
+    "faction_declare_war": ["target_faction_id", "reason?"],  # reason is optional
+    "faction_propose_peace": ["target_faction_id", "terms?"],  # terms is optional
     "faction_accept_peace": ["target_faction_id"],
     "faction_set_ally": ["target_faction_id"],
     "faction_set_enemy": ["target_faction_id"],
-    "faction_info": ["faction_id"],
+    "faction_info": ["faction_id?"],  # faction_id is optional (defaults to your faction)
     "join_faction": ["faction_id"],
     "faction_decline_invite": ["faction_id"],
     "create_faction": ["name", "tag"],
-    "faction_list": [],
+    "faction_list": ["offset?:int", "limit?:int"],  # pagination params per spec
     "faction_get_invites": [],
-    "set_home_base": [],
+    "set_home_base": ["base_id"],  # base_id is required per spec
     "set_colors": ["primary_color", "secondary_color"],
-    "set_status": ["status_message", "clan_tag"],
+    "set_status": ["status_message?", "clan_tag?"],  # both optional per spec
     "get_trades": [],
-    "trade_offer": ["target_id"],
+    "trade_offer": ["target_id", "credits?:int", "items?"],  # items is object (JSON string), credits optional
     "trade_accept": ["trade_id"],
     "trade_decline": ["trade_id"],
     "trade_cancel": ["trade_id"],
-    "buy_insurance": ["coverage_percent:int"],
-    "forum_upvote": ["thread_id", "reply_id"],
+    "buy_insurance": ["ticks:int"],  # changed from coverage_percent to match spec
+    "forum_upvote": ["thread_id", "reply_id?"],  # reply_id is optional
     "forum_delete_thread": ["thread_id"],
     "forum_delete_reply": ["reply_id"],
-    "forum_list": ["page:int", "category"],
+    "forum_list": ["page?:int", "category?"],  # page is optional, category is custom extension
     # combat
-    "cloak": ["enable:bool"],
+    "cloak": ["enable?:bool"],  # enable is custom extension (spec has no params)
     "self_destruct": [],
-    # market orders
-    "create_sell_order": ["item_id", "quantity:int", "price_each:int"],
-    "create_buy_order": ["item_id", "quantity:int", "price_each:int"],
-    "cancel_order": ["order_id"],
-    "modify_order": ["order_id", "new_price:int"],
-    "view_market": ["item_id"],
+    # market orders - spec supports batch operations via "orders" array (pass as JSON string)
+    "create_sell_order": ["item_id?", "quantity?:int", "price_each?:int", "orders?"],  # orders is array (JSON string)
+    "create_buy_order": ["item_id?", "quantity?:int", "price_each?:int", "orders?"],  # orders is array (JSON string)
+    "cancel_order": ["order_id?", "order_ids?"],  # order_ids is array (JSON string)
+    "modify_order": ["order_id?", "new_price?:int", "orders?"],  # orders is array (JSON string)
+    "view_market": ["item_id?"],  # item_id is optional per spec
     "estimate_purchase": ["item_id", "quantity:int"],
     # wrecks
     "jettison": ["item_id", "quantity:int"],
@@ -84,29 +86,29 @@ ENDPOINT_ARGS = {
     "accept_mission": ["mission_id"],
     "complete_mission": ["mission_id"],
     "abandon_mission": ["mission_id"],
-    # notes
+    # notes - custom extensions (spec has no params for these)
     "get_notes": [],
-    "create_note": ["title", "content"],
-    "write_note": ["note_id", "content"],
-    "read_note": ["note_id"],
-    # base building/raiding
-    "build_base": ["name", "description"],
-    "attack_base": ["base_id"],
-    "loot_base_wreck": ["wreck_id", "item_id", "quantity:int"],
-    "salvage_base_wreck": ["wreck_id"],
-    # drones
+    "create_note": ["title?", "content?"],  # custom extensions
+    "write_note": ["note_id?", "content?"],  # custom extensions
+    "read_note": ["note_id?"],  # custom extension
+    # base building/raiding - custom extensions (spec has no params)
+    "build_base": ["name?", "description?"],  # custom extensions
+    "attack_base": ["base_id?"],  # custom extension
+    "loot_base_wreck": ["wreck_id?", "item_id?", "quantity?:int"],  # custom extensions
+    "salvage_base_wreck": ["wreck_id?"],  # custom extension
+    # drones - custom extensions (spec has no params)
     "get_drones": [],
-    "deploy_drone": ["drone_item_id", "target_id"],
-    "recall_drone": ["drone_id"],
-    "order_drone": ["command", "target_id"],
+    "deploy_drone": ["drone_item_id?", "target_id?"],  # custom extensions
+    "recall_drone": ["drone_id?"],  # custom extension
+    "order_drone": ["command?", "target_id?"],  # custom extensions
     # storage
     "deposit_items": ["item_id", "quantity:int"],
     "withdraw_items": ["item_id", "quantity:int"],
     "deposit_credits": ["amount:int"],
     "withdraw_credits": ["amount:int"],
-    "send_gift": ["recipient", "item_id", "quantity:int"],
+    "send_gift": ["recipient", "item_id?", "quantity?:int", "credits?:int", "message?"],  # item/qty/credits/message all optional
     # chat
-    "get_chat_history": ["channel", "limit:int", "target_id?"],
+    "get_chat_history": ["channel", "limit?:int", "target_id?", "before?"],  # limit/target/before all optional
     # insurance
     "claim_insurance": [],
     # faction
@@ -398,7 +400,8 @@ def cmd_passthrough(api, endpoint, extra_args, as_json=False):
 
     # Check for missing required args (specs not covered by positional or key=value)
     required_specs = [s for s in specs if not _is_optional(s)]
-    if specs and not body:
+    # Only show usage if we have required params but got no body
+    if required_specs and not body:
         arg_names = " ".join(
             f"[{_arg_name(s)}]" if _is_optional(s) else f"<{_arg_name(s)}>"
             for s in specs)

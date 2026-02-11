@@ -1,10 +1,18 @@
 import json
+import sys
 
 
 def cmd_skills(api, args):
+    """Show your trained skills (default view)."""
     resp = api._post("get_skills")
     skills = resp.get("result", {}).get("player_skills", [])
     skills.sort(key=lambda s: (-s.get("level", 0), -s.get("current_xp", 0)))
+
+    as_json = getattr(args, "json", False)
+    if as_json:
+        print(json.dumps(resp, indent=2))
+        return
+
     if not skills:
         print("(no skills trained yet)")
     else:
@@ -420,3 +428,27 @@ def _do_my_skills(player_skills, by_id, dependents, limit=10, page=1):
         if next_unlocks:
             print(f"    \u2192 next unlocks: {', '.join(next_unlocks)}")
     print_page_footer(total, total_pages, page, limit)
+
+
+# ---------------------------------------------------------------------------
+# Hierarchical command router
+# ---------------------------------------------------------------------------
+
+def cmd_skills_router(api, args):
+    """Route skills subcommands to appropriate handlers."""
+    subcmd = getattr(args, "skills_cmd", None)
+
+    if not subcmd:
+        # No subcommand: show trained skills (default view)
+        cmd_skills(api, args)
+    elif subcmd == "list":
+        cmd_skills(api, args)
+    elif subcmd == "query":
+        cmd_query_skills(api, args)
+    elif subcmd == "inspect":
+        # Map to cmd_skill
+        args.skill_id = getattr(args, "skill_id_inspect", None)
+        cmd_skill(api, args)
+    else:
+        print(f"Unknown skills subcommand: {subcmd}", file=sys.stderr)
+        sys.exit(1)
