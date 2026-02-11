@@ -130,6 +130,16 @@ class SpaceMoltAPI:
                 if sender_id:
                     sender_label += f"({sender_id})"
                 msg = f"<{sender_label}@{channel}> {content}"
+            elif msg_type in ("ship_destroyed", "death", "killed", "destroyed"):
+                killer = data.get("killed_by") or data.get("attacker", "")
+                system = data.get("system") or data.get("system_name", "")
+                parts = ["Ship destroyed!"]
+                if killer:
+                    parts.append(f"Killed by {killer}")
+                if system:
+                    parts.append(f"in {system}")
+                parts.append("\n  Tip: sm buy-insurance <ticks>  |  sm claim-insurance")
+                msg = "  ".join(parts)
             elif msg_type in ("poi_arrival", "poi_departure"):
                 uname = data.get("username", "?")
                 clan = data.get("clan_tag", "")

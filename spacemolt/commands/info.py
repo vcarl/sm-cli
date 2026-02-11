@@ -196,6 +196,16 @@ def cmd_base(api, args):
     if market:
         print("Market: available (use 'sm listings' to browse)")
 
+    # Show storage hints when base has storage service
+    svc_lower = [s.lower() for s in services]
+    if any("storage" in s for s in svc_lower):
+        print("\nStorage commands:")
+        print("  sm deposit-items <item_id> <quantity>")
+        print("  sm withdraw-items <item_id> <quantity>")
+        print("  sm deposit-credits <amount>")
+        print("  sm withdraw-credits <amount>")
+        print("  sm send-gift <recipient> [item_id] [quantity] [credits] [message]")
+
 
 def cmd_cargo(api, args):
     resp = api._post("get_cargo")

@@ -357,6 +357,75 @@ def _fmt_faction_invites(resp):
         print(line)
 
 
+def _fmt_forum_list(resp):
+    r = resp.get("result", {})
+    threads = r.get("threads", [])
+    if not threads:
+        print("No forum threads.")
+        return
+    page = r.get("page", 1)
+    total_pages = r.get("total_pages") or r.get("pages")
+    if total_pages is not None:
+        print(f"Forum threads (page {page}/{total_pages}):")
+    else:
+        print("Forum threads:")
+    for t in threads:
+        tid = t.get("id") or t.get("thread_id", "?")
+        title = t.get("title", "(untitled)")
+        author = t.get("author_name") or t.get("author") or t.get("username", "?")
+        replies = t.get("reply_count") or t.get("replies", 0)
+        upvotes = t.get("upvotes") or t.get("upvote_count", 0)
+        category = t.get("category", "")
+        tid_str = tid[:8] if isinstance(tid, str) and len(tid) > 8 else str(tid)
+        cat_str = f"[{category}] " if category else ""
+        print(f"  {cat_str}{title}")
+        print(f"    by {author}  replies:{replies}  upvotes:{upvotes}  id:{tid_str}")
+
+
+def _fmt_forum_get_thread(resp):
+    r = resp.get("result", {})
+    thread = r.get("thread", r)
+    title = thread.get("title", "(untitled)")
+    author = thread.get("author_name") or thread.get("author") or thread.get("username", "?")
+    content = thread.get("content", "")
+    upvotes = thread.get("upvotes") or thread.get("upvote_count", 0)
+    category = thread.get("category", "")
+    created = thread.get("created_at") or thread.get("timestamp", "")
+    if isinstance(created, str) and len(created) > 16:
+        created = created[:16]
+    tid = thread.get("id") or thread.get("thread_id", "")
+    cat_str = f"  [{category}]" if category else ""
+    print(f"# {title}{cat_str}")
+    meta = f"  by {author}"
+    if created:
+        meta += f"  {created}"
+    meta += f"  upvotes:{upvotes}"
+    if tid:
+        tid_str = tid[:8] if isinstance(tid, str) and len(tid) > 8 else str(tid)
+        meta += f"  id:{tid_str}"
+    print(meta)
+    if content:
+        print()
+        print(content)
+    replies = thread.get("replies", [])
+    if replies:
+        print(f"\n--- Replies ({len(replies)}) ---")
+        for reply in replies:
+            rauthor = reply.get("author_name") or reply.get("author") or reply.get("username", "?")
+            rcontent = reply.get("content", "")
+            rupvotes = reply.get("upvotes") or reply.get("upvote_count", 0)
+            rts = reply.get("created_at") or reply.get("timestamp", "")
+            if isinstance(rts, str) and len(rts) > 16:
+                rts = rts[:16]
+            rid = reply.get("id") or reply.get("reply_id", "")
+            rid_str = rid[:8] if isinstance(rid, str) and len(rid) > 8 else str(rid)
+            ts_str = f"  {rts}" if rts else ""
+            print(f"\n  {rauthor}{ts_str}  upvotes:{rupvotes}  id:{rid_str}")
+            if rcontent:
+                for line in rcontent.split("\n"):
+                    print(f"    {line}")
+
+
 _FORMATTERS = {
     "get_chat_history": _fmt_chat_history,
     "get_notes": _fmt_notes,
@@ -368,6 +437,8 @@ _FORMATTERS = {
     "faction_list": _fmt_faction_list,
     "faction_info": _fmt_faction_info,
     "faction_get_invites": _fmt_faction_invites,
+    "forum_list": _fmt_forum_list,
+    "forum_get_thread": _fmt_forum_get_thread,
 }
 
 
