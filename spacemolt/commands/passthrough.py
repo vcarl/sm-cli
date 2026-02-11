@@ -125,6 +125,9 @@ ENDPOINT_ARGS = {
     "get_base_cost": ["base_type?"],  # base_type optional
     "raid_status": ["base_id?"],  # base_id optional
     "help": [],
+    # New market and exploration commands
+    "analyze_market": ["item_id?", "page?:int"],  # both optional
+    "survey_system": [],  # no params
 }
 
 
@@ -1438,6 +1441,167 @@ def _fmt_logout(resp):
     print("\n  Hint: sm login")
 
 
+def _fmt_analyze_market(resp):
+    """Format analyze_market response."""
+    r = resp.get("result", resp)
+    item_id = r.get("item_id", "?")
+    item_name = r.get("item_name", item_id)
+    systems = r.get("systems", [])
+    skill_level = r.get("skill_level") or r.get("market_analysis_level")
+    range_systems = r.get("range") or r.get("systems_scanned")
+
+    print(f"Market Analysis: {item_name} ({item_id})")
+
+    if skill_level is not None:
+        print(f"  Market Analysis Skill: Level {skill_level}")
+    if range_systems is not None:
+        print(f"  Systems scanned: {range_systems}")
+
+    if not systems:
+        print("\n  No market data found in range")
+        print("\n  Hint: Increase market_analysis skill to scan more systems")
+        return
+
+    # Group by best opportunities
+    print(f"\n  Found markets in {len(systems)} systems:")
+
+    # Sort by best price spread (buy low, sell high)
+    systems_with_spread = []
+    for sys_data in systems:
+        if not isinstance(sys_data, dict):
+            continue
+        sys_name = sys_data.get("system_name") or sys_data.get("system_id", "?")
+        sys_id = sys_data.get("system_id", "")
+        best_buy = sys_data.get("best_buy_price")
+        best_sell = sys_data.get("best_sell_price")
+        distance = sys_data.get("distance") or sys_data.get("jumps", "?")
+
+        if best_buy is not None or best_sell is not None:
+            spread = (best_sell or 0) - (best_buy or 0)
+            systems_with_spread.append((sys_name, sys_id, best_buy, best_sell, spread, distance))
+
+    # Sort by spread descending
+    systems_with_spread.sort(key=lambda x: x[4], reverse=True)
+
+    # Display top opportunities
+    for sys_name, sys_id, best_buy, best_sell, spread, distance in systems_with_spread[:15]:
+        buy_str = f"{best_buy} cr" if best_buy else "---"
+        sell_str = f"{best_sell} cr" if best_sell else "---"
+        spread_str = f"+{spread}" if spread > 0 else str(spread) if spread else "---"
+        dist_str = f"{distance}j" if distance != "?" else "?"
+
+        line = f"    {sys_name:20s}  Buy:{buy_str:>8s}  Sell:{sell_str:>8s}  Spread:{spread_str:>6s}  ({dist_str})"
+        print(line)
+
+    if len(systems_with_spread) > 15:
+        print(f"\n  ... and {len(systems_with_spread) - 15} more systems")
+
+    # Show best trade route
+    if len(systems_with_spread) >= 2:
+        # Find best buy location
+        best_buy_sys = min(systems_with_spread, key=lambda x: x[2] if x[2] else float('inf'))
+        # Find best sell location
+        best_sell_sys = max(systems_with_spread, key=lambda x: x[3] if x[3] else 0)
+
+        if best_buy_sys[2] and best_sell_sys[3] and best_buy_sys != best_sell_sys:
+            profit = best_sell_sys[3] - best_buy_sys[2]
+            print(f"\n  💡 Best trade route:")
+            print(f"    Buy at {best_buy_sys[0]} ({best_buy_sys[2]} cr) → Sell at {best_sell_sys[0]} ({best_sell_sys[3]} cr)")
+            print(f"    Profit: {profit} cr per unit")
+
+    print(f"\n  Hint: sm find-route <system>  |  sm view-market {item_id}")
+
+
+def _fmt_survey_system(resp):
+    """Format survey_system response."""
+    r = resp.get("result", resp)
+    system_name = r.get("system_name") or r.get("system", "?")
+    system_id = r.get("system_id", "")
+    skill_level = r.get("astrometrics_level") or r.get("skill_level")
+    scanner_bonus = r.get("scanner_bonus") or r.get("module_bonus")
+
+    print(f"System Survey: {system_name}" + (f" ({system_id})" if system_id else ""))
+
+    if skill_level is not None:
+        print(f"  Astrometrics Skill: Level {skill_level}")
+    if scanner_bonus is not None:
+        print(f"  Scanner Bonus: +{scanner_bonus}%")
+
+    # Basic system info
+    print("\n  System Properties:")
+    for key in ["security_level", "police_level", "faction_control", "population"]:
+        val = r.get(key)
+        if val is not None:
+            label = key.replace("_", " ").title()
+            print(f"    {label}: {val}")
+
+    # Points of Interest
+    pois = r.get("points_of_interest", []) or r.get("pois", [])
+    if pois:
+        print(f"\n  Points of Interest ({len(pois)}):")
+        for poi in pois[:20]:
+            if isinstance(poi, dict):
+                poi_name = poi.get("name", "?")
+                poi_type = poi.get("type", "?")
+                poi_id = poi.get("id") or poi.get("poi_id", "")
+                resources = poi.get("resources", [])
+
+                line = f"    [{poi_type:12s}] {poi_name}"
+                if resources:
+                    res_str = ", ".join(str(r) for r in resources[:3])
+                    line += f"  ({res_str})"
+                print(line)
+
+                # Show hidden/detailed info if revealed by skill
+                hidden_info = poi.get("hidden_info", {})
+                if hidden_info:
+                    for k, v in hidden_info.items():
+                        print(f"        └─ {k}: {v}")
+
+        if len(pois) > 20:
+            print(f"    ... and {len(pois) - 20} more")
+
+    # Resources
+    resources = r.get("system_resources", []) or r.get("resources", [])
+    if resources:
+        print(f"\n  System Resources:")
+        for res in resources:
+            if isinstance(res, dict):
+                res_name = res.get("name") or res.get("resource_id", "?")
+                abundance = res.get("abundance", "?")
+                quality = res.get("quality")
+                print(f"    {res_name:20s}  Abundance: {abundance}" + (f"  Quality: {quality}" if quality else ""))
+            else:
+                print(f"    {res}")
+
+    # Connections/routes
+    connections = r.get("connections", []) or r.get("adjacent_systems", [])
+    if connections:
+        print(f"\n  Connected Systems ({len(connections)}):")
+        for conn in connections[:10]:
+            if isinstance(conn, dict):
+                conn_name = conn.get("name") or conn.get("system_id", "?")
+                distance = conn.get("distance") or conn.get("fuel_cost")
+                print(f"    {conn_name}" + (f" ({distance} fuel)" if distance else ""))
+            else:
+                print(f"    {conn}")
+
+    # Hidden discoveries (only shown with high astrometrics)
+    discoveries = r.get("discoveries", []) or r.get("hidden_features", [])
+    if discoveries:
+        print(f"\n  ✨ Discoveries:")
+        for disc in discoveries:
+            if isinstance(disc, dict):
+                disc_name = disc.get("name", "?")
+                disc_type = disc.get("type", "")
+                reward = disc.get("reward")
+                print(f"    {disc_name}" + (f" [{disc_type}]" if disc_type else "") + (f" - Reward: {reward}" if reward else ""))
+            else:
+                print(f"    {disc}")
+
+    print(f"\n  Hint: sm pois  |  sm system  |  sm travel <poi_id>")
+
+
 _FORMATTERS = {
     "get_chat_history": _fmt_chat_history,
     "get_notes": _fmt_notes,
@@ -1526,6 +1690,9 @@ _FORMATTERS = {
     "order_drone": _fmt_order_drone,
     # Misc
     "logout": _fmt_logout,
+    # New market and exploration commands
+    "analyze_market": _fmt_analyze_market,
+    "survey_system": _fmt_survey_system,
 }
 
 
