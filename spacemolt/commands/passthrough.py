@@ -916,6 +916,326 @@ def _fmt_jump(resp):
     print("\n  Hint: sm system  |  sm pois  |  sm nearby")
 
 
+def _fmt_trade_offer(resp):
+    """Format trade_offer response."""
+    r = resp.get("result", resp)
+    trade_id = r.get("trade_id") or r.get("id", "")
+    target = r.get("target") or r.get("target_name", "?")
+
+    print(f"Trade offer sent to {target}")
+    if trade_id:
+        tid_short = trade_id[:8] if len(trade_id) > 8 else trade_id
+        print(f"  Trade ID: {tid_short}")
+
+    print("\n  Hint: sm trades  |  sm trade-cancel <trade_id>")
+
+
+def _fmt_trade_accept(resp):
+    """Format trade_accept response."""
+    r = resp.get("result", resp)
+    print("✓ Trade accepted")
+
+    # Show what was exchanged
+    received_items = r.get("received_items", [])
+    received_credits = r.get("received_credits", 0)
+    gave_items = r.get("gave_items", [])
+    gave_credits = r.get("gave_credits", 0)
+
+    if received_items or received_credits:
+        print("\n  Received:")
+        if received_credits:
+            print(f"    {received_credits:,} cr")
+        for item in received_items:
+            if isinstance(item, dict):
+                print(f"    {item.get('item_id', '?')} x{item.get('quantity', 1)}")
+
+    if gave_items or gave_credits:
+        print("\n  Gave:")
+        if gave_credits:
+            print(f"    {gave_credits:,} cr")
+        for item in gave_items:
+            if isinstance(item, dict):
+                print(f"    {item.get('item_id', '?')} x{item.get('quantity', 1)}")
+
+    print("\n  Hint: sm cargo  |  sm status")
+
+
+def _fmt_trade_decline(resp):
+    """Format trade_decline response."""
+    print("Trade declined")
+    print("\n  Hint: sm trades")
+
+
+def _fmt_trade_cancel(resp):
+    """Format trade_cancel response."""
+    print("Trade cancelled")
+    print("\n  Hint: sm trades")
+
+
+def _fmt_create_buy_order(resp):
+    """Format create_buy_order response."""
+    r = resp.get("result", resp)
+    item_id = r.get("item_id", "?")
+    quantity = r.get("quantity", 0)
+    price = r.get("price_each") or r.get("price", 0)
+    order_id = r.get("order_id") or r.get("id", "")
+    fee = r.get("listing_fee") or r.get("fee", 0)
+
+    print(f"✓ Buy order created: {item_id} x{quantity} @ {price} cr")
+    if fee:
+        print(f"  Listing fee: {fee} cr")
+    if order_id:
+        oid_short = order_id[:8] if len(order_id) > 8 else order_id
+        print(f"  Order ID: {oid_short}")
+
+    escrowed = quantity * price + fee
+    print(f"  Escrowed: {escrowed:,} cr")
+
+    print("\n  Hint: sm market  |  sm view-market " + item_id)
+
+
+def _fmt_create_sell_order(resp):
+    """Format create_sell_order response."""
+    r = resp.get("result", resp)
+    item_id = r.get("item_id", "?")
+    quantity = r.get("quantity", 0)
+    price = r.get("price_each") or r.get("price", 0)
+    order_id = r.get("order_id") or r.get("id", "")
+    fee = r.get("listing_fee") or r.get("fee", 0)
+
+    print(f"✓ Sell order created: {item_id} x{quantity} @ {price} cr")
+    if fee:
+        print(f"  Listing fee: {fee} cr")
+    if order_id:
+        oid_short = order_id[:8] if len(order_id) > 8 else order_id
+        print(f"  Order ID: {oid_short}")
+
+    potential = quantity * price
+    print(f"  Potential revenue: {potential:,} cr")
+
+    print("\n  Hint: sm market  |  sm view-market " + item_id)
+
+
+def _fmt_cancel_order(resp):
+    """Format cancel_order response."""
+    r = resp.get("result", resp)
+    order_id = r.get("order_id") or r.get("id", "")
+
+    print("✓ Order cancelled")
+    if order_id:
+        oid_short = order_id[:8] if len(order_id) > 8 else order_id
+        print(f"  Order ID: {oid_short}")
+
+    # Show what was returned
+    refunded_credits = r.get("refunded_credits", 0)
+    returned_items = r.get("returned_items", [])
+
+    if refunded_credits:
+        print(f"  Refunded: {refunded_credits:,} cr")
+    if returned_items:
+        print("  Returned to cargo:")
+        for item in returned_items:
+            if isinstance(item, dict):
+                print(f"    {item.get('item_id', '?')} x{item.get('quantity', 1)}")
+
+    print("\n  Hint: sm market")
+
+
+def _fmt_modify_order(resp):
+    """Format modify_order response."""
+    r = resp.get("result", resp)
+    order_id = r.get("order_id") or r.get("id", "")
+    new_price = r.get("new_price", "?")
+
+    print("✓ Order modified")
+    if order_id:
+        oid_short = order_id[:8] if len(order_id) > 8 else order_id
+        print(f"  Order ID: {oid_short}")
+    print(f"  New price: {new_price} cr")
+
+    print("\n  Hint: sm market")
+
+
+def _fmt_deposit_items(resp):
+    """Format deposit_items response."""
+    r = resp.get("result", resp)
+    item_id = r.get("item_id", "?")
+    quantity = r.get("quantity", 0)
+
+    print(f"Deposited {item_id} x{quantity} to storage")
+    print("\n  Hint: sm storage  |  sm cargo")
+
+
+def _fmt_withdraw_items(resp):
+    """Format withdraw_items response."""
+    r = resp.get("result", resp)
+    item_id = r.get("item_id", "?")
+    quantity = r.get("quantity", 0)
+
+    print(f"Withdrawn {item_id} x{quantity} from storage")
+    print("\n  Hint: sm storage  |  sm cargo")
+
+
+def _fmt_deposit_credits(resp):
+    """Format deposit_credits response."""
+    r = resp.get("result", resp)
+    amount = r.get("amount", 0)
+
+    print(f"Deposited {amount:,} cr to storage")
+    print("\n  Hint: sm storage  |  sm status")
+
+
+def _fmt_withdraw_credits(resp):
+    """Format withdraw_credits response."""
+    r = resp.get("result", resp)
+    amount = r.get("amount", 0)
+
+    print(f"Withdrawn {amount:,} cr from storage")
+    print("\n  Hint: sm storage  |  sm status")
+
+
+def _fmt_send_gift(resp):
+    """Format send_gift response."""
+    r = resp.get("result", resp)
+    recipient = r.get("recipient", "?")
+
+    print(f"✓ Gift sent to {recipient}")
+
+    items = r.get("items", [])
+    credits = r.get("credits", 0)
+
+    if credits:
+        print(f"  Credits: {credits:,} cr")
+    if items:
+        print("  Items:")
+        for item in items:
+            if isinstance(item, dict):
+                print(f"    {item.get('item_id', '?')} x{item.get('quantity', 1)}")
+
+    print("\n  Hint: sm cargo  |  sm status")
+
+
+def _fmt_join_faction(resp):
+    """Format join_faction response."""
+    r = resp.get("result", resp)
+    faction_name = r.get("faction_name") or r.get("name", "?")
+
+    print(f"✓ Joined faction: {faction_name}")
+    print("\n  Hint: sm faction-info  |  sm chat faction <message>")
+
+
+def _fmt_leave_faction(resp):
+    """Format leave_faction response."""
+    r = resp.get("result", resp)
+    faction_name = r.get("faction_name") or r.get("name", "?")
+
+    print(f"Left faction: {faction_name}")
+    print("\n  Hint: sm faction-list")
+
+
+def _fmt_create_faction(resp):
+    """Format create_faction response."""
+    r = resp.get("result", resp)
+    faction_name = r.get("name", "?")
+    faction_tag = r.get("tag", "")
+    faction_id = r.get("faction_id") or r.get("id", "")
+
+    print(f"✓ Created faction: [{faction_tag}] {faction_name}")
+    if faction_id:
+        print(f"  Faction ID: {faction_id}")
+
+    print("\n  Hint: sm faction-info  |  sm faction-invite <player_id>")
+
+
+def _fmt_faction_invite(resp):
+    """Format faction_invite response."""
+    r = resp.get("result", resp)
+    player = r.get("player_name") or r.get("player_id", "?")
+
+    print(f"✓ Invited {player} to faction")
+    print("\n  Hint: sm faction-info")
+
+
+def _fmt_faction_kick(resp):
+    """Format faction_kick response."""
+    r = resp.get("result", resp)
+    player = r.get("player_name") or r.get("player_id", "?")
+
+    print(f"Kicked {player} from faction")
+    print("\n  Hint: sm faction-info")
+
+
+def _fmt_cloak(resp):
+    """Format cloak response."""
+    r = resp.get("result", resp)
+    enabled = r.get("cloaked") or r.get("enabled", False)
+
+    if enabled:
+        print("✓ Cloaking device activated")
+        print("  You are now hidden from casual scans")
+    else:
+        print("Cloaking device deactivated")
+
+    fuel_drain = r.get("fuel_drain") or r.get("fuel_per_tick")
+    if fuel_drain:
+        print(f"  Fuel drain: {fuel_drain} per tick")
+
+    print("\n  Hint: sm nearby  |  sm status")
+
+
+def _fmt_set_home_base(resp):
+    """Format set_home_base response."""
+    r = resp.get("result", resp)
+    base = r.get("base_name") or r.get("base_id", "?")
+
+    print(f"✓ Home base set: {base}")
+    print("\n  Hint: sm base  |  sm status")
+
+
+def _fmt_accept_mission(resp):
+    """Format accept_mission response."""
+    r = resp.get("result", resp)
+    mission_title = r.get("title") or r.get("mission_name", "?")
+    mission_id = r.get("mission_id") or r.get("id", "")
+
+    print(f"✓ Mission accepted: {mission_title}")
+    if mission_id:
+        mid_short = mission_id[:8] if len(mission_id) > 8 else mission_id
+        print(f"  Mission ID: {mid_short}")
+
+    print("\n  Hint: sm missions  |  sm active-missions")
+
+
+def _fmt_complete_mission(resp):
+    """Format complete_mission response."""
+    r = resp.get("result", resp)
+    mission_title = r.get("title") or r.get("mission_name", "?")
+    reward_credits = r.get("reward_credits") or r.get("credits", 0)
+    reward_items = r.get("reward_items", [])
+
+    print(f"✓ Mission completed: {mission_title}")
+
+    if reward_credits:
+        print(f"  Reward: {reward_credits:,} cr")
+
+    if reward_items:
+        print("  Items:")
+        for item in reward_items:
+            if isinstance(item, dict):
+                print(f"    {item.get('item_id', '?')} x{item.get('quantity', 1)}")
+
+    print("\n  Hint: sm missions  |  sm status")
+
+
+def _fmt_abandon_mission(resp):
+    """Format abandon_mission response."""
+    r = resp.get("result", resp)
+    mission_title = r.get("title") or r.get("mission_name", "?")
+
+    print(f"Abandoned mission: {mission_title}")
+    print("\n  Hint: sm missions")
+
+
 _FORMATTERS = {
     "get_chat_history": _fmt_chat_history,
     "get_notes": _fmt_notes,
@@ -951,6 +1271,35 @@ _FORMATTERS = {
     "loot_wreck": _fmt_loot_wreck,
     "salvage_wreck": _fmt_salvage_wreck,
     "jump": _fmt_jump,
+    # Trade commands
+    "trade_offer": _fmt_trade_offer,
+    "trade_accept": _fmt_trade_accept,
+    "trade_decline": _fmt_trade_decline,
+    "trade_cancel": _fmt_trade_cancel,
+    # Market orders
+    "create_buy_order": _fmt_create_buy_order,
+    "create_sell_order": _fmt_create_sell_order,
+    "cancel_order": _fmt_cancel_order,
+    "modify_order": _fmt_modify_order,
+    # Storage
+    "deposit_items": _fmt_deposit_items,
+    "withdraw_items": _fmt_withdraw_items,
+    "deposit_credits": _fmt_deposit_credits,
+    "withdraw_credits": _fmt_withdraw_credits,
+    "send_gift": _fmt_send_gift,
+    # Faction
+    "join_faction": _fmt_join_faction,
+    "leave_faction": _fmt_leave_faction,
+    "create_faction": _fmt_create_faction,
+    "faction_invite": _fmt_faction_invite,
+    "faction_kick": _fmt_faction_kick,
+    # Ship/combat
+    "cloak": _fmt_cloak,
+    "set_home_base": _fmt_set_home_base,
+    # Missions
+    "accept_mission": _fmt_accept_mission,
+    "complete_mission": _fmt_complete_mission,
+    "abandon_mission": _fmt_abandon_mission,
 }
 
 
