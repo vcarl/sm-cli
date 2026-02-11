@@ -91,14 +91,6 @@ class SpaceMoltAPI:
                 result = json.loads(resp.read().decode())
                 self._print_notifications(result)
                 return result
-        except urllib.error.URLError as e:
-            # Network errors (connection refused, DNS failure, timeout)
-            if _retry_count < 2:
-                delay = 2 ** _retry_count  # Exponential backoff: 1s, 2s
-                print(f"Network error, retrying in {delay}s...", flush=True)
-                time.sleep(delay)
-                return self._post(endpoint, body, use_session, _retried, _retry_count + 1)
-            raise APIError(f"Network error: {e.reason}")
         except urllib.error.HTTPError as e:
             body_text = e.read().decode()
             try:
@@ -135,6 +127,14 @@ class SpaceMoltAPI:
                 return self._post(endpoint, body, use_session, _retried, _retry_count + 1)
 
             raise APIError(f"HTTP {e.code}: {msg}", status_code=e.code)
+        except urllib.error.URLError as e:
+            # Network errors (connection refused, DNS failure, timeout)
+            if _retry_count < 2:
+                delay = 2 ** _retry_count  # Exponential backoff: 1s, 2s
+                print(f"Network error, retrying in {delay}s...", flush=True)
+                time.sleep(delay)
+                return self._post(endpoint, body, use_session, _retried, _retry_count + 1)
+            raise APIError(f"Network error: {e.reason}")
 
     @staticmethod
     def _format_notification(n):

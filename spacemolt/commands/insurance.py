@@ -75,16 +75,22 @@ def cmd_insurance_buy(api, args):
         return
 
     r = resp.get("result", {})
-    cost = r.get("cost") or r.get("credits_spent") or r.get("price", "?")
-    new_ticks = r.get("ticks_remaining") or r.get("ticks", ticks)
-    coverage = r.get("coverage_amount") or r.get("amount", "?")
+    premium = r.get("premium", "?")
+    coverage = r.get("coverage", "?")
+    expires = r.get("expires_at", "")
+    message = r.get("message", "")
 
-    print(f"Insurance purchased: {ticks} ticks")
-    print(f"  Cost: {cost} cr")
-    print(f"  Total coverage: {new_ticks} ticks")
-    if coverage != "?":
-        print(f"  Coverage amount: {coverage:,} cr")
-    print("\n  Hint: sm insurance (check status)")
+    if message:
+        print(message)
+    else:
+        print(f"Insurance purchased!")
+        print(f"  Premium: {premium} cr")
+        print(f"  Coverage: {coverage:,} cr" if coverage != "?" else f"  Coverage: {coverage}")
+        if expires:
+            print(f"  Expires: {expires}")
+
+    print(f"\n  Coverage: {coverage_percent}% of ship value")
+    print("  Hint: sm insurance (check status)")
 
 
 def cmd_insurance_claim(api, args):
