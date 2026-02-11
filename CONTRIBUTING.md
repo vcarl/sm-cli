@@ -14,9 +14,47 @@ spacemolt/
     missions.py           # Mission commands
     skills.py             # Skill display and queries
   api.py                  # HTTP client, session management, notifications
+spec/
+  openapi.json            # Official OpenAPI 3.0.3 spec from game API
+  validate.py             # Cross-reference validator (implementation vs spec)
+  README.md               # Spec documentation and usage
 tests/
   test_cli.py             # Unit tests (run with: python3 -m unittest tests.test_cli -v)
 ```
+
+## Acceptance Criteria for New Code
+
+**All new commands and endpoint implementations MUST:**
+
+1. ✅ **Match the OpenAPI spec** - Run `python3 spec/validate.py` to verify
+2. ✅ **Include unit tests** - Add test coverage in `tests/test_cli.py`
+3. ✅ **Support `--json` flag** - All formatted handlers must support raw JSON output
+4. ✅ **Handle errors properly** - Check `resp.get("error")` and format appropriately
+5. ✅ **Respect rate limits** - Mutation commands must include 11-second sleeps between calls
+6. ✅ **Use correct types** - Parameter types in `ENDPOINT_ARGS` must match spec (`:int`, `:bool`, `:str`)
+7. ✅ **Mark optional params** - Use `?` suffix for optional parameters (e.g., `"quantity?:int"`)
+
+### Validating Against OpenAPI Spec
+
+Before submitting changes that add or modify endpoints:
+
+```bash
+# Validate implementation matches spec
+python3 spec/validate.py
+
+# Verbose mode (shows parameter details)
+python3 spec/validate.py --verbose
+
+# Strict mode (exit with error on mismatches)
+python3 spec/validate.py --strict
+```
+
+The validator checks:
+- All spec endpoints are implemented (or consciously skipped)
+- No deprecated/removed endpoints remain in code
+- Parameter names, types, and required/optional flags match spec
+
+See [spec/README.md](spec/README.md) for more details.
 
 There are three ways to expose an API endpoint through `sm`, from least to most effort:
 
@@ -35,11 +73,20 @@ To improve the argument mapping for a passthrough endpoint, add an entry to `END
 ```python
 ENDPOINT_ARGS = {
     # ...
-    "new_endpoint": ["first_arg", "second_arg:int", "optional_flag:bool"],
+    "new_endpoint": ["first_arg:str", "second_arg:int", "optional_flag?:bool"],
 }
 ```
 
-Type suffixes: `:int` converts to integer, `:bool` converts `true/1/yes` to `True`. Default is string. The parameter name is everything before the colon.
+**Parameter spec format:**
+- Type suffixes: `:int` (integer), `:bool` (boolean), `:str` (string, default)
+- Optional params: Add `?` suffix before the colon (e.g., `"quantity?:int"`)
+- Required params: No `?` suffix (e.g., `"target_id:str"`)
+
+**IMPORTANT:** Check the OpenAPI spec first to ensure parameter names, types, and required/optional flags match:
+
+```bash
+python3 spec/validate.py --verbose | grep "new_endpoint"
+```
 
 That's it — no other code changes needed.
 
@@ -97,6 +144,14 @@ class TestCmdExample(unittest.TestCase):
             cmd_example(api, make_args(my_param="x", json=False))
         self.assertIn("value", mock_print.call_args[0][0])
 ```
+
+**Step 4: Validate against OpenAPI spec**
+
+```bash
+python3 spec/validate.py | grep "example"
+```
+
+Ensure the endpoint appears in the spec and parameters match.
 
 ## 3. Compound commands (multi-step logic)
 

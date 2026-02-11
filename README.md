@@ -34,10 +34,24 @@ chmod +x sm
 
 Run `./sm` with no args to see all commands.
 
-## Tests
+## Development
+
+### Running Tests
 
 ```bash
-python3 -m pytest tests/ -v
-# or
-python3 -m unittest discover -s tests -v
+# Run all checks (unit tests + spec validation)
+./check-all
+
+# Or run individually:
+python3 -m unittest discover -s tests -v  # Unit tests
+python3 spec/validate.py                  # Spec validation
 ```
+
+### Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for architecture details and guidelines. All new code must:
+- Match the official [OpenAPI spec](spec/openapi.json)
+- Include unit tests
+- Support `--json` flag for scripting
+
+Run `python3 spec/validate.py` to check implementation against the spec.

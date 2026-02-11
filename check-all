@@ -1,0 +1,24 @@
+#!/bin/bash
+# Run all validation checks (unit tests + spec validation)
+# Exit with non-zero if any check fails
+
+set -e  # Exit on first error
+
+echo "========================================="
+echo "Running all validation checks..."
+echo "========================================="
+echo ""
+
+echo "1. Unit tests..."
+python3 -m unittest discover -s tests -v
+echo "✅ Unit tests passed"
+echo ""
+
+echo "2. OpenAPI spec validation..."
+python3 spec/validate.py --strict
+echo "✅ Spec validation passed"
+echo ""
+
+echo "========================================="
+echo "✅ All checks passed!"
+echo "========================================="
