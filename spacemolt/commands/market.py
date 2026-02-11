@@ -27,7 +27,7 @@ def cmd_market_orders(api, args):
     except Exception:
         # Fallback: might not be implemented
         print("Market orders viewing not available.")
-        print("  Hint: sm create-buy-order  |  sm create-sell-order")
+        print("  Hint: sm market buy <item> <qty> <price>  |  sm market sell <item> <qty> <price>")
         return
 
     if as_json:

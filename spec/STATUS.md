@@ -82,7 +82,7 @@ The CLI treats complex types as JSON strings:
 - `order_ids` parameter (array type) → pass as JSON string
 - `items` parameter (object type) → pass as JSON string
 
-**Example:** `sm create-buy-order orders='[{"item_id":"ore_iron","quantity":10,"price_each":100}]'`
+**Example:** `sm market buy ore_iron 10 100`
 
 ## Compliance Status
 

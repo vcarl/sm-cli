@@ -540,7 +540,7 @@ def _fmt_view_orders(resp):
     orders = r.get("orders", [])
     if not orders:
         print("No active market orders.")
-        print("  Hint: sm create-buy-order <item> <qty> <price>  |  sm create-sell-order")
+        print("  Hint: sm market buy <item> <qty> <price>  |  sm market sell <item> <qty> <price>")
         return
     print(f"Your Market Orders ({len(orders)}):")
     for order in orders:
@@ -568,7 +568,7 @@ def _fmt_view_storage(resp):
     credits = r.get("credits", 0)
     if not items and credits == 0:
         print("Storage is empty.")
-        print("  Hint: sm deposit-items <item> <qty>  |  sm deposit-credits <amount>")
+        print("  Hint: sm storage deposit <item> <qty>  |  sm storage deposit --credits <amount>")
         return
     print("Base Storage:")
     if credits > 0:

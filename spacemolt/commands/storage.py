@@ -25,7 +25,7 @@ def cmd_storage_view(api, args):
     except Exception:
         # Endpoint might not exist, show helpful message
         print("Storage viewing not available.")
-        print("  Hint: sm deposit-items <item> <qty>  |  sm withdraw-items <item> <qty>")
+        print("  Hint: sm storage deposit <item> <qty>  |  sm storage withdraw <item> <qty>")
         return
 
     if as_json:
