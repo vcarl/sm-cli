@@ -235,7 +235,8 @@ ARMED_SHIP_CLASSES = {
 def _threat_level(nearby_info, scan_info=None):
     """Estimate threat from nearby data + optional scan results.
 
-    Returns (level, reasons) where level is 0-5 and reasons is a list of strings.
+    Returns (level, reasons) where level is 0-20 and reasons is a list of strings.
+    Thresholds: 0 safe, 1-5 low, 6-10 medium, 11-15 high, 16+ deadly.
     """
     level = 0
     reasons = []
@@ -247,21 +248,21 @@ def _threat_level(nearby_info, scan_info=None):
     if any(tag in ship for tag in ("combat", "fighter", "assault", "pirate",
                                     "raider", "destroyer", "interceptor",
                                     "dreadnought", "war", "battlecruiser")):
-        level += 3
+        level += 8
         reasons.append(f"combat ship ({ship})")
     elif any(tag in ship for tag in ("corvette", "frigate", "gunship", "cruiser")):
-        level += 2
+        level += 5
         reasons.append(f"armed ship ({ship})")
     elif any(tag in ship for tag in ("mining", "hauler", "transport", "starter",
                                       "shuttle", "explorer", "prospector")):
         level += 0
         reasons.append(f"civilian ship ({ship})")
     elif ship:
-        level += 1
+        level += 2
         reasons.append(f"unknown class ({ship})")
 
     if in_combat:
-        level += 1
+        level += 3
         reasons.append("currently in combat")
 
     # Scan data enrichment
@@ -273,25 +274,25 @@ def _threat_level(nearby_info, scan_info=None):
         if isinstance(weapons, list):
             weapons = len(weapons)
         if weapons and weapons > 0:
-            level += min(weapons, 2)
+            level += min(weapons * 2, 6)
             reasons.append(f"{weapons} weapon(s)")
 
         # Hull/shield strength
         hull = revealed.get("hull") or revealed.get("max_hull", 0)
         shield = revealed.get("shield") or revealed.get("max_shield", 0)
         if hull and hull > 200:
-            level += 1
+            level += 3
             reasons.append(f"heavy hull ({hull})")
         if shield and shield > 100:
-            level += 1
+            level += 3
             reasons.append(f"strong shields ({shield})")
 
         # Cargo (low cargo on a combat ship = hunting)
         cargo_used = revealed.get("cargo_used", None)
         cargo_cap = revealed.get("cargo_capacity", None)
         if cargo_used is not None and cargo_cap and cargo_cap > 0:
-            if cargo_used / cargo_cap < 0.1 and level >= 2:
-                level += 1
+            if cargo_used / cargo_cap < 0.1 and level >= 5:
+                level += 3
                 reasons.append("empty cargo (likely hunting)")
 
     return level, reasons
@@ -314,11 +315,11 @@ def _ship_role(ship_class):
 def _threat_emoji(level):
     if level <= 0:
         return "\u2b1c"       # white square
-    elif level <= 2:
+    elif level <= 5:
         return "\U0001f7e8"   # yellow square
-    elif level <= 4:
+    elif level <= 10:
         return "\U0001f7e7"   # orange square
-    elif level <= 6:
+    elif level <= 15:
         return "\U0001f7e5"   # red square
     else:
         return "\u2620\ufe0f" # skull and crossbones
@@ -475,7 +476,9 @@ def cmd_nearby(api, args):
         plevel = p.get("level", "?")
         pid = p.get("id") or p.get("pirate_id", "")
         pid_label = pid if pid else "npc"
-        rows.append((5, "\U0001f7e5", f"pirate(L{plevel}:{pid_label})", f"`{name}`", ""))
+        level, _ = _threat_level(p)
+        emoji = _threat_emoji(level)
+        rows.append((level, emoji, f"pirate(L{plevel}:{pid_label})", f"`{name}`", ""))
 
     if rows:
         # Column widths
@@ -576,6 +579,9 @@ def cmd_listings(api, args):
     listings = r.get("listings", [])
     if not listings:
         print("No market listings at this base.")
+        print("\n  Create one: sm list-item <item_id> <qty> <price>")
+        print("              sm create-sell-order <item_id> <qty> <price>")
+        print("              sm create-buy-order <item_id> <qty> <price>")
         return
 
     # Table header
@@ -590,3 +596,6 @@ def cmd_listings(api, args):
         print(f"{item:<25} {qty:>5} {price:>10} {seller:<20} {lid}")
 
     print(f"\n  Hint: sm buy-listing <listing_id>")
+    print("        sm view-market [item_id]  |  sm estimate-purchase <item_id> <qty>")
+    print("  Sell:  sm list-item <item_id> <qty> <price>  |  sm create-sell-order <item_id> <qty> <price>")
+    print("  Buy:   sm create-buy-order <item_id> <qty> <price>  |  sm cancel-order <order_id>")

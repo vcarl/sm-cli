@@ -638,7 +638,7 @@ class TestCmdListings(unittest.TestCase):
         api = mock_api({"result": {"listings": []}})
         with patch("builtins.print") as mock_print:
             cmd_listings(api, make_args(json=False))
-        self.assertIn("No market listings", mock_print.call_args[0][0])
+        self.assertIn("No market listings", mock_print.call_args_list[0][0][0])
 
     def test_with_listings(self):
         api = mock_api({"result": {"listings": [
