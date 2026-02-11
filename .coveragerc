@@ -1,0 +1,14 @@
+[run]
+source = spacemolt
+omit =
+    */tests/*
+    */spec/*
+    */__pycache__/*
+
+[report]
+precision = 2
+show_missing = True
+skip_covered = False
+
+[html]
+directory = coverage_html

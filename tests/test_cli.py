@@ -635,21 +635,19 @@ class TestCmdWrecks(unittest.TestCase):
 class TestCmdListings(unittest.TestCase):
 
     def test_empty(self):
-        api = mock_api({"result": {"listings": []}})
+        api = mock_api({"result": {"items": []}})
         with patch("builtins.print") as mock_print:
             cmd_listings(api, make_args(json=False))
-        self.assertIn("No market listings", mock_print.call_args_list[0][0][0])
+        self.assertIn("No market activity", mock_print.call_args_list[0][0][0])
 
     def test_with_listings(self):
-        api = mock_api({"result": {"listings": [
-            {"item_id": "ore_iron", "quantity": 50, "price_each": 10,
-             "seller_name": "Trader", "id": "list-1"},
+        api = mock_api({"result": {"items": [
+            {"item_id": "ore_iron", "item_name": "Iron Ore", "best_buy": 10, "best_sell": 15},
         ]}})
         with patch("builtins.print") as mock_print:
             cmd_listings(api, make_args(json=False))
         output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("ore_iron", output)
-        self.assertIn("Trader", output)
+        self.assertIn("Iron Ore", output)
 
 
 class TestCmdRecipes(unittest.TestCase):
