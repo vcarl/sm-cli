@@ -348,11 +348,7 @@ def main():
 
         extra_args = argv[1:]
         api.set_command_context(first_arg, extra_args or None)
-        try:
-            commands.cmd_passthrough(api, endpoint, extra_args, as_json=json_flag)
-        except APIError as e:
-            print(f"ERROR: {e}", file=sys.stderr)
-            sys.exit(1)
+        commands.cmd_passthrough(api, endpoint, extra_args, as_json=json_flag)
         return
 
     # Known command — let argparse handle it
@@ -388,11 +384,7 @@ def main():
         endpoint = args.command.replace("-", "_")
         extra_args = getattr(args, "extra", [])
         api.set_command_context(args.command, extra_args or None)
-        try:
-            commands.cmd_passthrough(api, endpoint, extra_args, as_json=json_flag)
-        except APIError as e:
-            print(f"ERROR: {e}", file=sys.stderr)
-            sys.exit(1)
+        commands.cmd_passthrough(api, endpoint, extra_args, as_json=json_flag)
 
 
 if __name__ == "__main__":

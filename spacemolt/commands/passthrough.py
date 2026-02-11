@@ -452,7 +452,12 @@ def _fmt_scan(resp):
     scan = r.get("Result", r)
     success = scan.get("success", True)
     if not success:
-        print(f"Scan failed: {scan.get('error', scan.get('message', 'unknown'))}")
+        reason = scan.get("error") or scan.get("message") or scan.get("reason", "")
+        if reason:
+            print(f"Scan failed: {reason}")
+        else:
+            print(f"Scan failed.")
+        print("\n  Hint: sm nearby  |  sm ship")
         return
     target = scan.get("target") or scan.get("target_name") or scan.get("target_id", "?")
     print(f"Scan of {target}:")
@@ -484,6 +489,51 @@ _FORMATTERS = {
     "attack": _fmt_attack,
     "scan": _fmt_scan,
 }
+
+
+def _print_error_hints(endpoint, err_msg, api=None):
+    """Print contextual hints for common endpoint errors."""
+    err_lower = err_msg.lower()
+    if endpoint == "scan" and any(w in err_lower for w in ("module", "scanner", "equip", "install")):
+        print("\n  You need a scanner module installed to scan ships.")
+        print("  Hint: sm listings  |  sm ship  |  sm install-mod <module_id>")
+    elif endpoint == "attack" and ("not a weapon" in err_lower or "no weapon" in err_lower
+                                    or ("module" in err_lower and "weapon" in err_lower)):
+        # Try to find actual weapon modules and suggest the right index
+        weapons = _find_weapon_modules(api)
+        if weapons:
+            indices = ", ".join(str(idx) for idx, _ in weapons)
+            names = ", ".join(f"{name} (index {idx})" for idx, name in weapons)
+            print(f"\n  Your weapon modules: {names}")
+            first_idx = weapons[0][0]
+            print(f"  Hint: sm attack <target_id> {first_idx}")
+        else:
+            print("\n  You have no weapon modules installed.")
+            print("  Hint: sm listings  |  sm install-mod <module_id>")
+    elif endpoint == "attack" and any(w in err_lower for w in ("equip", "install")):
+        print("\n  You need a weapon module installed to attack.")
+        print("  Hint: sm listings  |  sm ship  |  sm install-mod <module_id>")
+
+
+def _find_weapon_modules(api):
+    """Return list of (index, name) for installed weapon modules."""
+    if api is None:
+        return []
+    try:
+        resp = api._post("get_ship")
+        modules = resp.get("result", {}).get("modules", [])
+        weapons = []
+        for i, m in enumerate(modules):
+            if not isinstance(m, dict):
+                continue
+            mtype = (m.get("type") or m.get("type_id") or "").lower()
+            mname = m.get("name") or m.get("module_id") or f"module_{i}"
+            if any(w in mtype for w in ("weapon", "laser", "cannon", "missile",
+                                         "turret", "gun", "blaster", "railgun")):
+                weapons.append((i, mname))
+        return weapons
+    except Exception:
+        return []
 
 
 # ---------------------------------------------------------------------------
@@ -533,16 +583,22 @@ def cmd_passthrough(api, endpoint, extra_args, as_json=False):
         print(f"Missing: {', '.join(missing)}")
         return
 
-    resp = api._post(endpoint, body)
+    from spacemolt.api import APIError
+    try:
+        resp = api._post(endpoint, body)
+    except APIError as e:
+        print(f"ERROR: {e}")
+        _print_error_hints(endpoint, str(e), api)
+        return
+
     if as_json:
         print(json.dumps(resp, indent=2))
     else:
         err = resp.get("error")
         if err:
-            if isinstance(err, dict):
-                print(f"ERROR: {err.get('message', err)}")
-            else:
-                print(f"ERROR: {err}")
+            err_msg = err.get('message', err) if isinstance(err, dict) else err
+            print(f"ERROR: {err_msg}")
+            _print_error_hints(endpoint, str(err_msg), api)
         else:
             formatter = _FORMATTERS.get(endpoint)
             if formatter:
