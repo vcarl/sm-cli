@@ -24,3 +24,6 @@ from spacemolt.commands.actions import *
 from spacemolt.commands.recipes import *
 from spacemolt.commands.missions import *
 from spacemolt.commands.skills import *
+from spacemolt.commands.insurance import *
+from spacemolt.commands.storage import *
+from spacemolt.commands.market import *

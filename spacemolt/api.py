@@ -1,6 +1,7 @@
 import json
 import os
 import threading
+import time
 import urllib.request
 import urllib.error
 
@@ -50,19 +51,22 @@ class APIError(Exception):
 
 
 class SpaceMoltAPI:
-    def __init__(self, session_file=DEFAULT_SESSION_FILE, cred_file=DEFAULT_CRED_FILE):
+    def __init__(self, session_file=DEFAULT_SESSION_FILE, cred_file=DEFAULT_CRED_FILE, timeout=30):
         self.session_file = session_file
         self.cred_file = cred_file
+        self.timeout = timeout
         self.username = None
         self._command = None
         self._command_args = None
+        self._status_cache = None
+        self._status_cache_time = 0
 
     def set_command_context(self, command, command_args=None):
         """Set the current CLI command context for metrics reporting."""
         self._command = command
         self._command_args = command_args
 
-    def _post(self, endpoint, body=None, use_session=True, _retried=False):
+    def _post(self, endpoint, body=None, use_session=True, _retried=False, _retry_count=0):
         if body is None:
             body = {}
         if use_session:
@@ -83,10 +87,18 @@ class SpaceMoltAPI:
         _report_metric(body.get("session_id", "?"), endpoint, self.username,
                        self._command, self._command_args)
         try:
-            with urllib.request.urlopen(req) as resp:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 result = json.loads(resp.read().decode())
                 self._print_notifications(result)
                 return result
+        except urllib.error.URLError as e:
+            # Network errors (connection refused, DNS failure, timeout)
+            if _retry_count < 2:
+                delay = 2 ** _retry_count  # Exponential backoff: 1s, 2s
+                print(f"Network error, retrying in {delay}s...", flush=True)
+                time.sleep(delay)
+                return self._post(endpoint, body, use_session, _retried, _retry_count + 1)
+            raise APIError(f"Network error: {e.reason}")
         except urllib.error.HTTPError as e:
             body_text = e.read().decode()
             try:
@@ -94,14 +106,34 @@ class SpaceMoltAPI:
                 self._print_notifications(err_resp)
             except (json.JSONDecodeError, ValueError):
                 pass
-            code, msg = self._parse_error(body_text)
+            code, msg, wait_seconds = self._parse_error(body_text)
+
+            # Handle session expiry with auto-relogin
             if e.code == 401 and "session" in code and not _retried:
-                # Session expired — auto-relogin if credentials are available
                 if os.path.exists(self.cred_file):
                     print("Session expired, re-logging in...", flush=True)
                     self.login(self.cred_file)
                     return self._post(endpoint, body, use_session, _retried=True)
                 raise APIError("Session expired. Run: sm login")
+
+            # Handle rate limiting with API-provided wait time
+            if e.code == 429:
+                if wait_seconds and wait_seconds <= 10 and _retry_count < 1:
+                    print(f"Rate limited. Waiting {wait_seconds}s...", flush=True)
+                    time.sleep(wait_seconds)
+                    return self._post(endpoint, body, use_session, _retried, _retry_count + 1)
+                elif wait_seconds:
+                    raise APIError(f"Rate limited. Try again in {wait_seconds}s", status_code=429)
+                else:
+                    raise APIError(f"Rate limited. {msg}", status_code=429)
+
+            # Retry on transient server errors
+            if e.code in (503, 504) and _retry_count < 1:
+                delay = 2
+                print(f"Server error {e.code}, retrying in {delay}s...", flush=True)
+                time.sleep(delay)
+                return self._post(endpoint, body, use_session, _retried, _retry_count + 1)
+
             raise APIError(f"HTTP {e.code}: {msg}", status_code=e.code)
 
     @staticmethod
@@ -212,13 +244,16 @@ class SpaceMoltAPI:
             if isinstance(inner, dict):
                 code = inner.get("code", "")
                 msg = inner.get("message") or str(inner)
+                wait_seconds = inner.get("wait_seconds")
             else:
                 code = ""
                 msg = str(inner)
+                wait_seconds = None
         except (json.JSONDecodeError, ValueError):
             code = ""
             msg = body_text
-        return code, msg
+            wait_seconds = None
+        return code, msg, wait_seconds
 
     def get_session_id(self):
         if not os.path.exists(self.session_file):
@@ -279,3 +314,44 @@ class SpaceMoltAPI:
         self.username = username
         print(f"Logged in as {username} (session: {sid[:12]}...)")
         return result
+
+    def _get_cached_status(self, max_age=5):
+        """Get cached status response, or fetch fresh if cache is stale (>max_age seconds)."""
+        now = time.time()
+        if self._status_cache and (now - self._status_cache_time) < max_age:
+            return self._status_cache
+        # Fetch fresh status
+        self._status_cache = self._post("get_status")
+        self._status_cache_time = now
+        return self._status_cache
+
+    def _clear_status_cache(self):
+        """Clear cached status (call after mutations that change ship state)."""
+        self._status_cache = None
+        self._status_cache_time = 0
+
+    def _require_docked(self, hint="You must dock first. Hint: sm dock"):
+        """Raise APIError if not currently docked at a station."""
+        status = self._get_cached_status()
+        result = status.get("result", {})
+        docked = result.get("docked") or result.get("is_docked", False)
+        if not docked:
+            raise APIError(hint)
+
+    def _require_undocked(self, hint="You must undock first. Hint: sm undock"):
+        """Raise APIError if currently docked at a station."""
+        status = self._get_cached_status()
+        result = status.get("result", {})
+        docked = result.get("docked") or result.get("is_docked", False)
+        if docked:
+            raise APIError(hint)
+
+    def _check_cargo_space(self, required_space, hint="Not enough cargo space. Hint: sm sell-all or sm jettison"):
+        """Raise APIError if cargo space is insufficient."""
+        status = self._get_cached_status()
+        result = status.get("result", {})
+        cargo_used = result.get("cargo_used", 0)
+        cargo_capacity = result.get("cargo_capacity", 0)
+        available = cargo_capacity - cargo_used
+        if available < required_space:
+            raise APIError(f"{hint} (need {required_space}, have {available})")

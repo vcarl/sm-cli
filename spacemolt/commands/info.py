@@ -371,20 +371,36 @@ def cmd_nearby(api, args):
         except Exception:
             has_scanner = None
 
-        for i, p in enumerate(players):
-            pid = p.get("player_id") or p.get("id", "")
-            if not pid:
-                continue
-            if i > 0:
-                print(f"  scanning... (waiting for rate limit)", flush=True)
-                time.sleep(11)
-            try:
-                scan_resp = api._post("scan", {"target_id": pid})
-                sr = scan_resp.get("result", {})
-                scan_data = sr.get("Result", sr)
-                scan_results[pid] = scan_data
-            except Exception as e:
-                scan_results[pid] = {"success": False, "error": str(e)}
+        timeout = getattr(args, "timeout", None)
+        start_time = time.time() if timeout else None
+
+        try:
+            for i, p in enumerate(players):
+                pid = p.get("player_id") or p.get("id", "")
+                if not pid:
+                    continue
+
+                # Check timeout before processing
+                if timeout and start_time:
+                    elapsed = time.time() - start_time
+                    if elapsed >= timeout:
+                        print(f"  Timeout reached ({timeout}s). Scanned {i}/{len(players)} players.", flush=True)
+                        break
+
+                # Show progress
+                print(f"  Scanning player {i+1}/{len(players)}...", flush=True)
+
+                if i > 0:
+                    time.sleep(11)
+                try:
+                    scan_resp = api._post("scan", {"target_id": pid})
+                    sr = scan_resp.get("result", {})
+                    scan_data = sr.get("Result", sr)
+                    scan_results[pid] = scan_data
+                except Exception as e:
+                    scan_results[pid] = {"success": False, "error": str(e)}
+        except KeyboardInterrupt:
+            print(f"\n  Scan interrupted. Scanned {len(scan_results)}/{len(players)} players.", flush=True)
 
     if as_json and not scan:
         print(json.dumps(r, indent=2))

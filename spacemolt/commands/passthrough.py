@@ -117,6 +117,14 @@ ENDPOINT_ARGS = {
     "logout": [],
     # registration
     "register": ["username", "empire"],
+    # missing endpoints (quick wins for completeness)
+    "get_version": [],
+    "get_map": [],
+    "view_orders": [],
+    "view_storage": [],
+    "get_base_cost": ["base_type?"],  # base_type optional
+    "raid_status": ["base_id?"],  # base_id optional
+    "help": [],
 }
 
 
@@ -128,8 +136,15 @@ def _parse_typed_value(spec, value):
         type_name = "str"
 
     if type_name == "int":
-        return int(value)
+        try:
+            return int(value)
+        except (ValueError, TypeError) as e:
+            param_name = _arg_name(spec)
+            raise ValueError(f"Invalid integer value for '{param_name}': {value!r}")
     elif type_name == "bool":
+        if value is None or not isinstance(value, str):
+            param_name = _arg_name(spec)
+            raise ValueError(f"Invalid boolean value for '{param_name}': {value!r}")
         return value.lower() in ("true", "1", "yes")
     return value
 
@@ -473,6 +488,138 @@ def _fmt_scan(resp):
     print(f"\n  Hint: sm attack {target_id}  |  sm trade-offer {target_id}")
 
 
+def _fmt_version(resp):
+    """Format get_version response."""
+    r = resp.get("result", resp)
+    # Handle plain string results
+    if isinstance(r, str):
+        print(r)
+        return
+    version = r.get("version", "unknown")
+    build = r.get("build", "")
+    api_version = r.get("api_version", "")
+    print(f"SpaceMolt version: {version}")
+    if build:
+        print(f"  Build: {build}")
+    if api_version:
+        print(f"  API version: {api_version}")
+
+
+def _fmt_map(resp):
+    """Format get_map response."""
+    r = resp.get("result", resp)
+    # Handle plain string results
+    if isinstance(r, str):
+        print(r)
+        return
+    systems = r.get("systems", [])
+    if not systems:
+        print("No map data available.")
+        return
+    print(f"Galaxy Map ({len(systems)} systems):")
+    for sys in systems[:20]:  # Limit to first 20
+        if not isinstance(sys, dict):
+            continue
+        name = sys.get("name") or sys.get("system_id", "?")
+        sid = sys.get("id") or sys.get("system_id", "")
+        coords = sys.get("coordinates", {})
+        x = coords.get("x", "?")
+        y = coords.get("y", "?")
+        print(f"  {name} ({sid}) @ ({x}, {y})")
+    if len(systems) > 20:
+        print(f"  ... and {len(systems) - 20} more systems")
+
+
+def _fmt_view_orders(resp):
+    """Format view_orders response (market orders)."""
+    r = resp.get("result", resp)
+    # Handle plain string results
+    if isinstance(r, str):
+        print(r)
+        return
+    orders = r.get("orders", [])
+    if not orders:
+        print("No active market orders.")
+        print("  Hint: sm create-buy-order <item> <qty> <price>  |  sm create-sell-order")
+        return
+    print(f"Your Market Orders ({len(orders)}):")
+    for order in orders:
+        if not isinstance(order, dict):
+            continue
+        order_id = order.get("order_id") or order.get("id", "?")
+        order_type = order.get("type", "?")
+        item_id = order.get("item_id", "?")
+        qty = order.get("quantity", 0)
+        price = order.get("price_each") or order.get("price", 0)
+        filled = order.get("filled", 0)
+        remaining = qty - filled
+        total = qty * price
+        print(f"  [{order_type}] {item_id} x{remaining}/{qty} @ {price}cr ea (total: {total}cr) - ID: {order_id}")
+
+
+def _fmt_view_storage(resp):
+    """Format view_storage response (base storage contents)."""
+    r = resp.get("result", resp)
+    # Handle plain string results
+    if isinstance(r, str):
+        print(r)
+        return
+    items = r.get("items", [])
+    credits = r.get("credits", 0)
+    if not items and credits == 0:
+        print("Storage is empty.")
+        print("  Hint: sm deposit-items <item> <qty>  |  sm deposit-credits <amount>")
+        return
+    print("Base Storage:")
+    if credits > 0:
+        print(f"  Credits: {credits:,}")
+    if items:
+        print(f"  Items ({len(items)}):")
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            item_id = item.get("item_id", "?")
+            qty = item.get("quantity", 0)
+            print(f"    {item_id} x{qty}")
+
+
+def _fmt_raid_status(resp):
+    """Format raid_status response."""
+    r = resp.get("result", resp)
+    # Handle plain string results
+    if isinstance(r, str):
+        print(r)
+        return
+    status = r.get("status", "unknown")
+    progress = r.get("progress", 0)
+    defenders = r.get("defenders", [])
+    base_id = r.get("base_id", "")
+    print(f"Raid Status: {status}")
+    if base_id:
+        print(f"  Base: {base_id}")
+    if progress:
+        bar_length = 20
+        filled = int((progress / 100) * bar_length)
+        bar = "█" * filled + "░" * (bar_length - filled)
+        print(f"  Progress: [{bar}] {progress}%")
+    if defenders:
+        print(f"  Defenders ({len(defenders)}):")
+        for defender in defenders[:10]:  # Limit to 10
+            if isinstance(defender, dict):
+                dname = defender.get("name") or defender.get("player_id", "?")
+                print(f"    - {dname}")
+
+
+def _fmt_help(resp):
+    """Format help response."""
+    r = resp.get("result", resp)
+    help_text = r.get("help") or r.get("message") or r.get("content", "")
+    if help_text:
+        print(help_text)
+    else:
+        print(json.dumps(r, indent=2))
+
+
 _FORMATTERS = {
     "get_chat_history": _fmt_chat_history,
     "get_notes": _fmt_notes,
@@ -488,15 +635,26 @@ _FORMATTERS = {
     "forum_get_thread": _fmt_forum_get_thread,
     "attack": _fmt_attack,
     "scan": _fmt_scan,
+    # New formatters
+    "get_version": _fmt_version,
+    "get_map": _fmt_map,
+    "view_orders": _fmt_view_orders,
+    "view_storage": _fmt_view_storage,
+    "raid_status": _fmt_raid_status,
+    "help": _fmt_help,
 }
 
 
 def _print_error_hints(endpoint, err_msg, api=None):
     """Print contextual hints for common endpoint errors."""
     err_lower = err_msg.lower()
+
+    # Scanner module missing
     if endpoint == "scan" and any(w in err_lower for w in ("module", "scanner", "equip", "install")):
         print("\n  You need a scanner module installed to scan ships.")
         print("  Hint: sm listings  |  sm ship  |  sm install-mod <module_id>")
+
+    # Weapon module issues
     elif endpoint == "attack" and ("not a weapon" in err_lower or "no weapon" in err_lower
                                     or ("module" in err_lower and "weapon" in err_lower)):
         # Try to find actual weapon modules and suggest the right index
@@ -513,6 +671,41 @@ def _print_error_hints(endpoint, err_msg, api=None):
     elif endpoint == "attack" and any(w in err_lower for w in ("equip", "install")):
         print("\n  You need a weapon module installed to attack.")
         print("  Hint: sm listings  |  sm ship  |  sm install-mod <module_id>")
+
+    # Mining errors
+    elif endpoint == "mine" and any(w in err_lower for w in ("no resource", "not mineable", "no ore", "nothing to mine")):
+        print("\n  No mineable resources at current location.")
+        print("  Hint: sm pois (find asteroid belts or mining sites)")
+
+    # Docking errors
+    elif endpoint == "dock" and any(w in err_lower for w in ("no base", "no station", "not dockable", "can't dock")):
+        print("\n  No dockable base or station at current location.")
+        print("  Hint: sm pois (find bases)  |  sm travel <poi_id>")
+
+    # Fuel errors
+    elif any(w in err_lower for w in ("not enough fuel", "insufficient fuel", "out of fuel", "no fuel")):
+        print("\n  Insufficient fuel for this operation.")
+        print("  Hint: sm dock  |  sm refuel")
+
+    # Cargo full errors
+    elif any(w in err_lower for w in ("cargo full", "not enough space", "insufficient cargo", "no cargo space")):
+        print("\n  Not enough cargo space.")
+        print("  Hint: sm sell-all  |  sm jettison <item_id> <quantity>  |  sm storage deposit")
+
+    # Credits insufficient
+    elif any(w in err_lower for w in ("not enough credits", "insufficient credits", "can't afford", "insufficient funds")):
+        print("\n  Insufficient credits for this purchase.")
+        print("  Hint: sm sell-all  |  sm listings (sell to players)  |  sm missions")
+
+    # Must be docked errors
+    elif any(w in err_lower for w in ("must be docked", "need to dock", "while docked", "at a station")):
+        print("\n  This action requires being docked at a base.")
+        print("  Hint: sm pois  |  sm travel <poi_id>  |  sm dock")
+
+    # Must be undocked errors
+    elif any(w in err_lower for w in ("must be undocked", "need to undock", "while undocked", "in space")):
+        print("\n  This action requires being undocked.")
+        print("  Hint: sm undock")
 
 
 def _find_weapon_modules(api):
@@ -552,7 +745,11 @@ def cmd_passthrough(api, endpoint, extra_args, as_json=False):
             key, val = arg.split("=", 1)
             # Find the matching spec for type conversion
             matching_spec = next((s for s in specs if _arg_name(s) == key), key)
-            body[key] = _parse_typed_value(matching_spec, val)
+            try:
+                body[key] = _parse_typed_value(matching_spec, val)
+            except ValueError as e:
+                print(f"Error: {e}")
+                return
         else:
             positional.append(arg)
 
@@ -560,7 +757,11 @@ def cmd_passthrough(api, endpoint, extra_args, as_json=False):
     for i, val in enumerate(positional):
         if i < len(specs):
             spec = specs[i]
-            body[_arg_name(spec)] = _parse_typed_value(spec, val)
+            try:
+                body[_arg_name(spec)] = _parse_typed_value(spec, val)
+            except ValueError as e:
+                print(f"Error: {e}")
+                return
         else:
             # Extra positional with no spec — skip with warning
             print(f"Warning: extra argument ignored: {val}")

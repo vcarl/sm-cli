@@ -71,7 +71,8 @@ Tips:
     p_sell.add_argument("quantity", nargs="?", type=int, default=1, help="Quantity to sell (default: 1)")
 
     # sell-all
-    sub.add_parser("sell-all", help="Sell all cargo (auto-waits between items)")
+    p_sell_all = sub.add_parser("sell-all", help="Sell all cargo (auto-waits between items)")
+    p_sell_all.add_argument("--max-items", type=int, metavar="N", help="Max number of items to sell (default: no limit)")
 
     # buy
     p_buy = sub.add_parser("buy", help="Buy item from NPC market")
@@ -83,6 +84,7 @@ Tips:
     # nearby
     p_nearby = sub.add_parser("nearby", help="Nearby players + threat assessment")
     p_nearby.add_argument("--scan", action="store_true", help="Scan each player (rate-limited, ~11s per player)")
+    p_nearby.add_argument("--timeout", type=int, metavar="SECONDS", help="Max time for --scan operation (default: no limit)")
 
     # notifications
     sub.add_parser("notifications", help="Pending notifications")
@@ -240,6 +242,46 @@ Tips:
     p_rc.add_argument("recipe_id", help="Recipe ID")
     p_rc.add_argument("count", nargs="?", type=int, help="Quantity to craft (optional)")
 
+    # insurance group
+    p_insurance = sub.add_parser("insurance", help="Insurance management (shows coverage status by default)")
+    insurance_sub = p_insurance.add_subparsers(dest="insurance_subcommand")
+
+    p_ib = insurance_sub.add_parser("buy", help="Purchase insurance coverage")
+    p_ib.add_argument("ticks", type=int, help="Number of ticks to insure for")
+
+    insurance_sub.add_parser("claim", help="Claim insurance payout after ship destruction")
+
+    # storage group
+    p_storage = sub.add_parser("storage", help="Base storage management (shows contents by default)")
+    storage_sub = p_storage.add_subparsers(dest="storage_subcommand")
+
+    p_sd = storage_sub.add_parser("deposit", help="Deposit items or credits into storage")
+    p_sd.add_argument("item_id", nargs="?", help="Item ID to deposit")
+    p_sd.add_argument("quantity", nargs="?", type=int, help="Quantity to deposit")
+    p_sd.add_argument("--credits", type=int, metavar="AMOUNT", help="Deposit credits instead of items")
+
+    p_sw = storage_sub.add_parser("withdraw", help="Withdraw items or credits from storage")
+    p_sw.add_argument("item_id", nargs="?", help="Item ID to withdraw")
+    p_sw.add_argument("quantity", nargs="?", type=int, help="Quantity to withdraw")
+    p_sw.add_argument("--credits", type=int, metavar="AMOUNT", help="Withdraw credits instead of items")
+
+    # market group
+    p_market = sub.add_parser("market", help="Market orders management (shows your orders by default)")
+    market_sub = p_market.add_subparsers(dest="market_subcommand")
+
+    p_mb = market_sub.add_parser("buy", help="Create a buy order")
+    p_mb.add_argument("item_id", help="Item ID")
+    p_mb.add_argument("quantity", type=int, help="Quantity to buy")
+    p_mb.add_argument("price", type=int, help="Price per item (in credits)")
+
+    p_ms = market_sub.add_parser("sell", help="Create a sell order")
+    p_ms.add_argument("item_id", help="Item ID")
+    p_ms.add_argument("quantity", type=int, help="Quantity to sell")
+    p_ms.add_argument("price", type=int, help="Price per item (in credits)")
+
+    p_mc = market_sub.add_parser("cancel", help="Cancel a market order")
+    p_mc.add_argument("order_id", help="Order ID to cancel")
+
     # Friendly aliases for common queries
     for alias, help_text in [("notes", "List your notes"),
                               ("trades", "List pending trades"),
@@ -300,6 +342,10 @@ COMMAND_MAP = {
     "ships": commands.cmd_ships,
     "faction-list": commands.cmd_faction_list,
     "faction-invites": commands.cmd_faction_invites,
+    # Phase 4: Hierarchical commands
+    "insurance": commands.cmd_insurance,
+    "storage": commands.cmd_storage,
+    "market": commands.cmd_market,
 }
 
 
