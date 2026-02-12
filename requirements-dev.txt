@@ -1,0 +1,5 @@
+# Development dependencies for sm-cli
+# Runtime has zero dependencies - keep it that way!
+
+# Test coverage measurement
+coverage>=7.0

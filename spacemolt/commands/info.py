@@ -200,10 +200,10 @@ def cmd_base(api, args):
     svc_lower = [s.lower() for s in services]
     if any("storage" in s for s in svc_lower):
         print("\nStorage commands:")
-        print("  sm deposit-items <item_id> <quantity>")
-        print("  sm withdraw-items <item_id> <quantity>")
-        print("  sm deposit-credits <amount>")
-        print("  sm withdraw-credits <amount>")
+        print("  sm storage deposit <item_id> <quantity>")
+        print("  sm storage withdraw <item_id> <quantity>")
+        print("  sm storage deposit --credits <amount>")
+        print("  sm storage withdraw --credits <amount>")
         print("  sm send-gift <recipient> [item_id] [quantity] [credits] [message]")
 
 
@@ -371,20 +371,36 @@ def cmd_nearby(api, args):
         except Exception:
             has_scanner = None
 
-        for i, p in enumerate(players):
-            pid = p.get("player_id") or p.get("id", "")
-            if not pid:
-                continue
-            if i > 0:
-                print(f"  scanning... (waiting for rate limit)", flush=True)
-                time.sleep(11)
-            try:
-                scan_resp = api._post("scan", {"target_id": pid})
-                sr = scan_resp.get("result", {})
-                scan_data = sr.get("Result", sr)
-                scan_results[pid] = scan_data
-            except Exception as e:
-                scan_results[pid] = {"success": False, "error": str(e)}
+        timeout = getattr(args, "timeout", None)
+        start_time = time.time() if timeout else None
+
+        try:
+            for i, p in enumerate(players):
+                pid = p.get("player_id") or p.get("id", "")
+                if not pid:
+                    continue
+
+                # Check timeout before processing
+                if timeout and start_time:
+                    elapsed = time.time() - start_time
+                    if elapsed >= timeout:
+                        print(f"  Timeout reached ({timeout}s). Scanned {i}/{len(players)} players.", flush=True)
+                        break
+
+                # Show progress
+                print(f"  Scanning player {i+1}/{len(players)}...", flush=True)
+
+                if i > 0:
+                    time.sleep(11)
+                try:
+                    scan_resp = api._post("scan", {"target_id": pid})
+                    sr = scan_resp.get("result", {})
+                    scan_data = sr.get("Result", sr)
+                    scan_results[pid] = scan_data
+                except Exception as e:
+                    scan_results[pid] = {"success": False, "error": str(e)}
+        except KeyboardInterrupt:
+            print(f"\n  Scan interrupted. Scanned {len(scan_results)}/{len(players)} players.", flush=True)
 
     if as_json and not scan:
         print(json.dumps(r, indent=2))
@@ -570,32 +586,44 @@ def cmd_wrecks(api, args):
 
 
 def cmd_listings(api, args):
+    """Show market listings (uses view_market endpoint)."""
     as_json = getattr(args, "json", False)
-    resp = api._post("get_listings")
+    # NOTE: get_listings is deprecated, using view_market instead
+    resp = api._post("view_market")
     if as_json:
         print(json.dumps(resp, indent=2))
         return
+
     r = resp.get("result", {})
-    listings = r.get("listings", [])
-    if not listings:
-        print("No market listings at this base.")
-        print("\n  Create one: sm list-item <item_id> <qty> <price>")
-        print("              sm create-sell-order <item_id> <qty> <price>")
-        print("              sm create-buy-order <item_id> <qty> <price>")
+    items = r.get("items", [])
+
+    if not items:
+        print("No market activity at this base.")
+        print("\n  Create orders: sm market buy <item> <qty> <price>")
+        print("                 sm market sell <item> <qty> <price>")
         return
 
-    # Table header
-    print(f"{'Item':<25} {'Qty':>5} {'Price':>10} {'Seller':<20} {'ID'}")
-    print("-" * 80)
-    for l in listings:
-        item = l.get("item_id") or l.get("item_name", "?")
-        qty = l.get("quantity", "?")
-        price = l.get("price_each") or l.get("price", "?")
-        seller = l.get("seller_name") or l.get("seller", "?")
-        lid = l.get("id") or l.get("listing_id", "?")
-        print(f"{item:<25} {qty:>5} {price:>10} {seller:<20} {lid}")
+    print("Market Overview:")
+    print(f"{'Item':<25} {'Best Buy':>10} {'Best Sell':>10} {'Spread':>8}")
+    print("-" * 60)
 
-    print(f"\n  Hint: sm buy-listing <listing_id>")
-    print("        sm view-market [item_id]  |  sm estimate-purchase <item_id> <qty>")
-    print("  Sell:  sm list-item <item_id> <qty> <price>  |  sm create-sell-order <item_id> <qty> <price>")
-    print("  Buy:   sm create-buy-order <item_id> <qty> <price>  |  sm cancel-order <order_id>")
+    for item_data in items[:20]:  # Limit to 20 items
+        item_id = item_data.get("item_id", "?")
+        item_name = item_data.get("item_name", item_id)
+        best_buy = item_data.get("best_buy", 0)
+        best_sell = item_data.get("best_sell", 0)
+
+        spread = ""
+        if best_buy and best_sell:
+            spread = f"{best_sell - best_buy:+d}"
+
+        buy_str = f"{best_buy}" if best_buy else "-"
+        sell_str = f"{best_sell}" if best_sell else "-"
+
+        print(f"{item_name:<25} {buy_str:>10} {sell_str:>10} {spread:>8}")
+
+    if len(items) > 20:
+        print(f"\n... and {len(items) - 20} more items")
+
+    print(f"\n  Hint: sm view-market <item_id>  |  sm market")
+    print("        sm market buy <item> <qty> <price>  |  sm market sell <item> <qty> <price>")

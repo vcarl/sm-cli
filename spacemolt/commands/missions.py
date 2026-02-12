@@ -47,7 +47,7 @@ def cmd_missions_combined(api, args):
                 if isinstance(obj, dict):
                     obj_desc = obj.get("description") or obj.get("name", "")
                     obj_cur = obj.get("current", 0)
-                    obj_tgt = obj.get("target", "?")
+                    obj_tgt = obj.get("required") or obj.get("target", "?")
                     if obj_desc:
                         print(f"    - {obj_desc}: {obj_cur}/{obj_tgt}")
 
@@ -194,7 +194,7 @@ def cmd_active_missions(api, args):
             if isinstance(obj, dict):
                 obj_desc = obj.get("description") or obj.get("name", "")
                 obj_cur = obj.get("current", 0)
-                obj_tgt = obj.get("target", "?")
+                obj_tgt = obj.get("required") or obj.get("target", "?")
                 if obj_desc:
                     print(f"  - {obj_desc}: {obj_cur}/{obj_tgt}")
             else:
