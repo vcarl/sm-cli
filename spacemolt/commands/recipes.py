@@ -274,8 +274,8 @@ def _do_search(query, recipe_list, limit=10, page=1):
             r.get("name", ""),
             r.get("id", ""),
             r.get("category", ""),
-            " ".join(i.get("item_id", "") for i in r.get("inputs", [])),
-            " ".join(o.get("item_id", "") for o in r.get("outputs", [])),
+            " ".join(i.get("item_id", "") for i in (r.get("inputs") or [])),
+            " ".join(o.get("item_id", "") for o in (r.get("outputs") or [])),
         ]).lower()
         if q in searchable:
             matches.append(r)
