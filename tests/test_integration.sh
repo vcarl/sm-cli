@@ -33,6 +33,20 @@ check_grep() {
   fi
 }
 
+# Like check_grep but doesn't require a zero exit code — just checks the output.
+check_output() {
+  local name="$1" pattern="$2"; shift 2
+  output=$("$@" 2>&1) || true
+  if echo "$output" | grep -qE "$pattern"; then
+    echo "  ok  $name"
+    pass=$((pass + 1))
+  else
+    echo "FAIL  $name (expected /$pattern/)"
+    echo "      $output" | head -3
+    fail=$((fail + 1))
+  fi
+}
+
 echo "Logging in..."
 $SM login "$CRED"
 echo ""
@@ -107,8 +121,8 @@ check      "query-recipes (old)"           $SM query-recipes --limit 3
 echo ""
 
 echo "=== Fuzzy Matching ==="
-check_grep "typo 'misions'"   "Did you mean" $SM misions 2>&1 || true
-check_grep "typo 'skils'"     "Did you mean" $SM skils 2>&1 || true
+check_output "typo 'misions'"   "Did you mean" $SM misions
+check_output "typo 'skils'"     "Did you mean" $SM skils
 echo ""
 
 echo "=== Social & Communication ==="
@@ -117,11 +131,11 @@ check      "trades"                        $SM trades || true
 check      "drones"                        $SM drones || true
 check      "ships"                         $SM ships || true
 check      "notifications"                 $SM notifications || true
-check      "chat-history"                  $SM chat-history general --limit 5 || true
+check      "chat-history"                  $SM chat-history general 5 || true
 echo ""
 
 echo "=== Faction System ==="
-check      "faction-list"                  $SM faction-list --limit 5 || true
+check      "faction-list"                  $SM faction-list 0 5 || true
 check      "faction-invites"               $SM faction-invites || true
 echo ""
 
@@ -131,8 +145,8 @@ check      "base"                          $SM base || true
 echo ""
 
 echo "=== Passthrough System ==="
-check      "passthrough get_status"        $SM passthrough get_status
-check_grep "help for passthrough"  "get_status" $SM passthrough --help || $SM commands
+check      "passthrough get_status"        $SM get_status
+check_grep "help for passthrough"  "get_status" $SM commands
 echo ""
 
 echo ""

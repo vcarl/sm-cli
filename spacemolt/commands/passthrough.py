@@ -54,6 +54,7 @@ ENDPOINT_ARGS = {
     "faction_get_invites": [],
     "set_home_base": ["base_id"],  # base_id is required per spec
     "set_colors": ["primary_color", "secondary_color"],
+    "get_status": [],
     "set_status": ["status_message?", "clan_tag?"],  # both optional per spec
     "get_trades": [],
     "trade_offer": ["target_id", "credits?:int", "items?"],  # items is object (JSON string), credits optional

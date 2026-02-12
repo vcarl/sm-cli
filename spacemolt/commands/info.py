@@ -3,7 +3,11 @@ import time
 
 
 def cmd_status(api, args):
+    as_json = getattr(args, "json", False)
     resp = api._post("get_status")
+    if as_json:
+        print(json.dumps(resp, indent=2))
+        return
     r = resp.get("result", {})
     p = r.get("player", {})
     s = r.get("ship", {})
@@ -88,7 +92,29 @@ def cmd_ship(api, args):
 
 def cmd_pois(api, args):
     resp = api._post("get_system")
-    pois = resp.get("result", {}).get("pois", [])
+    result = resp.get("result", {})
+    pois = result.get("pois", [])
+
+    # Check if there's a skill note explaining why we can't see POIs
+    skill_note = result.get("skill_note")
+    if skill_note:
+        print(skill_note)
+        print()
+
+    # Also check for current_poi
+    current_poi = result.get("current_poi")
+    if current_poi:
+        name = current_poi.get("name") or current_poi.get("type") or "unnamed"
+        ptype = current_poi.get("type", "?")
+        line = f"{name} [{ptype}] (current)"
+        line += f"\n  id: {current_poi.get('id', '?')}"
+        print(line)
+
+    if not pois:
+        if not skill_note and not current_poi:
+            print("No POIs found in current system")
+        return
+
     pois.sort(key=lambda p: p.get("distance", 0))
     for p in pois:
         name = p.get("name") or p.get("type") or "unnamed"

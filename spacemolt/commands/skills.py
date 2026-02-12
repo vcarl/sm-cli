@@ -10,7 +10,7 @@ def cmd_skills(api, args):
 
     as_json = getattr(args, "json", False)
     if as_json:
-        print(json.dumps(resp, indent=2))
+        print(json.dumps({"result": {"player_skills": skills}}, indent=2))
         return
 
     if not skills:

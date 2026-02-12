@@ -189,6 +189,7 @@ Tips:
     # Note: This creates a NEW "missions" parser that overrides the old one above.
     # The router will handle showing the combined view by default.
     p_missions_hier = sub.add_parser("missions", help="Mission management (shows active + available by default)")
+    p_missions_hier.add_argument("--json", action="store_true", help="Output raw JSON")
     missions_sub = p_missions_hier.add_subparsers(dest="missions_cmd")
 
     missions_sub.add_parser("active", help="Your active missions")
@@ -211,6 +212,7 @@ Tips:
 
     # skills group
     p_skills_hier = sub.add_parser("skills", help="Skill management (shows trained skills by default)")
+    p_skills_hier.add_argument("--json", action="store_true", help="Output raw JSON")
     skills_sub = p_skills_hier.add_subparsers(dest="skills_cmd")
 
     skills_sub.add_parser("list", help="List trained skills (default)")
@@ -226,6 +228,7 @@ Tips:
 
     # recipes group
     p_recipes_hier = sub.add_parser("recipes", help="Recipe management (shows recipe list by default)")
+    p_recipes_hier.add_argument("--json", action="store_true", help="Output raw JSON")
     recipes_sub = p_recipes_hier.add_subparsers(dest="recipes_cmd")
 
     p_rl = recipes_sub.add_parser("list", help="List recipes (default)")
