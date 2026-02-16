@@ -39,7 +39,8 @@ def cmd_market_orders(api, args):
 
     if not orders:
         print("No active market orders.")
-        print("  Hint: sm market buy <item> <qty> <price>  |  sm market sell <item> <qty> <price>")
+        print("  Hint: sm listings  (view market)")
+        print("        sm market buy <item> <qty> <price>  |  sm market sell <item> <qty> <price>")
         return
 
     print(f"Your Market Orders ({len(orders)}):")
@@ -57,7 +58,8 @@ def cmd_market_orders(api, args):
         for order in sell_orders:
             _print_order(order)
 
-    print("\n  Hint: sm market buy <item> <qty> <price>  |  sm market sell <item> <qty> <price>  |  sm market cancel <order_id>")
+    print("\n  Hint: sm listings  (view market)  |  sm market cancel <order_id>")
+    print("        sm market buy <item> <qty> <price>  |  sm market sell <item> <qty> <price>")
 
 
 def _print_order(order):

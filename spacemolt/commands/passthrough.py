@@ -74,7 +74,6 @@ ENDPOINT_ARGS = {
     "create_buy_order": ["item_id?", "quantity?:int", "price_each?:int", "orders?"],  # orders is array (JSON string)
     "cancel_order": ["order_id?", "order_ids?"],  # order_ids is array (JSON string)
     "modify_order": ["order_id?", "new_price?:int", "orders?"],  # orders is array (JSON string)
-    "view_market": ["item_id?"],  # item_id is optional per spec
     "estimate_purchase": ["item_id", "quantity:int"],
     # wrecks
     "jettison": ["item_id", "quantity:int"],
@@ -624,60 +623,6 @@ def _fmt_help(resp):
         print(json.dumps(r, indent=2))
 
 
-def _fmt_view_market(resp):
-    """Format view_market response for a specific item."""
-    r = resp.get("result", resp)
-    items = r.get("items", [])
-    if not items:
-        print("No market data available.")
-        return
-
-    for item_data in items:
-        item_id = item_data.get("item_id", "?")
-        item_name = item_data.get("item_name", item_id)
-        best_buy = item_data.get("best_buy")
-        best_sell = item_data.get("best_sell")
-        spread = item_data.get("spread")
-
-        print(f"{item_name} ({item_id})")
-
-        # Sell orders (what NPCs/players are selling TO you - you can buy from them)
-        sell_orders = item_data.get("sell_orders", [])
-        if sell_orders:
-            print(f"\n  Sell Orders (you can BUY at these prices):")
-            for order in sell_orders[:10]:  # Show top 10
-                price = order.get("price_each", "?")
-                qty = order.get("quantity", "?")
-                is_npc = order.get("is_npc", False)
-                seller_type = "NPC" if is_npc else "Player"
-                print(f"    {qty:>6} @ {price:>5} cr  [{seller_type}]")
-        else:
-            print("\n  No sell orders (cannot buy this item here)")
-
-        # Buy orders (what NPCs/players want to buy FROM you - you can sell to them)
-        buy_orders = item_data.get("buy_orders", [])
-        if buy_orders:
-            print(f"\n  Buy Orders (you can SELL at these prices):")
-            for order in buy_orders[:10]:  # Show top 10
-                price = order.get("price_each", "?")
-                qty = order.get("quantity", "?")
-                is_npc = order.get("is_npc", False)
-                buyer_type = "NPC" if is_npc else "Player"
-                print(f"    {qty:>6} @ {price:>5} cr  [{buyer_type}]")
-        else:
-            print("\n  No buy orders (no one buying this item here)")
-
-        # Summary
-        if best_buy and best_sell:
-            print(f"\n  Best buy: {best_buy} cr  |  Best sell: {best_sell} cr  |  Spread: {spread} cr")
-        elif best_sell:
-            print(f"\n  Best sell: {best_sell} cr")
-        elif best_buy:
-            print(f"\n  Best buy: {best_buy} cr")
-
-        print(f"\n  Hint: sm buy {item_id} <qty>  |  sm sell {item_id} <qty>")
-
-
 def _fmt_find_route(resp):
     """Format find_route response."""
     r = resp.get("result", resp)
@@ -995,7 +940,7 @@ def _fmt_create_buy_order(resp):
     escrowed = quantity * price + fee
     print(f"  Escrowed: {escrowed:,} cr")
 
-    print("\n  Hint: sm market  |  sm view-market " + item_id)
+    print("\n  Hint: sm market  |  sm listings " + item_id)
 
 
 def _fmt_create_sell_order(resp):
@@ -1017,7 +962,7 @@ def _fmt_create_sell_order(resp):
     potential = quantity * price
     print(f"  Potential revenue: {potential:,} cr")
 
-    print("\n  Hint: sm market  |  sm view-market " + item_id)
+    print("\n  Hint: sm market  |  sm listings " + item_id)
 
 
 def _fmt_cancel_order(resp):
@@ -1510,7 +1455,7 @@ def _fmt_analyze_market(resp):
             print(f"    Buy at {best_buy_sys[0]} ({best_buy_sys[2]} cr) → Sell at {best_sell_sys[0]} ({best_sell_sys[3]} cr)")
             print(f"    Profit: {profit} cr per unit")
 
-    print(f"\n  Hint: sm find-route <system>  |  sm view-market {item_id}")
+    print(f"\n  Hint: sm find-route <system>  |  sm listings {item_id}")
 
 
 def _fmt_survey_system(resp):
@@ -1625,7 +1570,6 @@ _FORMATTERS = {
     "view_storage": _fmt_view_storage,
     "raid_status": _fmt_raid_status,
     "help": _fmt_help,
-    "view_market": _fmt_view_market,
     "find_route": _fmt_find_route,
     "search_systems": _fmt_search_systems,
     "estimate_purchase": _fmt_estimate_purchase,
