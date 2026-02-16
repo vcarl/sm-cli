@@ -146,7 +146,7 @@ class SpaceMoltAPI:
         if msg_type == "ok":
             return None
 
-        ntype = n.get("type", "?")
+        ntype = n.get("type") or n.get("command") or "?"
         msg = data.get("message") or n.get("message") or n.get("content")
         if not msg:
             if msg_type == "mining_yield":
@@ -247,8 +247,8 @@ class SpaceMoltAPI:
                 poi_name = data.get("poi_name", "")
                 poi_str = f" at {poi_name}" if poi_name else ""
                 msg = f"{emoji} {clan_str}{uname}{poi_str}"
-            elif n.get("command") == "travel":
-                result = n.get("result") or {}
+            elif msg_type == "action_result" and data.get("command") == "travel":
+                result = data.get("result") or {}
                 action = result.get("action", "")
                 poi_name = result.get("poi", "")
                 poi_id = result.get("poi_id", "")
