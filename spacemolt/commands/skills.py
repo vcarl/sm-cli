@@ -16,12 +16,21 @@ def cmd_skills(api, args):
     if not skills:
         print("(no skills trained yet)")
     else:
+        # Group by category
+        by_cat = {}
         for s in skills:
-            name = s.get("name", "?")
-            level = s.get("level", 0)
-            xp = s.get("current_xp", 0)
-            next_xp = s.get("next_level_xp", "?")
-            print(f"{name}: L{level} ({xp}/{next_xp} XP)")
+            cat = s.get("category", "Other")
+            by_cat.setdefault(cat, []).append(s)
+
+        for cat in sorted(by_cat):
+            print(f"\n{cat}:")
+            for s in by_cat[cat]:
+                name = s.get("name", "?")
+                level = s.get("level", 0)
+                max_level = s.get("max_level", "?")
+                xp = s.get("current_xp", 0)
+                next_xp = s.get("next_level_xp", "?")
+                print(f"  {name}: L{level}/{max_level} ({xp}/{next_xp} XP)")
 
 
 # --- Skill tree explorer ---
