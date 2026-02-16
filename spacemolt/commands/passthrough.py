@@ -468,6 +468,21 @@ def _fmt_attack(resp):
 def _fmt_scan(resp):
     r = resp.get("result", {})
     scan = r.get("Result", r)
+
+    # Queued response — scan result will arrive as a notification
+    if scan.get("queued"):
+        target = scan.get("target_id") or "target"
+        pos = scan.get("position", 0)
+        eta = scan.get("estimated_tick")
+        msg = f"Scanning {target}..."
+        if pos > 0:
+            msg += f" (queued at position {pos})"
+        if eta:
+            msg += f"  ETA tick: {eta}"
+        print(msg)
+        print("\n  Hint: sm wait  |  sm nearby")
+        return
+
     success = scan.get("success", True)
     if not success:
         reason = scan.get("error") or scan.get("message") or scan.get("reason", "")
@@ -477,16 +492,17 @@ def _fmt_scan(resp):
             print(f"Scan failed.")
         print("\n  Hint: sm nearby  |  sm ship")
         return
-    target = scan.get("target") or scan.get("target_name") or scan.get("target_id", "?")
+    target = scan.get("username") or scan.get("target_id", "?")
     print(f"Scan of {target}:")
-    revealed = scan.get("revealed_info") or scan
-    for k, v in revealed.items():
-        if k in ("success", "target", "target_name", "target_id", "revealed_info"):
+    skip = {"success", "revealed_info", "username"}
+    for k, v in scan.items():
+        if k in skip:
             continue
+        label = k.replace("_", " ").title()
         if isinstance(v, list):
-            print(f"  {k}: {', '.join(str(i) for i in v)}")
+            print(f"  {label}: {', '.join(str(i) for i in v)}")
         else:
-            print(f"  {k}: {v}")
+            print(f"  {label}: {v}")
     target_id = scan.get("target_id") or target
     print(f"\n  Hint: sm attack {target_id}  |  sm trade-offer {target_id}")
 

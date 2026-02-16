@@ -273,6 +273,18 @@ class SpaceMoltAPI:
                     msg = f"Travel: {action}"
                     if poi_name:
                         msg += f" at {poi_name}"
+            elif msg_type == "action_result" and data.get("command") == "scan":
+                result = data.get("result") or {}
+                target = result.get("username") or result.get("target_id", "?")
+                if result.get("success"):
+                    skip = {"success", "revealed_info", "username"}
+                    msg = f"Scanned {target}"
+                    extras = {k: v for k, v in result.items() if k not in skip}
+                    if extras:
+                        stats = [f"{k.replace('_', ' ').title()}: {v}" for k, v in extras.items()]
+                        msg += "  " + " | ".join(stats)
+                else:
+                    msg = f"Scan failed: {target}"
             elif data:
                 msg = f"{msg_type}: {json.dumps(data)}"
             else:
