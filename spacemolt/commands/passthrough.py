@@ -387,17 +387,31 @@ def _fmt_forum_list(resp):
         print(f"Forum threads (page {page}/{total_pages}):")
     else:
         print("Forum threads:")
-    for t in threads:
+    for i, t in enumerate(threads):
+        if i > 0:
+            print()
         tid = t.get("id") or t.get("thread_id", "?")
         title = t.get("title", "(untitled)")
         author = t.get("author_name") or t.get("author") or t.get("username", "?")
+        author_id = t.get("author_id", "")
         replies = t.get("reply_count") or t.get("replies", 0)
         upvotes = t.get("upvotes") or t.get("upvote_count", 0)
         category = t.get("category", "")
-        tid_str = tid[:8] if isinstance(tid, str) and len(tid) > 8 else str(tid)
+        faction_tag = t.get("author_faction_tag", "")
         cat_str = f"[{category}] " if category else ""
+        author_str = author
+        if faction_tag:
+            author_str = f"[{faction_tag}] {author}"
         print(f"  {cat_str}{title}")
-        print(f"    by {author}  replies:{replies}  upvotes:{upvotes}  id:{tid_str}")
+        print(f"    by {author_str}  replies:{replies}  upvotes:{upvotes}")
+        print(f"    id:{tid}  author_id:{author_id}")
+        # Show content snippet
+        content = t.get("content", "")
+        if content:
+            snippet = content.replace("\n", " ")
+            if len(snippet) > 120:
+                snippet = snippet[:117] + "..."
+            print(f"    {snippet}")
 
 
 def _fmt_forum_get_thread(resp):
@@ -405,6 +419,8 @@ def _fmt_forum_get_thread(resp):
     thread = r.get("thread", r)
     title = thread.get("title", "(untitled)")
     author = thread.get("author_name") or thread.get("author") or thread.get("username", "?")
+    author_id = thread.get("author_id", "")
+    faction_tag = thread.get("author_faction_tag", "")
     content = thread.get("content", "")
     upvotes = thread.get("upvotes") or thread.get("upvote_count", 0)
     category = thread.get("category", "")
@@ -413,15 +429,22 @@ def _fmt_forum_get_thread(resp):
         created = created[:16]
     tid = thread.get("id") or thread.get("thread_id", "")
     cat_str = f"  [{category}]" if category else ""
+    author_str = author
+    if faction_tag:
+        author_str = f"[{faction_tag}] {author}"
     print(f"# {title}{cat_str}")
-    meta = f"  by {author}"
+    meta = f"  by {author_str}"
     if created:
         meta += f"  {created}"
     meta += f"  upvotes:{upvotes}"
-    if tid:
-        tid_str = tid[:8] if isinstance(tid, str) and len(tid) > 8 else str(tid)
-        meta += f"  id:{tid_str}"
     print(meta)
+    if tid or author_id:
+        id_line = "  "
+        if tid:
+            id_line += f"id:{tid}"
+        if author_id:
+            id_line += f"  author_id:{author_id}"
+        print(id_line)
     if content:
         print()
         print(content)
@@ -430,15 +453,20 @@ def _fmt_forum_get_thread(resp):
         print(f"\n--- Replies ({len(replies)}) ---")
         for reply in replies:
             rauthor = reply.get("author_name") or reply.get("author") or reply.get("username", "?")
+            rauthor_id = reply.get("author_id", "")
+            rfaction_tag = reply.get("author_faction_tag", "")
             rcontent = reply.get("content", "")
             rupvotes = reply.get("upvotes") or reply.get("upvote_count", 0)
             rts = reply.get("created_at") or reply.get("timestamp", "")
             if isinstance(rts, str) and len(rts) > 16:
                 rts = rts[:16]
             rid = reply.get("id") or reply.get("reply_id", "")
-            rid_str = rid[:8] if isinstance(rid, str) and len(rid) > 8 else str(rid)
+            rauthor_str = rauthor
+            if rfaction_tag:
+                rauthor_str = f"[{rfaction_tag}] {rauthor}"
             ts_str = f"  {rts}" if rts else ""
-            print(f"\n  {rauthor}{ts_str}  upvotes:{rupvotes}  id:{rid_str}")
+            print(f"\n  {rauthor_str}{ts_str}  upvotes:{rupvotes}")
+            print(f"    id:{rid}  author_id:{rauthor_id}")
             if rcontent:
                 for line in rcontent.split("\n"):
                     print(f"    {line}")
