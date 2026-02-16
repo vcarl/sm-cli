@@ -124,7 +124,8 @@ Tips:
     sub.add_parser("wrecks", help="Wrecks at current location")
 
     # listings
-    sub.add_parser("listings", help="Market listings at current base")
+    p_listings = sub.add_parser("listings", help="Market listings at current base")
+    p_listings.add_argument("item_id", nargs="?", default=None, help="Optional: view detailed orders for a specific item")
 
     # NOTE: Old flat "recipes" parser removed - replaced with hierarchical version below
 

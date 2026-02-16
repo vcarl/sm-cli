@@ -611,9 +611,75 @@ def cmd_wrecks(api, args):
     print("\n  Hint: sm loot-wreck <wreck_id> <item_id> <qty>  |  sm salvage-wreck <wreck_id>")
 
 
+def _fmt_view_market_item(resp):
+    """Format detailed view_market response for a specific item."""
+    r = resp.get("result", resp)
+    items = r.get("items", [])
+    if not items:
+        print("No market data available for this item.")
+        return
+
+    for item_data in items:
+        item_id = item_data.get("item_id", "?")
+        item_name = item_data.get("item_name", item_id)
+        best_buy = item_data.get("best_buy")
+        best_sell = item_data.get("best_sell")
+        spread = item_data.get("spread")
+
+        print(f"{item_name} ({item_id})")
+
+        # Sell orders (what NPCs/players are selling TO you - you can buy from them)
+        sell_orders = item_data.get("sell_orders", [])
+        if sell_orders:
+            print(f"\n  Sell Orders (you can BUY at these prices):")
+            for order in sell_orders[:10]:  # Show top 10
+                price = order.get("price_each", "?")
+                qty = order.get("quantity", "?")
+                is_npc = order.get("is_npc", False)
+                seller_type = "NPC" if is_npc else "Player"
+                print(f"    {qty:>6} @ {price:>5} cr  [{seller_type}]")
+        else:
+            print("\n  No sell orders (cannot buy this item here)")
+
+        # Buy orders (what NPCs/players want to buy FROM you - you can sell to them)
+        buy_orders = item_data.get("buy_orders", [])
+        if buy_orders:
+            print(f"\n  Buy Orders (you can SELL at these prices):")
+            for order in buy_orders[:10]:  # Show top 10
+                price = order.get("price_each", "?")
+                qty = order.get("quantity", "?")
+                is_npc = order.get("is_npc", False)
+                buyer_type = "NPC" if is_npc else "Player"
+                print(f"    {qty:>6} @ {price:>5} cr  [{buyer_type}]")
+        else:
+            print("\n  No buy orders (no one buying this item here)")
+
+        # Summary
+        if best_buy and best_sell:
+            print(f"\n  Best buy: {best_buy} cr  |  Best sell: {best_sell} cr  |  Spread: {spread} cr")
+        elif best_sell:
+            print(f"\n  Best sell: {best_sell} cr")
+        elif best_buy:
+            print(f"\n  Best buy: {best_buy} cr")
+
+        print(f"\n  Hint: sm buy {item_id} <qty>  |  sm sell {item_id} <qty>")
+
+
 def cmd_listings(api, args):
     """Show market listings (uses view_market endpoint)."""
     as_json = getattr(args, "json", False)
+    item_id = getattr(args, "item_id", None)
+
+    # If item_id provided, show detailed view for that item
+    if item_id:
+        resp = api._post("view_market", {"item_id": item_id})
+        if as_json:
+            print(json.dumps(resp, indent=2))
+            return
+        _fmt_view_market_item(resp)
+        return
+
+    # Otherwise show overview of all items
     # NOTE: get_listings is deprecated, using view_market instead
     resp = api._post("view_market")
     if as_json:
@@ -696,5 +762,5 @@ def cmd_listings(api, args):
     if len(items) > 20:
         print(f"\n... and {len(items) - 20} more items")
 
-    print(f"\n  Hint: sm market  |  sm market buy <item_id> <qty> <price>")
-    print("                      sm market sell <item_id> <qty> <price>")
+    print(f"\n  Hint: sm listings <item_id>  (detailed orders for an item)")
+    print("        sm market buy <item_id> <qty> <price>  |  sm market sell <item_id> <qty> <price>")
