@@ -201,6 +201,44 @@ class SpaceMoltAPI:
                     msg += f"\n  Hint: sm trades  |  sm trade-accept {trade_id}"
                 else:
                     msg += "\n  Hint: sm trades"
+            elif msg_type in ("order_created", "buy_order_created", "sell_order_created"):
+                item = data.get("item") or data.get("item_id", "?")
+                qty = data.get("quantity", "?")
+                price = data.get("price_each") or data.get("price", "?")
+                order_type = "Buy" if "buy" in msg_type else "Sell"
+                order_id = data.get("order_id", "")
+                msg = f"{order_type} order created: {item} x{qty} @ {price}cr"
+                if order_id:
+                    msg += f" (ID: {order_id[:8]}...)"
+                msg += "\n  Hint: sm market"
+            elif msg_type in ("order_filled", "order_partially_filled", "order_matched"):
+                item = data.get("item") or data.get("item_id", "?")
+                qty = data.get("quantity") or data.get("filled", "?")
+                price = data.get("price_each") or data.get("price", "?")
+                order_type = data.get("order_type", "")
+                total = qty * price if isinstance(qty, (int, float)) and isinstance(price, (int, float)) else "?"
+
+                if msg_type == "order_filled":
+                    status = "filled"
+                elif msg_type == "order_partially_filled":
+                    status = "partially filled"
+                else:
+                    status = "matched"
+
+                msg = f"Order {status}: {item} x{qty} @ {price}cr"
+                if total != "?":
+                    msg += f" = {total:,}cr"
+                if order_type:
+                    msg += f" ({order_type})"
+                msg += "\n  Hint: sm market  |  sm cargo"
+            elif msg_type in ("order_cancelled", "order_expired"):
+                item = data.get("item") or data.get("item_id", "?")
+                order_id = data.get("order_id", "")
+                status = "cancelled" if msg_type == "order_cancelled" else "expired"
+                msg = f"Order {status}: {item}"
+                if order_id:
+                    msg += f" (ID: {order_id[:8]}...)"
+                msg += "\n  Hint: sm market"
             elif msg_type in ("poi_arrival", "poi_departure"):
                 uname = data.get("username", "?")
                 clan = data.get("clan_tag", "")

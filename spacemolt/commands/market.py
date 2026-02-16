@@ -44,8 +44,8 @@ def cmd_market_orders(api, args):
 
     print(f"Your Market Orders ({len(orders)}):")
 
-    buy_orders = [o for o in orders if isinstance(o, dict) and o.get("type") == "buy"]
-    sell_orders = [o for o in orders if isinstance(o, dict) and o.get("type") == "sell"]
+    buy_orders = [o for o in orders if isinstance(o, dict) and o.get("order_type") == "buy"]
+    sell_orders = [o for o in orders if isinstance(o, dict) and o.get("order_type") == "sell"]
 
     if buy_orders:
         print("\n  Buy Orders:")
@@ -57,7 +57,7 @@ def cmd_market_orders(api, args):
         for order in sell_orders:
             _print_order(order)
 
-    print("\n  Hint: sm market cancel <order_id>")
+    print("\n  Hint: sm market buy <item> <qty> <price>  |  sm market sell <item> <qty> <price>  |  sm market cancel <order_id>")
 
 
 def _print_order(order):
@@ -66,8 +66,8 @@ def _print_order(order):
     item_id = order.get("item_id", "?")
     qty = order.get("quantity", 0)
     price = order.get("price_each") or order.get("price", 0)
-    filled = order.get("filled", 0)
-    remaining = qty - filled
+    remaining = order.get("remaining", qty)
+    filled = qty - remaining
     total = remaining * price
 
     status = ""
@@ -108,12 +108,41 @@ def cmd_market_buy_order(api, args):
         return
 
     r = resp.get("result", {})
-    order_id = r.get("order_id") or r.get("id", "?")
 
-    print(f"Buy order created! ID: {order_id}")
-    print(f"  Item: {item_id} x{quantity}")
-    print(f"  Price: {price}cr each (total: {total_cost:,}cr)")
-    print("\n  Hint: sm market (view orders)  |  sm market cancel <order_id>")
+    # Check if action was queued (async processing)
+    if r.get("queued"):
+        tick = r.get("estimated_tick", "?")
+        print(f"Buy order queued for processing at tick {tick}")
+        print("  Check notifications or market orders to see the result")
+        print("  Hint: sm notifications  |  sm market")
+        return
+
+    # Check if order was filled vs listed
+    filled = r.get("quantity_filled", 0)
+    listed = r.get("quantity_listed", 0)
+    order_id = r.get("order_id") or r.get("id")
+
+    if filled > 0:
+        total_spent = r.get("total_spent", filled * price)
+        print(f"Buy order matched! Bought {filled}x {item_id} for {total_spent:,}cr")
+        fills = r.get("fills", [])
+        if fills:
+            for fill in fills:
+                counterparty = fill.get("counterparty", "?")
+                qty = fill.get("quantity", 0)
+                fill_price = fill.get("price_each", 0)
+                print(f"  {qty}x @ {fill_price}cr from {counterparty}")
+
+    if listed > 0 and order_id:
+        print(f"Buy order listed: {listed}x {item_id} @ {price}cr ea - ID: {order_id}")
+        print("  Hint: sm market (view orders)  |  sm market cancel <order_id>")
+    elif listed > 0:
+        print(f"Buy order listed: {listed}x {item_id} @ {price}cr ea")
+        print("  Hint: sm market (view orders)")
+
+    if filled == 0 and listed == 0:
+        print("Order processed but no details available")
+        print(f"  Hint: sm market (view orders)  |  sm cargo")
 
 
 def cmd_market_sell_order(api, args):
@@ -152,12 +181,41 @@ def cmd_market_sell_order(api, args):
         return
 
     r = resp.get("result", {})
-    order_id = r.get("order_id") or r.get("id", "?")
 
-    print(f"Sell order created! ID: {order_id}")
-    print(f"  Item: {item_id} x{quantity}")
-    print(f"  Price: {price}cr each (total: {total_value:,}cr)")
-    print("\n  Hint: sm market (view orders)  |  sm market cancel <order_id>")
+    # Check if action was queued (async processing)
+    if r.get("queued"):
+        tick = r.get("estimated_tick", "?")
+        print(f"Sell order queued for processing at tick {tick}")
+        print("  Check notifications or market orders to see the result")
+        print("  Hint: sm notifications  |  sm market")
+        return
+
+    # Check if order was filled vs listed
+    filled = r.get("quantity_filled", 0)
+    listed = r.get("quantity_listed", 0)
+    order_id = r.get("order_id") or r.get("id")
+
+    if filled > 0:
+        total_earned = r.get("total_spent", filled * price)  # API uses "total_spent" for both buy/sell
+        print(f"Sell order matched! Sold {filled}x {item_id} for {total_earned:,}cr")
+        fills = r.get("fills", [])
+        if fills:
+            for fill in fills:
+                counterparty = fill.get("counterparty", "?")
+                qty = fill.get("quantity", 0)
+                fill_price = fill.get("price_each", 0)
+                print(f"  {qty}x @ {fill_price}cr to {counterparty}")
+
+    if listed > 0 and order_id:
+        print(f"Sell order listed: {listed}x {item_id} @ {price}cr ea - ID: {order_id}")
+        print("  Hint: sm market (view orders)  |  sm market cancel <order_id>")
+    elif listed > 0:
+        print(f"Sell order listed: {listed}x {item_id} @ {price}cr ea")
+        print("  Hint: sm market (view orders)")
+
+    if filled == 0 and listed == 0:
+        print("Order processed but no details available")
+        print(f"  Hint: sm market (view orders)  |  sm cargo")
 
 
 def cmd_market_cancel_order(api, args):
