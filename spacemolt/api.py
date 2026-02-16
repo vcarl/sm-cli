@@ -247,6 +247,32 @@ class SpaceMoltAPI:
                 poi_name = data.get("poi_name", "")
                 poi_str = f" at {poi_name}" if poi_name else ""
                 msg = f"{emoji} {clan_str}{uname}{poi_str}"
+            elif n.get("command") == "travel":
+                result = n.get("result") or {}
+                action = result.get("action", "")
+                poi_name = result.get("poi", "")
+                poi_id = result.get("poi_id", "")
+                players = result.get("online_players") or []
+                if action == "arrived":
+                    loc = poi_name or poi_id or "unknown"
+                    msg = f"Arrived at {loc}"
+                    if players:
+                        # Show notable players (those with clan tags or statuses)
+                        notable = [p for p in players if p.get("clan_tag") or p.get("status")]
+                        msg += f" ({len(players)} players here)"
+                        if notable:
+                            names = []
+                            for p in notable[:5]:
+                                clan = p.get("clan_tag", "")
+                                name = p.get("username", "?")
+                                names.append(f"[{clan}] {name}" if clan else name)
+                            msg += "\n    Notable: " + ", ".join(names)
+                            if len(notable) > 5:
+                                msg += f" +{len(notable) - 5} more"
+                else:
+                    msg = f"Travel: {action}"
+                    if poi_name:
+                        msg += f" at {poi_name}"
             elif data:
                 msg = f"{msg_type}: {json.dumps(data)}"
             else:

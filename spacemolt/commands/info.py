@@ -629,27 +629,72 @@ def cmd_listings(api, args):
         print("                 sm market sell <item> <qty> <price>")
         return
 
-    print("Market Overview:")
-    print(f"{'Item':<25} {'Best Buy':>10} {'Best Sell':>10} {'Spread':>8}")
-    print("-" * 60)
+    print("Market Listings:")
+    print(f"{'Item ID':<25} {'Buy Price':>11} {'Sell Price':>12} {'Spread':>16} {'Buy Qty':>10} {'Buy Value':>12} {'Sell Qty':>10} {'Sell Value':>12}")
+    print("-" * 126)
 
     for item_data in items[:20]:  # Limit to 20 items
         item_id = item_data.get("item_id", "?")
-        item_name = item_data.get("item_name", item_id)
         best_buy = item_data.get("best_buy", 0)
         best_sell = item_data.get("best_sell", 0)
 
+        # Get order data for market depth calculation
+        buy_orders = item_data.get("buy_orders", [])
+        sell_orders = item_data.get("sell_orders", [])
+
+        # Calculate market depth (total quantity and total value)
+        buy_qty_total = 0
+        buy_value_total = 0
+        sell_qty_total = 0
+        sell_value_total = 0
+
+        if buy_orders:
+            for o in buy_orders:
+                if isinstance(o, dict):
+                    qty = o.get("quantity", 0)
+                    price = o.get("price_each", 0)
+                    buy_qty_total += qty
+                    buy_value_total += qty * price
+        elif best_buy:
+            # Fallback: use aggregated quantity if available
+            buy_qty = item_data.get("buy_quantity", 0) or item_data.get("buy_qty", 0)
+            if buy_qty:
+                buy_qty_total = buy_qty
+                buy_value_total = buy_qty * best_buy
+
+        if sell_orders:
+            for o in sell_orders:
+                if isinstance(o, dict):
+                    qty = o.get("quantity", 0)
+                    price = o.get("price_each", 0)
+                    sell_qty_total += qty
+                    sell_value_total += qty * price
+        elif best_sell:
+            # Fallback: use aggregated quantity if available
+            sell_qty = item_data.get("sell_quantity", 0) or item_data.get("sell_qty", 0)
+            if sell_qty:
+                sell_qty_total = sell_qty
+                sell_value_total = sell_qty * best_sell
+
+        # Calculate spread with percentage
         spread = ""
         if best_buy and best_sell:
-            spread = f"{best_sell - best_buy:+d}"
+            spread_val = best_sell - best_buy
+            avg_price = (best_sell + best_buy) / 2
+            spread_pct = (spread_val / avg_price) * 100
+            spread = f"{spread_val:+d} ({spread_pct:.1f}%)"
 
-        buy_str = f"{best_buy}" if best_buy else "-"
-        sell_str = f"{best_sell}" if best_sell else "-"
+        buy_str = f"{best_buy}cr" if best_buy else "-"
+        sell_str = f"{best_sell}cr" if best_sell else "-"
+        buy_qty_str = f"{buy_qty_total:,}" if buy_qty_total else "-"
+        buy_val_str = f"{buy_value_total:,}cr" if buy_value_total else "-"
+        sell_qty_str = f"{sell_qty_total:,}" if sell_qty_total else "-"
+        sell_val_str = f"{sell_value_total:,}cr" if sell_value_total else "-"
 
-        print(f"{item_name:<25} {buy_str:>10} {sell_str:>10} {spread:>8}")
+        print(f"{item_id:<25} {buy_str:>11} {sell_str:>12} {spread:>16} {buy_qty_str:>10} {buy_val_str:>12} {sell_qty_str:>10} {sell_val_str:>12}")
 
     if len(items) > 20:
         print(f"\n... and {len(items) - 20} more items")
 
-    print(f"\n  Hint: sm view-market <item_id>  |  sm market")
-    print("        sm market buy <item> <qty> <price>  |  sm market sell <item> <qty> <price>")
+    print(f"\n  Hint: sm market  |  sm market buy <item_id> <qty> <price>")
+    print("                      sm market sell <item_id> <qty> <price>")
