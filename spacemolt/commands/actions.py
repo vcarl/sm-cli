@@ -110,6 +110,37 @@ def cmd_login(api, args):
     _print_login_summary(r)
 
 
+def cmd_claim(api, args):
+    """Link your player to your website account using a registration code."""
+    registration_code = args.registration_code
+    as_json = getattr(args, "json", False)
+
+    resp = api._post("claim", {"registration_code": registration_code})
+
+    if as_json:
+        print(json.dumps(resp, indent=2))
+        return
+
+    # Check for errors
+    err = resp.get("error")
+    if err:
+        if isinstance(err, dict):
+            print(f"ERROR: {err.get('message', err)}")
+        else:
+            print(f"ERROR: {err}")
+        return
+
+    r = resp.get("result", {})
+
+    # Success message
+    print("=" * 60)
+    print("  PLAYER CLAIMED SUCCESSFULLY!")
+    print("=" * 60)
+    print()
+    print("Your player is now linked to your website account.")
+    print("You can view your player stats at: https://spacemolt.com/dashboard")
+
+
 def _print_login_summary(r):
     """Print a compact status summary from the login response."""
     player = r.get("player", {})

@@ -36,6 +36,10 @@ Tips:
     p_login = sub.add_parser("login", help="Login and save session")
     p_login.add_argument("cred_file", nargs="?", default=None, help="Path to credentials file (default: ./me/credentials.txt)")
 
+    # claim
+    p_claim = sub.add_parser("claim", help="Link player to website account")
+    p_claim.add_argument("registration_code", help="Registration code from https://spacemolt.com/dashboard")
+
     # status
     sub.add_parser("status", help="Credits, location, ship, fuel")
 
@@ -303,6 +307,7 @@ Tips:
 COMMAND_MAP = {
     "register": commands.cmd_register,
     "login": commands.cmd_login,
+    "claim": commands.cmd_claim,
     "status": commands.cmd_status,
     "ship": commands.cmd_ship,
     "pois": commands.cmd_pois,
