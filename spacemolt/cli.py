@@ -171,8 +171,9 @@ Tips:
     p_si = sub.add_parser("skill", help="Deep inspect a skill: prereqs, bonuses, XP table, unlocks")
     p_si.add_argument("skill_id", help="Skill ID or name (fuzzy matched)")
 
-    # commands
-    sub.add_parser("commands", help="List all API endpoints")
+    # commands / help
+    sub.add_parser("commands", help="Show this help message")
+    sub.add_parser("help", help="Show this help message")
 
     # chat
     p_chat = sub.add_parser("chat", help="Send chat message")
@@ -342,6 +343,7 @@ COMMAND_MAP = {
     "query-skills": commands.cmd_query_skills,  # Keep for backwards compatibility
     "skill": commands.cmd_skill,  # Keep for backwards compatibility
     "commands": commands.cmd_commands,
+    "help": commands.cmd_commands,
     "chat": commands.cmd_chat,
     "raw": commands.cmd_raw,
     "chat-history": commands.cmd_chat_history,

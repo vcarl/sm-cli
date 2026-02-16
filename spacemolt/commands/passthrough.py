@@ -1825,32 +1825,9 @@ def cmd_passthrough(api, endpoint, extra_args, as_json=False):
 
 
 def cmd_commands(api, args):
-    """List all available API endpoints grouped by category."""
-    as_json = getattr(args, "json", False)
-    resp = api._post("get_commands")
-    if as_json:
-        print(json.dumps(resp, indent=2))
-        return
-    commands = resp.get("result", {}).get("commands", [])
-    if not commands:
-        # Fallback: dump raw
-        print(json.dumps(resp.get("result", resp), indent=2))
-        return
-
-    # Group by category
-    by_cat = {}
-    for cmd in commands:
-        cat = cmd.get("category", "other")
-        by_cat.setdefault(cat, []).append(cmd)
-
-    for cat in sorted(by_cat):
-        print(f"\n{cat.upper()}")
-        for cmd in sorted(by_cat[cat], key=lambda c: c.get("name", "")):
-            name = cmd.get("name", "?")
-            desc = cmd.get("description", "")
-            if len(desc) > 70:
-                desc = desc[:67] + "..."
-            print(f"  {name:30s} {desc}")
+    """Print CLI help (same as sm -h)."""
+    from spacemolt.cli import build_parser
+    build_parser().print_help()
 
 
 def cmd_raw(api, args):
