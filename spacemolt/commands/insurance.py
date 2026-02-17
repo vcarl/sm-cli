@@ -116,8 +116,19 @@ def cmd_insurance_claim(api, args):
         return
 
     r = resp.get("result", {})
-    payout = r.get("payout") or r.get("credits_received") or r.get("amount", "?")
-    new_credits = r.get("credits") or r.get("balance", "?")
+    msg = r.get("message")
+    if msg:
+        print(msg)
+
+    policies = r.get("policies", [])
+    if policies:
+        print(f"  Policies: {len(policies)}")
+        for p in policies:
+            if isinstance(p, dict):
+                print(f"    {p.get('policy_id', '?')}: {p.get('coverage', '?')} cr coverage")
+
+    payout = r.get("payout", "?")
+    new_credits = r.get("credits", "?")
 
     print(f"Insurance claim successful!")
     print(f"  Payout: {payout} cr")

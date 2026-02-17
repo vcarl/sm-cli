@@ -214,13 +214,9 @@ def cmd_travel(api, args):
     else:
         api._clear_status_cache()  # Clear cache after state change
         r = resp.get("result", {})
-        dest = r.get("destination") or r.get("poi_name", "destination")
-        eta = r.get("ticks") or r.get("eta") or r.get("travel_time", "?")
-        fuel = r.get("fuel_cost")
-        line = f"Traveling to {dest}... ETA: {eta} ticks"
-        if fuel is not None:
-            line += f" (fuel: {fuel})"
-        print(line)
+        dest = r.get("poi") or r.get("poi_id", "destination")
+        action = r.get("action", "traveling")
+        print(f"Traveling to {dest}... ({action})")
         print("  Hint: sm wait")
 
 
@@ -236,13 +232,13 @@ def cmd_jump(api, args):
     else:
         api._clear_status_cache()  # Clear cache after state change
         r = resp.get("result", {})
-        dest = r.get("destination") or r.get("system_name") or r.get("target_system", "?")
-        fuel = r.get("fuel_cost") or r.get("fuel_used")
-        eta = r.get("ticks") or r.get("eta") or r.get("jump_time", "?")
-        line = f"Jumping to {dest}... ETA: {eta} ticks"
-        if fuel is not None:
-            line += f" (fuel: {fuel})"
-        print(line)
+        msg = r.get("message")
+        if msg:
+            print(msg)
+        else:
+            cmd = r.get("command", "jump")
+            pending = r.get("pending", False)
+            print(f"Jump initiated. (command: {cmd}, pending: {pending})")
         print("  Hint: sm wait")
 
 
@@ -253,14 +249,11 @@ def cmd_dock(api, args):
     else:
         api._clear_status_cache()  # Clear cache after state change
         r = resp.get("result", {})
-        base_id = r.get("base_id") or r.get("base", {}).get("id", "")
-        base_name = r.get("base_name") or r.get("base", {}).get("name", "")
-        msg = "Docked"
-        if base_name:
-            msg += f" at {base_name}"
-        if base_id:
-            msg += f" ({base_id})"
-        print(f"{msg}.")
+        msg = r.get("message")
+        if msg:
+            print(msg)
+        else:
+            print("Docked.")
         print("  Hint: sm base  |  sm listings  |  sm repair")
 
 
@@ -291,7 +284,7 @@ def cmd_refuel(api, args):
         print(f"ERROR: {resp['error']}")
     else:
         r = resp.get("result", {})
-        print(f"Refueled. Fuel: {r.get('fuel', '?')}/{r.get('max_fuel', '?')}")
+        print(f"Refueled. Fuel: {r.get('fuel_now', '?')}/{r.get('fuel_max', '?')} (cost: {r.get('cost', '?')} cr)")
 
 
 def cmd_repair(api, args):
@@ -301,7 +294,7 @@ def cmd_repair(api, args):
         print(f"ERROR: {resp['error']}")
     else:
         r = resp.get("result", {})
-        print(f"Repaired. Hull: {r.get('hull', '?')}/{r.get('max_hull', '?')}")
+        print(f"Repaired: {r.get('repaired', '?')} (cost: {r.get('cost', '?')} cr)")
 
 
 def cmd_sell(api, args):
@@ -320,13 +313,12 @@ def cmd_sell(api, args):
 
 def _extract_earned(result_dict):
     """Extract credits earned from a sell response, returning int or None."""
-    for key in ("credits_earned", "earned", "total_price", "price", "amount"):
-        val = result_dict.get(key)
-        if val is not None:
-            try:
-                return int(val)
-            except (ValueError, TypeError):
-                pass
+    val = result_dict.get("total_earned")
+    if val is not None:
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            pass
     return None
 
 
@@ -397,7 +389,7 @@ def cmd_buy(api, args):
         print(f"ERROR: {err.get('message', err) if isinstance(err, dict) else err}")
     else:
         r = resp.get("result", {})
-        cost = r.get("total_cost") or r.get("credits_spent") or r.get("cost", "?")
+        cost = r.get("total_cost", "?")
         print(f"Bought {args.item_id} x{args.quantity} (-{cost} cr)")
 
 
@@ -421,9 +413,7 @@ def cmd_chat(api, args):
         print(f"ERROR: {resp['error']}")
     else:
         r = resp.get("result", {})
-        # Result may use capitalized keys (Notification.Channel)
-        notif = r.get("Notification", r)
-        channel = notif.get("Channel") or notif.get("channel") or args.channel
+        channel = r.get("channel") or args.channel
         print(f"Sent to {channel}.")
 
 

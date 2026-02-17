@@ -58,12 +58,12 @@ class TestMarketOrders(unittest.TestCase):
         """Test display of buy orders only."""
         api = mock_api({"result": {"orders": [
             {
-                "type": "buy",
+                "order_type": "buy",
                 "order_id": "buy-123",
                 "item_id": "ore_iron",
                 "quantity": 100,
                 "price_each": 50,
-                "filled": 0
+                "remaining": 100
             }
         ]}})
         with patch("builtins.print") as mock_print:
@@ -80,12 +80,12 @@ class TestMarketOrders(unittest.TestCase):
         """Test display of sell orders only."""
         api = mock_api({"result": {"orders": [
             {
-                "type": "sell",
-                "id": "sell-456",
+                "order_type": "sell",
+                "order_id": "sell-456",
                 "item_id": "ore_copper",
                 "quantity": 50,
-                "price": 75,
-                "filled": 10
+                "price_each": 75,
+                "remaining": 40
             }
         ]}})
         with patch("builtins.print") as mock_print:
@@ -103,20 +103,20 @@ class TestMarketOrders(unittest.TestCase):
         """Test display of both buy and sell orders."""
         api = mock_api({"result": {"orders": [
             {
-                "type": "buy",
+                "order_type": "buy",
                 "order_id": "buy-123",
                 "item_id": "ore_iron",
                 "quantity": 100,
                 "price_each": 50,
-                "filled": 25
+                "remaining": 75
             },
             {
-                "type": "sell",
+                "order_type": "sell",
                 "order_id": "sell-456",
                 "item_id": "ore_copper",
                 "quantity": 50,
                 "price_each": 75,
-                "filled": 0
+                "remaining": 50
             }
         ]}})
         with patch("builtins.print") as mock_print:
@@ -133,12 +133,12 @@ class TestMarketOrders(unittest.TestCase):
         """Test that order totals are calculated correctly."""
         api = mock_api({"result": {"orders": [
             {
-                "type": "buy",
+                "order_type": "buy",
                 "order_id": "buy-123",
                 "item_id": "ore_gold",
                 "quantity": 10,
                 "price_each": 1000,
-                "filled": 3
+                "remaining": 7
             }
         ]}})
         with patch("builtins.print") as mock_print:
@@ -178,7 +178,7 @@ class TestMarketBuyOrder(unittest.TestCase):
 
     def test_valid_order(self):
         """Test creating a valid buy order."""
-        api = mock_api({"result": {"order_id": "buy-789"}})
+        api = mock_api({"result": {"order_id": "buy-789", "quantity_listed": 100}})
         with patch("builtins.print") as mock_print:
             cmd_market_buy_order(api, make_args(
                 item_id="ore_iron",
@@ -188,10 +188,10 @@ class TestMarketBuyOrder(unittest.TestCase):
             ))
 
         output = "\n".join(str(c[0][0]) for c in mock_print.call_args_list)
-        self.assertIn("Buy order created", output)
+        self.assertIn("Buy order listed", output)
         self.assertIn("buy-789", output)
         self.assertIn("ore_iron", output)
-        self.assertIn("x100", output)
+        self.assertIn("100x", output)
         self.assertIn("50cr", output)
         self.assertIn("5,000cr", output)  # total cost
 
@@ -314,7 +314,7 @@ class TestMarketSellOrder(unittest.TestCase):
 
     def test_valid_order(self):
         """Test creating a valid sell order."""
-        api = mock_api({"result": {"order_id": "sell-999"}})
+        api = mock_api({"result": {"order_id": "sell-999", "quantity_listed": 50}})
         with patch("builtins.print") as mock_print:
             cmd_market_sell_order(api, make_args(
                 item_id="ore_copper",
@@ -324,10 +324,10 @@ class TestMarketSellOrder(unittest.TestCase):
             ))
 
         output = "\n".join(str(c[0][0]) for c in mock_print.call_args_list)
-        self.assertIn("Sell order created", output)
+        self.assertIn("Sell order listed", output)
         self.assertIn("sell-999", output)
         self.assertIn("ore_copper", output)
-        self.assertIn("x50", output)
+        self.assertIn("50x", output)
         self.assertIn("80cr", output)
         self.assertIn("4,000cr", output)  # total value
 

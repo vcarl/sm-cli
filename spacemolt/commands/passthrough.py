@@ -459,7 +459,7 @@ def _fmt_attack(resp):
 
 def _fmt_scan(resp):
     r = resp.get("result", {})
-    scan = r.get("Result", r)
+    scan = r
 
     if scan.get("queued"):
         target = scan.get("target_id") or "target"

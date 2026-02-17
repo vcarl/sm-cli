@@ -67,7 +67,7 @@ def _print_order(order):
     order_id = order.get("order_id") or order.get("id", "?")
     item_id = order.get("item_id", "?")
     qty = order.get("quantity", 0)
-    price = order.get("price_each") or order.get("price", 0)
+    price = order.get("price_each", 0)
     remaining = order.get("remaining", qty)
     filled = qty - remaining
     total = remaining * price
@@ -122,7 +122,7 @@ def cmd_market_buy_order(api, args):
     # Check if order was filled vs listed
     filled = r.get("quantity_filled", 0)
     listed = r.get("quantity_listed", 0)
-    order_id = r.get("order_id") or r.get("id")
+    order_id = r.get("order_id")
 
     if filled > 0:
         total_spent = r.get("total_spent", filled * price)
@@ -195,10 +195,10 @@ def cmd_market_sell_order(api, args):
     # Check if order was filled vs listed
     filled = r.get("quantity_filled", 0)
     listed = r.get("quantity_listed", 0)
-    order_id = r.get("order_id") or r.get("id")
+    order_id = r.get("order_id")
 
     if filled > 0:
-        total_earned = r.get("total_spent", filled * price)  # API uses "total_spent" for both buy/sell
+        total_earned = r.get("total_earned", filled * price)
         print(f"Sell order matched! Sold {filled}x {item_id} for {total_earned:,}cr")
         fills = r.get("fills", [])
         if fills:

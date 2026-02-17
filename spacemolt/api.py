@@ -247,6 +247,71 @@ class SpaceMoltAPI:
                 poi_name = data.get("poi_name", "")
                 poi_str = f" at {poi_name}" if poi_name else ""
                 msg = f"{emoji} {clan_str}{uname}{poi_str}"
+            elif msg_type == "player_died":
+                cause = data.get("cause", "unknown")
+                combat = data.get("combat_log") or {}
+                death_sys = combat.get("death_system") or data.get("system", "")
+                death_loc = combat.get("death_location", "")
+                ship_lost = data.get("ship_lost", "")
+                clone_cost = data.get("clone_cost", 0)
+                insurance = data.get("insurance_payout", 0)
+                respawn = data.get("respawn_base", "")
+                custom_msg = combat.get("message", "")
+
+                if custom_msg:
+                    msg = custom_msg
+                else:
+                    msg = f"You died! Cause: {cause}"
+                    if death_sys:
+                        where = death_loc or death_sys
+                        msg += f" in {where}"
+
+                if ship_lost:
+                    msg += f"\n  Ship lost: {ship_lost}"
+                if insurance:
+                    msg += f"\n  Insurance payout: {insurance:,} cr"
+                if clone_cost:
+                    msg += f"\n  Clone cost: {clone_cost:,} cr"
+                if respawn:
+                    msg += f"\n  Respawned at: {respawn}"
+
+                total_dmg = combat.get("total_damage", 0)
+                if total_dmg:
+                    rounds = combat.get("combat_rounds", 0)
+                    msg += f"\n  Combat: {total_dmg} damage over {rounds} rounds"
+
+                msg += "\n  Hint: sm status  |  sm ship  |  sm insurance"
+            elif msg_type == "action_result" and data.get("command") == "analyze_market":
+                result = data.get("result") or {}
+                scanned = result.get("items_scanned", 0)
+                stations = result.get("stations_in_range", 0)
+                mode = result.get("mode", "")
+                skill = result.get("skill_level")
+                hint = result.get("hint", "")
+                insights = result.get("top_insights") or []
+                xp = result.get("xp_gained") or {}
+
+                msg = f"Market analysis complete ({scanned} items, {stations} station(s))"
+                if skill is not None:
+                    msg += f"\n  Market Analysis skill: {skill}"
+
+                if insights:
+                    msg += f"\n  Top insights:"
+                    for tip in insights[:5]:
+                        name = tip.get("item_name") or tip.get("item_id", "?")
+                        insight = tip.get("insight", "")
+                        diff = tip.get("credit_diff")
+                        line = f"\n    {name}: {insight}"
+                        if diff:
+                            line += f" ({diff:,} cr)"
+                        msg += line
+
+                if xp:
+                    parts = [f"{k}: +{v}" for k, v in xp.items()]
+                    msg += f"\n  XP: {', '.join(parts)}"
+
+                if hint:
+                    msg += f"\n  Hint: {hint}"
             elif msg_type == "action_result" and data.get("command") == "travel":
                 result = data.get("result") or {}
                 action = result.get("action", "")
@@ -430,8 +495,9 @@ class SpaceMoltAPI:
         """Raise APIError if cargo space is insufficient."""
         status = self._get_cached_status()
         result = status.get("result", {})
-        cargo_used = result.get("cargo_used", 0)
-        cargo_capacity = result.get("cargo_capacity", 0)
+        ship = result.get("ship", {})
+        cargo_used = ship.get("cargo_used", 0) or result.get("cargo_used", 0)
+        cargo_capacity = ship.get("cargo_max", 0) or result.get("cargo_capacity", 0)
         available = cargo_capacity - cargo_used
         if available < required_space:
             raise APIError(f"{hint} (need {required_space}, have {available})")

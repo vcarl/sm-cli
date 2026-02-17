@@ -491,7 +491,8 @@ class TestCmdJump(unittest.TestCase):
 
     def test_success(self):
         api = mock_api({"result": {
-            "destination": "Vega", "ticks": 10, "fuel_cost": 2,
+            "message": "Jumping to Vega (10 ticks, fuel: 2)",
+            "command": "jump", "pending": True,
         }})
         with patch("builtins.print") as mock_print:
             cmd_jump(api, make_args(target_system="sys-vega", json=False))
@@ -642,12 +643,12 @@ class TestCmdListings(unittest.TestCase):
 
     def test_with_listings(self):
         api = mock_api({"result": {"items": [
-            {"item_id": "ore_iron", "item_name": "Iron Ore", "best_buy": 10, "best_sell": 15},
+            {"item_id": "ore_iron", "best_buy": 10, "best_sell": 15},
         ]}})
         with patch("builtins.print") as mock_print:
             cmd_listings(api, make_args(json=False))
         output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("Iron Ore", output)
+        self.assertIn("ore_iron", output)
 
 
 class TestCmdRecipes(unittest.TestCase):
@@ -678,35 +679,26 @@ class TestCmdRecipes(unittest.TestCase):
 class TestCmdCommands(unittest.TestCase):
 
     def test_grouped_output(self):
-        api = mock_api({"result": {"commands": [
-            {"name": "mine", "category": "resources", "description": "Mine ore"},
-            {"name": "sell", "category": "trading", "description": "Sell items"},
-            {"name": "attack", "category": "combat", "description": "Attack player"},
-        ]}})
-        with patch("builtins.print") as mock_print:
+        """cmd_commands now prints CLI help via argparse, which includes command names."""
+        api = mock_api({})
+        with patch("sys.stdout") as mock_stdout:
             cmd_commands(api, make_args(json=False))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("RESOURCES", output)
-        self.assertIn("TRADING", output)
-        self.assertIn("COMBAT", output)
-        self.assertIn("mine", output)
+        # print_help writes to stdout; just verify it was called
+        mock_stdout.write.assert_called()
 
     def test_json_mode(self):
-        resp = {"result": {"commands": [{"name": "mine", "category": "resources"}]}}
-        api = mock_api(resp)
-        with patch("builtins.print") as mock_print:
+        """cmd_commands always prints CLI help regardless of json flag."""
+        api = mock_api({})
+        with patch("sys.stdout") as mock_stdout:
             cmd_commands(api, make_args(json=True))
-        self.assertEqual(json.loads(mock_print.call_args[0][0]), resp)
+        mock_stdout.write.assert_called()
 
     def test_long_description_truncated(self):
-        api = mock_api({"result": {"commands": [
-            {"name": "test", "category": "misc",
-             "description": "A" * 100},
-        ]}})
-        with patch("builtins.print") as mock_print:
+        """cmd_commands now prints CLI help; long descriptions handled by argparse."""
+        api = mock_api({})
+        with patch("sys.stdout") as mock_stdout:
             cmd_commands(api, make_args(json=False))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("...", output)
+        mock_stdout.write.assert_called()
 
 
 # ---------------------------------------------------------------------------
@@ -1074,7 +1066,7 @@ class TestExistingCommandsRegression(unittest.TestCase):
         self.assertIn("ore_copper x2", output)
 
     def test_cmd_sell(self):
-        api = mock_api({"result": {"credits_earned": 120}})
+        api = mock_api({"result": {"total_earned": 120}})
         with patch("builtins.print") as mock_print:
             from spacemolt.commands import cmd_sell
             cmd_sell(api, make_args(item_id="ore_iron", quantity=10))
@@ -1097,14 +1089,14 @@ class TestExistingCommandsRegression(unittest.TestCase):
         self.assertIn("ERROR", mock_print.call_args[0][0])
 
     def test_cmd_refuel(self):
-        api = mock_api({"result": {"fuel": 50, "max_fuel": 50}})
+        api = mock_api({"result": {"fuel_now": 50, "fuel_max": 50, "cost": 100}})
         with patch("builtins.print") as mock_print:
             from spacemolt.commands import cmd_refuel
             cmd_refuel(api, make_args())
         self.assertIn("50/50", mock_print.call_args[0][0])
 
     def test_cmd_dock(self):
-        api = mock_api({"result": {"base_name": "Starport", "base_id": "b1"}})
+        api = mock_api({"result": {"message": "Docked at Starport"}})
         with patch("builtins.print") as mock_print:
             from spacemolt.commands import cmd_dock
             cmd_dock(api, make_args())
@@ -1273,14 +1265,14 @@ class TestPassthroughFormatters(unittest.TestCase):
         self.assertEqual(json.loads(printed), resp)
 
     def test_action_message_extraction(self):
-        """Action endpoints with 'message' field should show it, not JSON."""
+        """Action endpoints with format schema should show formatted output."""
         api = mock_api({"result": {"message": "Trade accepted!", "trade_id": "t1"}})
         with patch("builtins.print") as mock_print:
             cmd_passthrough(api, "trade_accept", ["t1"])
         calls = [c[0][0] for c in mock_print.call_args_list]
-        self.assertIn("Trade accepted!", calls[0])
         combined = "\n".join(calls)
-        self.assertIn("trade_id: t1", combined)
+        self.assertIn("Trade accepted", combined)
+        self.assertNotIn("{", combined)  # should not be raw JSON
 
 
 class TestAliasCommands(unittest.TestCase):
@@ -1308,16 +1300,14 @@ class TestCmdTravel(unittest.TestCase):
 
     def test_success(self):
         api = mock_api({"result": {
-            "destination": "Asteroid Belt Alpha",
-            "ticks": 5,
-            "fuel_cost": 1,
+            "poi": "Asteroid Belt Alpha",
+            "poi_id": "poi-abc",
+            "action": "traveling",
         }})
         with patch("builtins.print") as mock_print:
             cmd_travel(api, make_args(poi_id="poi-abc"))
         printed = mock_print.call_args_list[0][0][0]
         self.assertIn("Asteroid Belt Alpha", printed)
-        self.assertIn("5 ticks", printed)
-        self.assertIn("fuel: 1", printed)
 
     def test_error(self):
         api = mock_api({"error": "not_at_poi"})
@@ -1326,12 +1316,11 @@ class TestCmdTravel(unittest.TestCase):
         self.assertIn("ERROR", mock_print.call_args[0][0])
 
     def test_no_fuel_cost(self):
-        api = mock_api({"result": {"destination": "Station X", "ticks": 3}})
+        api = mock_api({"result": {"poi": "Station X", "action": "traveling"}})
         with patch("builtins.print") as mock_print:
             cmd_travel(api, make_args(poi_id="poi-x"))
         printed = mock_print.call_args_list[0][0][0]
         self.assertIn("Station X", printed)
-        self.assertNotIn("fuel", printed)
 
 
 class TestCmdLogin(unittest.TestCase):
@@ -1374,7 +1363,7 @@ class TestCmdLogin(unittest.TestCase):
 class TestCmdRepair(unittest.TestCase):
 
     def test_success(self):
-        api = mock_api({"result": {"hull": 200, "max_hull": 200}})
+        api = mock_api({"result": {"repaired": "200/200", "cost": 500}})
         with patch("builtins.print") as mock_print:
             cmd_repair(api, make_args())
         printed = mock_print.call_args[0][0]
@@ -1437,7 +1426,8 @@ class TestCmdPois(unittest.TestCase):
         api = mock_api({"result": {"pois": []}})
         with patch("builtins.print") as mock_print:
             cmd_pois(api, make_args())
-        mock_print.assert_not_called()
+        output = "\n".join(str(c[0][0]) for c in mock_print.call_args_list)
+        self.assertIn("No POIs found", output)
 
 
 class TestCmdSystem(unittest.TestCase):

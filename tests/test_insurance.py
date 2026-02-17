@@ -276,10 +276,10 @@ class TestInsuranceClaim(unittest.TestCase):
         self.assertIn("still intact", output)
 
     def test_alternative_field_names(self):
-        """Test with alternative field names."""
+        """Test with canonical field names (payout, credits)."""
         api = mock_api({"result": {
-            "credits_received": 80000,
-            "balance": 180000,
+            "payout": 80000,
+            "credits": 180000,
         }})
         with patch("builtins.print") as mock_print:
             cmd_insurance_claim(api, make_args(json=False))

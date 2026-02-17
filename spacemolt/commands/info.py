@@ -47,11 +47,10 @@ def cmd_ship(api, args):
     print(f"Ship: {s.get('class_id') or s.get('name', '?')}")
     print(f"Hull: {s.get('hull', '?')}/{s.get('max_hull', '?')} | Shield: {s.get('shield', '?')}/{s.get('max_shield', '?')}")
     print(f"Fuel: {s.get('fuel', '?')}/{s.get('max_fuel', '?')}")
-    print(f"Cargo: {s.get('cargo_used', '?')}/{s.get('cargo_capacity', '?')}")
+    print(f"Cargo: {r.get('cargo_used') or s.get('cargo_used', '?')}/{r.get('cargo_max') or s.get('cargo_max', '?')}")
     print(f"CPU: {s.get('cpu_used', '?')}/{s.get('cpu_capacity') or s.get('cpu', '?')} | Power: {s.get('power_used', '?')}/{s.get('power_capacity') or s.get('power', '?')}")
 
-    # Prefer the rich module list at result.modules over ship.modules (which may be just IDs)
-    modules = r.get("modules") or s.get("modules") or s.get("installed_modules", [])
+    modules = r.get("modules") or s.get("modules") or []
     # Filter to only rich dicts if we got a mix
     rich_modules = [m for m in modules if isinstance(m, dict)]
     if rich_modules:
@@ -135,7 +134,7 @@ def cmd_system(api, args):
     sys_info = r.get("system", r)
 
     print(f"System: {sys_info.get('name') or sys_info.get('system_name', '?')}")
-    print(f"Security: {r.get('security_status') or sys_info.get('police_level', '?')}")
+    print(f"Security: {r.get('security_status', '?')}")
     print()
 
     pois = r.get("pois", [])
@@ -380,7 +379,7 @@ def cmd_nearby(api, args):
     r = resp.get("result", {})
     poi_r = poi_resp.get("result", {})
     poi_info = poi_r.get("poi") or poi_r
-    players = r.get("nearby") or r.get("players", [])
+    players = r.get("nearby", [])
     pirates = r.get("pirates", [])
 
     # Scan each player if requested
@@ -421,7 +420,7 @@ def cmd_nearby(api, args):
                 try:
                     scan_resp = api._post("scan", {"target_id": pid})
                     sr = scan_resp.get("result", {})
-                    scan_data = sr.get("Result", sr)
+                    scan_data = sr
                     scan_results[pid] = scan_data
                 except Exception as e:
                     scan_results[pid] = {"success": False, "error": str(e)}
