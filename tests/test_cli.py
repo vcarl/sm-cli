@@ -134,7 +134,7 @@ class TestEndpointArgs(unittest.TestCase):
         for ep in ["jump", "scan", "attack", "buy", "sell", "craft",
                     "forum_reply", "forum_list", "captains_log_add",
                     "install_mod", "find_route", "search_systems",
-                    "list_item", "buy_listing", "faction_invite"]:
+                    "loot_wreck", "salvage_wreck", "faction_invite"]:
             self.assertIn(ep, ENDPOINT_ARGS, f"{ep} missing from ENDPOINT_ARGS")
 
     def test_all_specs_parseable(self):
@@ -397,11 +397,11 @@ class TestCmdPassthrough(unittest.TestCase):
     def test_mixed_positional_and_kv(self):
         api = mock_api({"result": {"ok": True}})
         with patch("builtins.print"):
-            cmd_passthrough(api, "list_item", ["ore_iron", "quantity=10", "price_each=50"])
+            cmd_passthrough(api, "loot_wreck", ["wrk_123", "item_id=ore_iron", "quantity=10"])
         body = api._post.call_args[0][1]
+        self.assertEqual(body["wreck_id"], "wrk_123")
         self.assertEqual(body["item_id"], "ore_iron")
         self.assertEqual(body["quantity"], 10)
-        self.assertEqual(body["price_each"], 50)
 
     def test_no_args_sends_empty_body(self):
         api = mock_api({"result": {}})
@@ -1875,10 +1875,10 @@ class TestCmdPassthroughErrors(unittest.TestCase):
         """Providing some but not all required args."""
         api = mock_api({})
         with patch("builtins.print") as mock_print:
-            cmd_passthrough(api, "list_item", ["ore_iron", "10"])
+            cmd_passthrough(api, "loot_wreck", ["wrk_123", "ore_iron"])
         output = "\n".join(c[0][0] for c in mock_print.call_args_list)
         self.assertIn("Missing:", output)
-        self.assertIn("price_each", output)
+        self.assertIn("quantity", output)
 
     def test_result_as_string(self):
         """API returning a plain string result."""

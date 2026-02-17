@@ -35,9 +35,7 @@ ENDPOINT_ARGS = {
     "captains_log_add": ["entry"],
     "captains_log_get": ["index:int"],
     "set_anonymous": ["anonymous:bool"],
-    "list_item": ["item_id", "quantity:int", "price_each:int"],
-    "buy_listing": ["listing_id"],
-    "cancel_list": ["listing_id"],
+    # list_item, buy_listing, cancel_list removed — no longer in API spec
     "faction_invite": ["player_id"],
     "faction_kick": ["player_id"],
     "faction_promote": ["player_id", "role_id"],
@@ -92,14 +90,14 @@ ENDPOINT_ARGS = {
     "write_note": ["note_id?", "content?"],  # custom extensions
     "read_note": ["note_id?"],  # custom extension
     # base building/raiding - custom extensions (spec has no params)
-    "build_base": ["name?", "description?"],  # custom extensions
+    "build_base": ["name?", "services?"],  # services replaces description per spec
     "attack_base": ["base_id?"],  # custom extension
     "loot_base_wreck": ["wreck_id?", "item_id?", "quantity?:int"],  # custom extensions
     "salvage_base_wreck": ["wreck_id?"],  # custom extension
     # drones - custom extensions (spec has no params)
     "get_drones": [],
     "deploy_drone": ["drone_item_id?", "target_id?"],  # custom extensions
-    "recall_drone": ["drone_id?"],  # custom extension
+    "recall_drone": ["drone_id?", "all?:bool"],  # all=true recalls all drones
     "order_drone": ["command?", "target_id?"],  # custom extensions
     # storage
     "deposit_items": ["item_id", "quantity:int"],
@@ -116,7 +114,7 @@ ENDPOINT_ARGS = {
     # misc
     "logout": [],
     # registration
-    "register": ["username", "empire"],
+    "register": ["username", "empire", "registration_code"],  # registration_code now required per spec
     # missing endpoints (quick wins for completeness)
     "get_version": [],
     "get_map": [],
@@ -124,10 +122,53 @@ ENDPOINT_ARGS = {
     "view_storage": [],
     "get_base_cost": ["base_type?"],  # base_type optional
     "raid_status": ["base_id?"],  # base_id optional
-    "help": [],
+    "help": ["category?", "command?"],
     # New market and exploration commands
-    "analyze_market": ["item_id?", "page?:int"],  # both optional
-    "survey_system": [],  # no params
+    "analyze_market": ["item_id?", "page?:int"],
+    "survey_system": [],
+    # Queue management
+    "get_queue": [],
+    "clear_queue": [],
+    # Missions
+    "decline_mission": ["template_id?"],
+    # Items
+    "use_item": ["item_id?", "quantity?:int"],
+    # Facility management
+    "facility": ["action", "category?", "direction?", "facility_id?", "facility_type?", "level?:int", "name?", "page?:int", "per_page?:int", "player_id?"],
+    # Faction storage
+    "view_faction_storage": [],
+    "faction_deposit_credits": ["amount?:int"],
+    "faction_withdraw_credits": ["amount?:int"],
+    "faction_deposit_items": ["item_id?", "quantity?:int"],
+    "faction_withdraw_items": ["item_id?", "quantity?:int"],
+    "faction_gift": ["faction_id?", "item_id?", "quantity?:int"],
+    # Faction market orders
+    "faction_create_buy_order": ["item_id?", "quantity?:int", "price_each?:int"],
+    "faction_create_sell_order": ["item_id?", "quantity?:int", "price_each?:int"],
+    # Faction management
+    "faction_edit": ["description?", "charter?", "primary_color?", "secondary_color?"],
+    "faction_create_role": ["name?", "priority?:int", "invite?:bool", "kick?:bool"],
+    "faction_edit_role": ["role_id?", "name?"],
+    "faction_delete_role": ["role_id?"],
+    "faction_cancel_mission": ["template_id?"],
+    "faction_list_missions": [],
+    "faction_post_mission": ["title?", "description?", "type?", "item_id?", "quantity?:int"],
+    # Faction intel
+    "faction_intel_status": [],
+    "faction_submit_intel": [],
+    "faction_query_intel": ["system_name?"],
+    "faction_trade_intel_status": [],
+    "faction_submit_trade_intel": [],
+    "faction_query_trade_intel": ["base_id?"],
+    # Faction rooms
+    "faction_rooms": [],
+    "faction_visit_room": ["room_id"],
+    "faction_write_room": ["access?", "description?", "name?", "room_id?"],
+    "faction_delete_room": ["room_id"],
+    # Refuel (custom cmd in actions.py; passthrough supports new params)
+    "refuel": ["item_id?", "quantity?:int"],
+    # Captain's log (custom cmd in actions.py; passthrough supports index param)
+    "captains_log_list": ["index?:int"],
 }
 
 
