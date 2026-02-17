@@ -256,7 +256,7 @@ Tips:
     insurance_sub = p_insurance.add_subparsers(dest="insurance_subcommand")
 
     p_ib = insurance_sub.add_parser("buy", help="Purchase insurance coverage")
-    p_ib.add_argument("coverage_percent", type=int, help="Coverage percentage (50-100%% of ship value)")
+    p_ib.add_argument("ticks", type=int, help="Number of ticks of insurance coverage to buy")
 
     insurance_sub.add_parser("claim", help="Claim insurance payout after ship destruction")
 
