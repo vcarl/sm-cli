@@ -167,7 +167,7 @@ def _print_login_summary(r):
     print(f"{player.get('credits', '?')} cr  |  {player.get('empire', '?')} empire")
 
     # Ship
-    ship_name = ship.get("name") or ship.get("class_id", "?")
+    ship_name = ship.get("class_id") or ship.get("name", "?")
     parts = [
         ship_name,
         f"Hull: {ship.get('hull', '?')}/{ship.get('max_hull', '?')}",

@@ -12,25 +12,19 @@ def cmd_status(api, args):
     p = r.get("player", {})
     s = r.get("ship", {})
 
-    sys_name = p.get("current_system_name") or p.get("current_system", "?")
-    sys_id = p.get("current_system_id") or p.get("current_system", "")
-    poi_name = p.get("current_poi_name") or p.get("current_poi", "")
-    poi_id = p.get("current_poi_id") or p.get("current_poi", "")
-    base_id = p.get("docked_at_base") or p.get("docked_base_id", "")
+    sys_name = p.get("current_system", "?")
+    poi_name = p.get("current_poi", "")
+    base_id = p.get("docked_at_base", "")
 
     location = sys_name
-    if sys_id and sys_id != sys_name:
-        location += f" ({sys_id})"
     if poi_name:
         location += f" / {poi_name}"
-        if poi_id and poi_id != poi_name:
-            location += f" ({poi_id})"
     if base_id:
         location += f" [docked: {base_id}]"
 
     print(f"Credits: {p.get('credits', '?')}")
     print(f"Location: {location}")
-    print(f"Ship: {s.get('class_id') or s.get('name', '?')}")
+    print(f"Ship: {s.get('class_id', '?')}")
     print(f"Hull: {s.get('hull', '?')}/{s.get('max_hull', '?')} | Fuel: {s.get('fuel', '?')}/{s.get('max_fuel', '?')}")
     print(f"Cargo: {s.get('cargo_used', '?')}/{s.get('cargo_capacity', '?')}")
 
@@ -44,11 +38,11 @@ def cmd_ship(api, args):
     r = resp.get("result", {})
     s = r.get("ship", r)
 
-    print(f"Ship: {s.get('class_id') or s.get('name', '?')}")
+    print(f"Ship: {s.get('class_id', '?')}")
     print(f"Hull: {s.get('hull', '?')}/{s.get('max_hull', '?')} | Shield: {s.get('shield', '?')}/{s.get('max_shield', '?')}")
     print(f"Fuel: {s.get('fuel', '?')}/{s.get('max_fuel', '?')}")
-    print(f"Cargo: {r.get('cargo_used') or s.get('cargo_used', '?')}/{r.get('cargo_max') or s.get('cargo_max', '?')}")
-    print(f"CPU: {s.get('cpu_used', '?')}/{s.get('cpu_capacity') or s.get('cpu', '?')} | Power: {s.get('power_used', '?')}/{s.get('power_capacity') or s.get('power', '?')}")
+    print(f"Cargo: {r.get('cargo_used') or s.get('cargo_used', '?')}/{r.get('cargo_max') or s.get('cargo_capacity', '?')}")
+    print(f"CPU: {s.get('cpu_used', '?')}/{s.get('cpu_capacity', '?')} | Power: {s.get('power_used', '?')}/{s.get('power_capacity', '?')}")
 
     modules = r.get("modules") or s.get("modules") or []
     # Filter to only rich dicts if we got a mix
@@ -133,7 +127,7 @@ def cmd_system(api, args):
     r = resp.get("result", {})
     sys_info = r.get("system", r)
 
-    print(f"System: {sys_info.get('name') or sys_info.get('system_name', '?')}")
+    print(f"System: {sys_info.get('name', '?')}")
     print(f"Security: {r.get('security_status', '?')}")
     print()
 
@@ -401,7 +395,7 @@ def cmd_nearby(api, args):
 
         try:
             for i, p in enumerate(players):
-                pid = p.get("player_id") or p.get("id", "")
+                pid = p.get("player_id", "")
                 if not pid:
                     continue
 
@@ -480,8 +474,8 @@ def cmd_nearby(api, args):
     # --- Player/pirate table ---
     rows = []
     for p in players:
-        name = p.get("username") or p.get("name") or "anonymous"
-        pid = p.get("player_id") or p.get("id", "")
+        name = p.get("username") or "anonymous"
+        pid = p.get("player_id", "")
         ship = p.get("ship_class", "?")
         clan = p.get("clan_tag", "")
         in_combat = p.get("in_combat", False)
@@ -538,7 +532,7 @@ def cmd_nearby(api, args):
     # --- Command hints ---
     if players:
         first = players[0]
-        example_id = first.get("player_id") or first.get("id", "<id>")
+        example_id = first.get("player_id", "<id>")
         print(f"\n  Hint: sm scan {example_id}  |  sm attack {example_id}  |  sm trade-offer {example_id}")
 
     # --- Arrival/departure log ---

@@ -475,9 +475,8 @@ class SpaceMoltAPI:
         """Raise APIError if not currently docked at a station."""
         status = self._get_cached_status()
         result = status.get("result", {})
-        # Check both old format (result.docked) and new format (result.player.docked_at_base)
         player = result.get("player", {})
-        docked = result.get("docked") or result.get("is_docked") or bool(player.get("docked_at_base"))
+        docked = bool(player.get("docked_at_base"))
         if not docked:
             raise APIError(hint)
 
@@ -485,9 +484,8 @@ class SpaceMoltAPI:
         """Raise APIError if currently docked at a station."""
         status = self._get_cached_status()
         result = status.get("result", {})
-        # Check both old format (result.docked) and new format (result.player.docked_at_base)
         player = result.get("player", {})
-        docked = result.get("docked") or result.get("is_docked") or bool(player.get("docked_at_base"))
+        docked = bool(player.get("docked_at_base"))
         if docked:
             raise APIError(hint)
 
@@ -496,8 +494,8 @@ class SpaceMoltAPI:
         status = self._get_cached_status()
         result = status.get("result", {})
         ship = result.get("ship", {})
-        cargo_used = ship.get("cargo_used", 0) or result.get("cargo_used", 0)
-        cargo_capacity = ship.get("cargo_max", 0) or result.get("cargo_capacity", 0)
+        cargo_used = ship.get("cargo_used", 0)
+        cargo_capacity = ship.get("cargo_capacity", 0)
         available = cargo_capacity - cargo_used
         if available < required_space:
             raise APIError(f"{hint} (need {required_space}, have {available})")

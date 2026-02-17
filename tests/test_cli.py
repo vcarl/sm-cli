@@ -464,10 +464,8 @@ class TestCmdStatus(unittest.TestCase):
         api = mock_api({"result": {
             "player": {
                 "credits": 1500,
-                "current_system_name": "Sol",
-                "current_system_id": "sys-1",
-                "current_poi_name": "Station Alpha",
-                "current_poi_id": "poi-1",
+                "current_system": "Sol",
+                "current_poi": "Station Alpha",
                 "docked_at_base": "base-1",
             },
             "ship": {

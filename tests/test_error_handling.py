@@ -137,7 +137,7 @@ class TestPreFlightValidation(unittest.TestCase):
     def test_require_docked_raises_when_undocked(self, mock_post):
         """_require_docked should raise when not docked."""
         api = SpaceMoltAPI()
-        mock_post.return_value = {"result": {"docked": False}}
+        mock_post.return_value = {"result": {"player": {"docked_at_base": ""}}}
 
         with self.assertRaises(APIError) as ctx:
             api._require_docked()
@@ -147,7 +147,7 @@ class TestPreFlightValidation(unittest.TestCase):
     def test_require_docked_succeeds_when_docked(self, mock_post):
         """_require_docked should succeed when docked."""
         api = SpaceMoltAPI()
-        mock_post.return_value = {"result": {"docked": True}}
+        mock_post.return_value = {"result": {"player": {"docked_at_base": "base-1"}}}
 
         # Should not raise
         api._require_docked()
@@ -156,7 +156,7 @@ class TestPreFlightValidation(unittest.TestCase):
     def test_require_undocked_raises_when_docked(self, mock_post):
         """_require_undocked should raise when docked."""
         api = SpaceMoltAPI()
-        mock_post.return_value = {"result": {"docked": True}}
+        mock_post.return_value = {"result": {"player": {"docked_at_base": "base-1"}}}
 
         with self.assertRaises(APIError) as ctx:
             api._require_undocked()
@@ -168,8 +168,10 @@ class TestPreFlightValidation(unittest.TestCase):
         api = SpaceMoltAPI()
         mock_post.return_value = {
             "result": {
-                "cargo_used": 80,
-                "cargo_capacity": 100
+                "ship": {
+                    "cargo_used": 80,
+                    "cargo_capacity": 100
+                }
             }
         }
 
@@ -183,8 +185,10 @@ class TestPreFlightValidation(unittest.TestCase):
         api = SpaceMoltAPI()
         mock_post.return_value = {
             "result": {
-                "cargo_used": 50,
-                "cargo_capacity": 100
+                "ship": {
+                    "cargo_used": 50,
+                    "cargo_capacity": 100
+                }
             }
         }
 
