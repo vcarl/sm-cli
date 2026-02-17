@@ -211,6 +211,7 @@ def cmd_travel(api, args):
     resp = api._post("travel", {"target_poi": args.poi_id})
     if resp.get("error"):
         print(f"ERROR: {resp['error']}")
+        print("  Hint: sm pois  (list POIs to travel to)")
     else:
         api._clear_status_cache()  # Clear cache after state change
         r = resp.get("result", {})
@@ -229,6 +230,7 @@ def cmd_jump(api, args):
     if resp.get("error"):
         err = resp["error"]
         print(f"ERROR: {err.get('message', err) if isinstance(err, dict) else err}")
+        print("  Hint: sm system  (see connections)")
     else:
         api._clear_status_cache()  # Clear cache after state change
         r = resp.get("result", {})
@@ -246,6 +248,7 @@ def cmd_dock(api, args):
     resp = api._post("dock")
     if resp.get("error"):
         print(f"ERROR: {resp['error']}")
+        print("  Hint: sm pois  (find a base to dock at)")
     else:
         api._clear_status_cache()  # Clear cache after state change
         r = resp.get("result", {})
@@ -254,7 +257,7 @@ def cmd_dock(api, args):
             print(msg)
         else:
             print("Docked.")
-        print("  Hint: sm base  |  sm listings  |  sm repair")
+        print("  Hint: sm base  |  sm listings  |  sm refuel  |  sm repair")
 
 
 def cmd_undock(api, args):
@@ -264,6 +267,7 @@ def cmd_undock(api, args):
     else:
         api._clear_status_cache()  # Clear cache after state change
         print("Undocked.")
+        print("  Hint: sm nearby  |  sm mine  |  sm travel <poi_id>")
 
 
 def cmd_mine(api, args):
@@ -436,6 +440,7 @@ def cmd_wait(api, args):
         )
         if not in_transit:
             print("Ready.")
+            print("  Hint: sm status  |  sm nearby  |  sm pois")
             return
         action = p.get("current_action") or "in transit"
         eta = p.get("eta") or p.get("ticks_remaining") or s.get("eta")

@@ -503,7 +503,8 @@ class TestCmdJump(unittest.TestCase):
         api = mock_api({"error": "no_jump_gate"})
         with patch("builtins.print") as mock_print:
             cmd_jump(api, make_args(target_system="sys-x", json=False))
-        self.assertIn("ERROR", mock_print.call_args[0][0])
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("ERROR", output)
 
     def test_json_mode(self):
         resp = {"result": {"destination": "Vega"}}
@@ -1105,7 +1106,8 @@ class TestExistingCommandsRegression(unittest.TestCase):
         with patch("builtins.print") as mock_print:
             from spacemolt.commands import cmd_undock
             cmd_undock(api, make_args())
-        self.assertIn("Undocked", mock_print.call_args[0][0])
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("Undocked", output)
 
     def test_cmd_skills_empty(self):
         api = mock_api({"result": {"player_skills": []}})
@@ -1311,7 +1313,8 @@ class TestCmdTravel(unittest.TestCase):
         api = mock_api({"error": "not_at_poi"})
         with patch("builtins.print") as mock_print:
             cmd_travel(api, make_args(poi_id="poi-bad"))
-        self.assertIn("ERROR", mock_print.call_args[0][0])
+        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        self.assertIn("ERROR", output)
 
     def test_no_fuel_cost(self):
         api = mock_api({"result": {"poi": "Station X", "action": "traveling"}})

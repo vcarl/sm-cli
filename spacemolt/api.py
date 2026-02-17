@@ -170,7 +170,7 @@ class SpaceMoltAPI:
                     parts.append(f"Killed by {killer}")
                 if system:
                     parts.append(f"in {system}")
-                parts.append("\n  Tip: sm buy-insurance <ticks>  |  sm claim-insurance")
+                parts.append("\n  Tip: sm insurance buy <ticks>  |  sm insurance claim")
                 msg = "  ".join(parts)
             elif msg_type in ("combat_start", "combat_end", "attack_hit",
                              "attack_miss", "under_attack"):

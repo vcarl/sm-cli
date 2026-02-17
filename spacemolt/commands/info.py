@@ -238,6 +238,7 @@ def cmd_cargo(api, args):
             name = item.get("item_id") or item.get("name") or item.get("id")
             qty = item.get("quantity", 1)
             print(f"  {name} x{qty}")
+    print("\n  Hint: sm sell <item> <qty>  |  sm listings  |  sm storage deposit <item> <qty>")
 
 
 COMBAT_SHIP_CLASSES = {
