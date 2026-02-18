@@ -43,13 +43,15 @@ def cmd_missions_combined(api, args):
                 print(f"    {desc}")
 
             objectives = m.get("objectives") or []
-            for obj in objectives[:2]:  # Show max 2 objectives in compact view
+            for obj in objectives:  # Show all objectives
                 if isinstance(obj, dict):
                     obj_desc = obj.get("description") or obj.get("name", "")
                     obj_cur = obj.get("current", 0)
                     obj_tgt = obj.get("required") or obj.get("target", "?")
+                    completed = obj.get("completed", False)
+                    status_mark = "✓" if completed else " "
                     if obj_desc:
-                        print(f"    - {obj_desc}: {obj_cur}/{obj_tgt}")
+                        print(f"    [{status_mark}] {obj_desc}: {obj_cur}/{obj_tgt}")
 
             if mid:
                 print(f"    id: {mid}")
