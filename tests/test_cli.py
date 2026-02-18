@@ -1434,23 +1434,26 @@ class TestCmdSystem(unittest.TestCase):
     def test_basic_output(self):
         api = mock_api({"result": {
             "system": {"name": "Sol", "police_level": 5, "connections": [
-                {"name": "Alpha Centauri", "id": "sys-ac"},
+                {"name": "Alpha Centauri", "system_id": "sys-ac", "distance": 4},
+            ], "pois": [
+                {"name": "Station", "type": "station", "id": "poi-1",
+                 "has_base": True, "base_name": "Starport", "online": 3},
             ]},
-            "pois": [
-                {"name": "Station", "type": "station", "id": "poi-1"},
-            ],
         }})
         with patch("builtins.print") as mock_print:
             cmd_system(api, make_args())
         output = "\n".join(str(c) for c in mock_print.call_args_list)
         self.assertIn("Sol", output)
         self.assertIn("Station", output)
+        self.assertIn("base:Starport", output)
+        self.assertIn("3 online", output)
         self.assertIn("Alpha Centauri", output)
+        self.assertIn("sys-ac", output)
+        self.assertIn("4 GU", output)
 
     def test_string_connections(self):
         api = mock_api({"result": {
-            "system": {"name": "Vega", "connections": ["sys-1", "sys-2"]},
-            "pois": [],
+            "system": {"name": "Vega", "connections": ["sys-1", "sys-2"], "pois": []},
         }})
         with patch("builtins.print") as mock_print:
             cmd_system(api, make_args())

@@ -124,12 +124,19 @@ def cmd_system(api, args):
     print(f"Security: {r.get('security_status', '?')}")
     print()
 
-    pois = r.get("pois", [])
+    pois = sys_info.get("pois", [])
     print(f"POIs ({len(pois)}):")
     for p in pois:
         name = p.get("name") or p.get("type") or "?"
         ptype = p.get("type", "?")
-        print(f"  {name} [{ptype}] id:{p.get('id', '?')}")
+        line = f"  {name} [{ptype}] id:{p.get('id', '?')}"
+        if p.get("has_base"):
+            base_name = p.get("base_name", "unknown")
+            line += f"  base:{base_name}"
+        online = p.get("online")
+        if online:
+            line += f"  ({online} online)"
+        print(line)
     print()
 
     conns = sys_info.get("connections", [])
@@ -138,9 +145,13 @@ def cmd_system(api, args):
         if isinstance(c, str):
             print(f"  \u2192 {c}")
         else:
-            name = c.get("name") or c.get("system_name") or c.get("id", "?")
-            cid = c.get("id") or c.get("system_id", "?")
-            print(f"  \u2192 {name} (id:{cid})")
+            name = c.get("name", "?")
+            cid = c.get("system_id", "?")
+            dist = c.get("distance")
+            line = f"  \u2192 {name} (id:{cid})"
+            if dist is not None:
+                line += f"  {dist} GU"
+            print(line)
 
 
 def cmd_poi(api, args):
