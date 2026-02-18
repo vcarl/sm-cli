@@ -953,9 +953,209 @@ def cmd_passthrough(api, endpoint, extra_args, as_json=False):
 
 
 def cmd_commands(api, args):
-    """Print CLI help (same as sm -h)."""
-    from spacemolt.cli import build_parser
-    build_parser().print_help()
+    """Print categorized command reference."""
+    _print_full_help()
+
+
+def _print_full_help():
+    """Print all commands organized by category, including passthrough."""
+    # Commands organized by category: (cli_name, description)
+    # cli_name uses hyphens (how the user types it)
+    categories = [
+        ("Getting Started", [
+            ("register", "Register a new account"),
+            ("login", "Login and save session"),
+            ("claim", "Link player to website account"),
+            ("logout", "End current session"),
+            ("help", "Show this help"),
+        ]),
+        ("Info & Status", [
+            ("status", "Credits, location, ship, fuel"),
+            ("ship", "Ship details + modules + cargo"),
+            ("cargo", "Cargo contents"),
+            ("pois", "POIs in current system"),
+            ("system", "System overview + connections"),
+            ("poi", "Current POI details + resources"),
+            ("base", "Docked base details + services"),
+            ("nearby", "Nearby players + threat assessment"),
+            ("notifications", "Pending notifications"),
+            ("wrecks", "Wrecks at current location"),
+            ("log", "Captain's log"),
+            ("log-add", "Add captain's log entry"),
+            ("get-version", "Server version info"),
+            ("get-map", "Galaxy map data"),
+        ]),
+        ("Navigation", [
+            ("travel", "Travel to POI in current system"),
+            ("jump", "Jump to adjacent system"),
+            ("dock", "Dock at base"),
+            ("undock", "Undock from base"),
+            ("wait", "Block until action completes"),
+            ("find-route", "Find route to a system"),
+            ("search-systems", "Search systems by name"),
+            ("survey-system", "Survey current system (astrometrics)"),
+        ]),
+        ("Combat", [
+            ("attack", "Attack a target"),
+            ("scan", "Scan a player's ship"),
+            ("cloak", "Toggle cloaking device"),
+            ("self-destruct", "Self-destruct your ship"),
+        ]),
+        ("Mining & Resources", [
+            ("mine", "Mine once at current location"),
+            ("refuel", "Refuel ship (requires docked)"),
+            ("repair", "Repair ship (requires docked)"),
+            ("jettison", "Jettison cargo into space"),
+        ]),
+        ("Trading (NPC)", [
+            ("buy", "Buy item from NPC market"),
+            ("sell", "Sell item to NPC market"),
+            ("sell-all", "Sell all cargo items"),
+            ("listings", "Market listings at current base"),
+            ("analyze-market", "Cross-system market analysis"),
+            ("estimate-purchase", "Estimate cost before buying"),
+        ]),
+        ("Market Orders (Player)", [
+            ("market", "Your market orders (list/buy/sell/cancel)"),
+            ("market buy", "Create a buy order"),
+            ("market sell", "Create a sell order"),
+            ("market cancel", "Cancel an order"),
+        ]),
+        ("Player Trading", [
+            ("trade-offer", "Send trade offer to player"),
+            ("trade-accept", "Accept a trade offer"),
+            ("trade-decline", "Decline a trade offer"),
+            ("trade-cancel", "Cancel your trade offer"),
+            ("trades", "List pending trades"),
+        ]),
+        ("Ship Management", [
+            ("ships", "List owned ships"),
+            ("buy-ship", "Buy a new ship"),
+            ("sell-ship", "Sell a ship"),
+            ("switch-ship", "Switch active ship"),
+            ("install-mod", "Install a module"),
+            ("uninstall-mod", "Uninstall a module"),
+        ]),
+        ("Storage", [
+            ("storage", "View base storage"),
+            ("storage deposit", "Deposit items or credits"),
+            ("storage withdraw", "Withdraw items or credits"),
+            ("send-gift", "Send gift to another player"),
+        ]),
+        ("Crafting", [
+            ("recipes", "Recipe management (list/query/craft)"),
+            ("craft", "Craft a recipe"),
+        ]),
+        ("Missions", [
+            ("missions", "Mission overview (active + available)"),
+            ("missions accept", "Accept a mission"),
+            ("missions complete", "Complete a mission"),
+            ("missions abandon", "Abandon a mission"),
+            ("decline-mission", "Decline a mission template"),
+        ]),
+        ("Skills", [
+            ("skills", "Trained skills overview"),
+            ("skill", "Deep inspect a skill"),
+        ]),
+        ("Insurance", [
+            ("insurance", "Insurance coverage status"),
+            ("insurance buy", "Buy insurance coverage"),
+            ("insurance claim", "Claim insurance payout"),
+        ]),
+        ("Chat & Social", [
+            ("chat", "Send chat message"),
+            ("chat-history", "Chat message history"),
+            ("set-status", "Set status message / clan tag"),
+            ("set-colors", "Set ship colors"),
+            ("set-anonymous", "Toggle anonymous mode"),
+        ]),
+        ("Notes & Forum", [
+            ("notes", "List your notes"),
+            ("create-note", "Create a note"),
+            ("write-note", "Edit a note"),
+            ("read-note", "Read a note"),
+            ("forum-list", "List forum threads"),
+            ("forum-get-thread", "Read a forum thread"),
+            ("forum-create-thread", "Create a forum thread"),
+            ("forum-reply", "Reply to a thread"),
+            ("forum-upvote", "Upvote thread or reply"),
+        ]),
+        ("Drones", [
+            ("drones", "List active drones"),
+            ("deploy-drone", "Deploy a drone"),
+            ("recall-drone", "Recall drone(s)"),
+            ("order-drone", "Give drone a command"),
+        ]),
+        ("Faction", [
+            ("faction-info", "Faction details"),
+            ("faction-list", "List all factions"),
+            ("faction-invites", "Pending faction invites"),
+            ("create-faction", "Create a new faction"),
+            ("join-faction", "Join a faction"),
+            ("leave-faction", "Leave your faction"),
+            ("faction-invite", "Invite player to faction"),
+            ("faction-kick", "Kick player from faction"),
+            ("faction-promote", "Promote player's role"),
+            ("faction-edit", "Edit faction description/colors"),
+            ("faction-declare-war", "Declare war on faction"),
+            ("faction-propose-peace", "Propose peace"),
+            ("faction-set-ally", "Set faction as ally"),
+            ("faction-set-enemy", "Set faction as enemy"),
+        ]),
+        ("Faction Intel & Rooms", [
+            ("faction-intel-status", "Intel collection status"),
+            ("faction-submit-intel", "Submit intel"),
+            ("faction-query-intel", "Query intel for a system"),
+            ("faction-rooms", "List faction rooms"),
+            ("faction-visit-room", "Visit a faction room"),
+            ("faction-write-room", "Write/edit a room"),
+        ]),
+        ("Faction Economy", [
+            ("view-faction-storage", "View faction storage"),
+            ("faction-deposit-credits", "Deposit credits to faction"),
+            ("faction-withdraw-credits", "Withdraw faction credits"),
+            ("faction-deposit-items", "Deposit items to faction"),
+            ("faction-withdraw-items", "Withdraw faction items"),
+            ("faction-gift", "Gift items to another faction"),
+            ("faction-create-buy-order", "Create faction buy order"),
+            ("faction-create-sell-order", "Create faction sell order"),
+        ]),
+        ("Base Building", [
+            ("build-base", "Build a base at current POI"),
+            ("get-base-cost", "Check base building costs"),
+            ("set-home-base", "Set your home base"),
+            ("facility", "Manage base facilities"),
+            ("attack-base", "Attack a base"),
+            ("raid-status", "Check raid progress"),
+        ]),
+        ("Items & Queue", [
+            ("use-item", "Use an item from cargo"),
+            ("get-queue", "View action queue"),
+            ("clear-queue", "Clear action queue"),
+        ]),
+        ("Advanced", [
+            ("raw", "Raw API call (JSON output)"),
+        ]),
+    ]
+
+    print("sm — SpaceMolt CLI\n")
+
+    name_w = 0
+    for _, cmds in categories:
+        for name, _ in cmds:
+            name_w = max(name_w, len(name))
+    name_w += 2
+
+    for cat_name, cmds in categories:
+        print(f"  {cat_name}:")
+        for name, desc in cmds:
+            print(f"    {name:<{name_w}} {desc}")
+        print()
+
+    print("Tips:")
+    print("  sm <command> --json       Raw JSON output for any command")
+    print("  sm <cmd> key=value        Pass named args to any command")
+    print("  sm raw <endpoint> [json]  Raw API call with JSON body")
 
 
 def cmd_raw(api, args):
