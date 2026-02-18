@@ -244,34 +244,46 @@ def _fmt_read_note(resp):
         print(content)
 
 
+def _fmt_trade(t):
+    """Format a single trade object."""
+    tid = t.get("trade_id") or t.get("id", "?")
+    partner = (t.get("partner_name") or t.get("partner")
+               or t.get("target_name") or t.get("other_player", "?"))
+    status = t.get("status", "?")
+    print(f"  Trade {tid} with {partner} [{status}]")
+    for label, key in [("Offering", "items_offered"),
+                       ("Requesting", "items_requested")]:
+        items = t.get(key, [])
+        if items:
+            parts = []
+            for item in items:
+                if isinstance(item, dict):
+                    parts.append(f"{item.get('item_id', '?')} x{item.get('quantity', 1)}")
+                else:
+                    parts.append(str(item))
+            print(f"    {label}: {', '.join(parts)}")
+    for label, key in [("Credits offered", "credits_offered"),
+                       ("Credits requested", "credits_requested")]:
+        val = t.get(key)
+        if val:
+            print(f"    {label}: {val}")
+
+
 def _fmt_trades(resp):
     r = resp.get("result", {})
-    trades = r.get("trades", [])
-    if not trades:
+    incoming = r.get("incoming", [])
+    outgoing = r.get("outgoing", [])
+    if not incoming and not outgoing:
         print("No pending trades.")
         return
-    for t in trades:
-        tid = t.get("id") or t.get("trade_id", "?")
-        partner = (t.get("partner_name") or t.get("partner")
-                   or t.get("target_name") or t.get("other_player", "?"))
-        status = t.get("status", "?")
-        print(f"Trade {tid} with {partner} [{status}]")
-        for label, key in [("Offering", "items_offered"),
-                           ("Requesting", "items_requested")]:
-            items = t.get(key, [])
-            if items:
-                parts = []
-                for item in items:
-                    if isinstance(item, dict):
-                        parts.append(f"{item.get('item_id', '?')} x{item.get('quantity', 1)}")
-                    else:
-                        parts.append(str(item))
-                print(f"  {label}: {', '.join(parts)}")
-        for label, key in [("Credits offered", "credits_offered"),
-                           ("Credits requested", "credits_requested")]:
-            val = t.get(key)
-            if val:
-                print(f"  {label}: {val}")
+    if incoming:
+        print(f"Incoming ({len(incoming)}):")
+        for t in incoming:
+            _fmt_trade(t)
+    if outgoing:
+        print(f"Outgoing ({len(outgoing)}):")
+        for t in outgoing:
+            _fmt_trade(t)
 
 
 def _fmt_ships(resp):

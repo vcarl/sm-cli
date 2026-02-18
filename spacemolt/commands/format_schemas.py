@@ -237,9 +237,9 @@ FORMAT_SCHEMAS = {
         "hints": ["sm ship", "sm cargo"],
     },
     "trade_offer": {
-        "message": "Trade offer sent to {target|target_name}",
+        "message": "{message}",
         "fields": [
-            ("Trade ID", "{trade_id|id:id}"),
+            ("Trade ID", "{trade_id:id}"),
         ],
         "hints": ["sm trades", "sm trade-cancel <trade_id>"],
     },
@@ -525,7 +525,11 @@ FORMAT_SCHEMAS = {
     },
     "trade_accept": {
         "icon": "✓",
-        "message": "Trade accepted",
+        "message": "{message}",
+        "fields": [
+            ("Trade ID", "{trade_id:id}"),
+            ("Your credits", "{your_credits} cr"),
+        ],
         "hints": ["sm cargo", "sm status"],
     },
     "create_buy_order": {
