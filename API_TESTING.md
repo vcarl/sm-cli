@@ -137,8 +137,8 @@ The comparison tool:
 
 **Request Bodies:**
 - Only detects static dict literals
-- Dynamic body construction (loops, conditionals) shows as `<variable>`
-- Function-built bodies show as `<function call>`
+- Dynamic body construction (loops, conditionals) shows as `<variable: name>`
+- Function-built bodies show as `<funcname()>` or `<function call>`
 
 **Response Fields:**
 - Only tracks `.get()` access patterns
