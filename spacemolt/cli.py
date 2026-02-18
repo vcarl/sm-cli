@@ -379,7 +379,8 @@ def main():
         argv = [a for a in argv if a != "--json"]
 
     if not argv:
-        parser.print_help()
+        from spacemolt.commands.passthrough import _print_full_help
+        _print_full_help()
         return
 
     # Check if the first arg (ignoring flags) is a known command or a passthrough
@@ -412,7 +413,8 @@ def main():
     args = parser.parse_args(argv)
 
     if not args.command:
-        parser.print_help()
+        from spacemolt.commands.passthrough import _print_full_help
+        _print_full_help()
         return
 
     # Inject --json into args for formatted handlers
