@@ -472,7 +472,7 @@ def _fmt_scan(resp):
         if eta:
             msg += f"  ETA tick: {eta}"
         print(msg)
-        print("\n  Hint: sm wait  |  sm nearby")
+        print("\n  Hint: sm nearby")
         return
 
     success = scan.get("success", True)
@@ -803,7 +803,7 @@ def _print_error_hints(endpoint, err_msg, api=None):
     # Fuel errors
     elif any(w in err_lower for w in ("not enough fuel", "insufficient fuel", "out of fuel", "no fuel")):
         print("\n  Insufficient fuel for this operation.")
-        print("  Hint: sm dock  |  sm refuel")
+        print("  Hint: sm refuel")
 
     # Cargo full errors
     elif any(w in err_lower for w in ("cargo full", "not enough space", "insufficient cargo", "no cargo space")):
@@ -818,12 +818,12 @@ def _print_error_hints(endpoint, err_msg, api=None):
     # Must be docked errors
     elif any(w in err_lower for w in ("must be docked", "need to dock", "while docked", "at a station")):
         print("\n  This action requires being docked at a base.")
-        print("  Hint: sm pois  |  sm travel <poi_id>  |  sm dock")
+        print("  Hint: sm pois  |  sm travel <poi_id>")
 
     # Must be undocked errors
     elif any(w in err_lower for w in ("must be undocked", "need to undock", "while undocked", "in space")):
         print("\n  This action requires being undocked.")
-        print("  Hint: sm undock")
+        print("  Hint: sm travel <poi_id>  |  sm jump <target_system>")
 
 
 def _find_weapon_modules(api):
@@ -991,9 +991,8 @@ def _print_full_help():
         ("Navigation", [
             ("travel <poi_id>", "Travel to POI in current system"),
             ("jump <target_system>", "Jump to adjacent system"),
-            ("dock", "Dock at base"),
-            ("undock", "Undock from base"),
-            ("wait", "Block until action completes"),
+            ("dock", "No-op (docking is automatic)"),
+            ("undock", "No-op (undocking is automatic)"),
             ("find-route <target_system>", "Find route to a system"),
             ("search-systems <query>", "Search systems by name"),
             ("survey-system", "Survey current system (astrometrics)"),

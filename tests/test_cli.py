@@ -1095,19 +1095,18 @@ class TestExistingCommandsRegression(unittest.TestCase):
         self.assertIn("50/50", mock_print.call_args[0][0])
 
     def test_cmd_dock(self):
-        api = mock_api({"result": {"message": "Docked at Starport"}})
+        api = mock_api({"result": {}})
         with patch("builtins.print") as mock_print:
             from spacemolt.commands import cmd_dock
             cmd_dock(api, make_args())
-        self.assertIn("Starport", mock_print.call_args_list[0][0][0])
+        self.assertIn("automatic", mock_print.call_args_list[0][0][0])
 
     def test_cmd_undock(self):
         api = mock_api({"result": {}})
         with patch("builtins.print") as mock_print:
             from spacemolt.commands import cmd_undock
             cmd_undock(api, make_args())
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("Undocked", output)
+        self.assertIn("automatic", mock_print.call_args_list[0][0][0])
 
     def test_cmd_skills_empty(self):
         api = mock_api({"result": {"player_skills": []}})

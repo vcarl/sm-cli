@@ -65,7 +65,6 @@ check_output "pois"     "id:|No POIs found" $SM pois
 check      "poi"                           $SM poi
 check      "log"                           $SM log
 check      "nearby"                        $SM nearby
-check_grep "wait"       "Ready"            $SM wait --timeout 5
 echo ""
 
 # ── CLI help / commands ───────────────────────────────────

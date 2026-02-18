@@ -218,7 +218,7 @@ def cmd_travel(api, args):
         dest = r.get("poi") or r.get("poi_id", "destination")
         action = r.get("action", "traveling")
         print(f"Traveling to {dest}... ({action})")
-        print("  Hint: sm wait")
+
 
 
 def cmd_jump(api, args):
@@ -241,33 +241,15 @@ def cmd_jump(api, args):
             cmd = r.get("command", "jump")
             pending = r.get("pending", False)
             print(f"Jump initiated. (command: {cmd}, pending: {pending})")
-        print("  Hint: sm wait")
+
 
 
 def cmd_dock(api, args):
-    resp = api._post("dock")
-    if resp.get("error"):
-        print(f"ERROR: {resp['error']}")
-        print("  Hint: sm pois  (find a base to dock at)")
-    else:
-        api._clear_status_cache()  # Clear cache after state change
-        r = resp.get("result", {})
-        msg = r.get("message")
-        if msg:
-            print(msg)
-        else:
-            print("Docked.")
-        print("  Hint: sm base  |  sm listings  |  sm refuel  |  sm repair")
+    print("Docking is now automatic. No action needed.")
 
 
 def cmd_undock(api, args):
-    resp = api._post("undock")
-    if resp.get("error"):
-        print(f"ERROR: {resp['error']}")
-    else:
-        api._clear_status_cache()  # Clear cache after state change
-        print("Undocked.")
-        print("  Hint: sm nearby  |  sm mine  |  sm travel <poi_id>")
+    print("Undocking is now automatic. No action needed.")
 
 
 def cmd_mine(api, args):
@@ -365,39 +347,6 @@ def cmd_chat(api, args):
         r = resp.get("result", {})
         channel = r.get("channel") or args.channel
         print(f"Sent to {channel}.")
-
-
-def cmd_wait(api, args):
-    """Block until the player is no longer in transit or performing an action."""
-    timeout = getattr(args, "timeout", 60)
-    elapsed = 0
-    interval = 3
-    while elapsed < timeout:
-        resp = api._post("get_status")
-        r = resp.get("result", {})
-        p = r.get("player", {})
-        s = r.get("ship", {})
-        # Check common transit/action indicators
-        in_transit = (
-            p.get("in_transit", False)
-            or p.get("is_traveling", False)
-            or s.get("in_transit", False)
-            or p.get("current_action") not in (None, "", "idle")
-        )
-        if not in_transit:
-            print("Ready.")
-            print("  Hint: sm status  |  sm nearby  |  sm pois")
-            return
-        action = p.get("current_action") or "in transit"
-        eta = p.get("eta") or p.get("ticks_remaining") or s.get("eta")
-        msg = f"Waiting... ({action}"
-        if eta:
-            msg += f", ETA: {eta} ticks"
-        msg += ")"
-        print(msg, flush=True)
-        time.sleep(interval)
-        elapsed += interval
-    print(f"Timed out after {timeout}s.")
 
 
 def cmd_log(api, args):

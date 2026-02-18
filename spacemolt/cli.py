@@ -97,18 +97,14 @@ Tips:
     p_jump = sub.add_parser("jump", help="Jump to adjacent system")
     p_jump.add_argument("target_system", help="System ID to jump to")
 
-    # dock
-    sub.add_parser("dock", help="Dock at base")
+    # dock (no-op, kept for backwards compat)
+    sub.add_parser("dock", help="No-op (docking is automatic)")
 
-    # undock
-    sub.add_parser("undock", help="Undock from base")
+    # undock (no-op, kept for backwards compat)
+    sub.add_parser("undock", help="No-op (undocking is automatic)")
 
     # mine
     sub.add_parser("mine", help="Mine once")
-
-    # wait
-    p_wait = sub.add_parser("wait", help="Block until current action completes")
-    p_wait.add_argument("--timeout", type=int, default=60, help="Max seconds to wait (default: 60)")
 
     # refuel
     sub.add_parser("refuel", help="Refuel ship")
@@ -326,7 +322,6 @@ COMMAND_MAP = {
     "dock": commands.cmd_dock,
     "undock": commands.cmd_undock,
     "mine": commands.cmd_mine,
-    "wait": commands.cmd_wait,
     "refuel": commands.cmd_refuel,
     "repair": commands.cmd_repair,
     "wrecks": commands.cmd_wrecks,

@@ -479,7 +479,7 @@ class SpaceMoltAPI:
         self._status_cache = None
         self._status_cache_time = 0
 
-    def _require_docked(self, hint="You must dock first. Hint: sm dock"):
+    def _require_docked(self, hint="You must be docked at a base for this action."):
         """Raise APIError if not currently docked at a station."""
         status = self._get_cached_status()
         result = status.get("result", {})
@@ -488,7 +488,7 @@ class SpaceMoltAPI:
         if not docked:
             raise APIError(hint)
 
-    def _require_undocked(self, hint="You must undock first. Hint: sm undock"):
+    def _require_undocked(self, hint="You must be undocked for this action."):
         """Raise APIError if currently docked at a station."""
         status = self._get_cached_status()
         result = status.get("result", {})
