@@ -290,11 +290,16 @@ def cmd_sell(api, args):
         print(f"ERROR: {err}")
     else:
         r = result.get("result", {})
+        qty_sold = r.get("quantity_sold", args.quantity)
+        unsold = r.get("unsold", 0)
         earned = _extract_earned(r)
-        if earned is not None:
-            print(f"Sold {args.item_id} x{args.quantity} (+{earned} cr)")
+        if unsold and unsold > 0:
+            msg = r.get("message", "No buyers at this station. Items remain in cargo.")
+            print(f"WARNING: {msg}")
+        elif earned is not None:
+            print(f"Sold {args.item_id} x{qty_sold} (+{earned} cr)")
         else:
-            print(f"Sold {args.item_id} x{args.quantity}")
+            print(f"Sold {args.item_id} x{qty_sold}")
 
 
 def _extract_earned(result_dict):
