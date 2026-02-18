@@ -167,25 +167,66 @@ def cmd_poi(api, args):
     pid = p.get("id") or p.get("poi_id", "")
     if pid:
         print(f"  id: {pid}")
+    desc = p.get("description")
+    if desc:
+        print(f"  {desc}")
+    pos = p.get("position")
+    if pos:
+        print(f"  Position: ({pos.get('x', '?')}, {pos.get('y', '?')})")
 
-    resources = p.get("resources", [])
+    # Police presence
+    police_drones = r.get("police_drones")
+    police_warning = r.get("police_warning")
+    if police_drones is not None or police_warning:
+        print()
+        if police_drones is not None:
+            print(f"Police drones: {police_drones}")
+        if police_warning:
+            print(f"Warning: {police_warning}")
+
+    # Resources (prefer result-level, fall back to poi-level)
+    resources = r.get("resources") or p.get("resources", [])
     if resources:
         print("\nResources:")
         for res in resources:
             if isinstance(res, dict):
                 name = res.get("name") or res.get("resource_id", "?")
-                richness = res.get("richness") or res.get("abundance", "")
+                richness = res.get("richness", "")
+                remaining = res.get("remaining_display") or res.get("remaining")
                 line = f"  {name}"
                 if richness:
                     line += f" ({richness})"
+                if remaining is not None:
+                    line += f"  remaining: {remaining}"
                 print(line)
             else:
                 print(f"  {res}")
 
-    base = p.get("base") or p.get("base_id")
+    # Base
+    base = r.get("base") or p.get("base") or p.get("base_id")
     if base:
         if isinstance(base, dict):
-            print(f"\nBase: {base.get('name', '?')} (id:{base.get('id', '?')})")
+            print(f"\nBase: {base.get('name', '?')} [{base.get('type', '?')}]")
+            print(f"  id: {base.get('id', '?')}")
+            if base.get("empire"):
+                print(f"  Empire: {base['empire']}")
+            if base.get("faction_id"):
+                print(f"  Faction: {base['faction_id']}")
+            if base.get("owner_id"):
+                print(f"  Owner: {base['owner_id']}")
+            print(f"  Defense: {base.get('defense_level', '?')}  Public: {'yes' if base.get('public_access') else 'no'}")
+            if base.get("has_drones"):
+                print(f"  Has drones: yes")
+            if base.get("description"):
+                print(f"  {base['description']}")
+            services = base.get("services", {})
+            if services:
+                active = [s for s, v in services.items() if v]
+                if active:
+                    print(f"  Services: {', '.join(sorted(active))}")
+            facilities = base.get("facilities", [])
+            if facilities:
+                print(f"  Facilities: {', '.join(facilities)}")
         else:
             print(f"\nBase: {base}")
 
