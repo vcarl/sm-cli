@@ -615,10 +615,10 @@ def _fmt_view_market_item(resp):
 
         print(f"{item_name} ({item_id})")
 
-        # Sell orders (what NPCs/players are selling TO you - you can buy from them)
+        # Asks (sell orders - what's available to buy)
         sell_orders = item_data.get("sell_orders", [])
         if sell_orders:
-            print(f"\n  Sell Orders (you can BUY at these prices):")
+            print(f"\n  Asks:")
             for order in sell_orders[:10]:  # Show top 10
                 price = order.get("price_each", "?")
                 qty = order.get("quantity", "?")
@@ -626,12 +626,12 @@ def _fmt_view_market_item(resp):
                 seller_type = "NPC" if is_npc else "Player"
                 print(f"    {qty:>6} @ {price:>5} cr  [{seller_type}]")
         else:
-            print("\n  No sell orders (cannot buy this item here)")
+            print("\n  No asks (cannot buy this item here)")
 
-        # Buy orders (what NPCs/players want to buy FROM you - you can sell to them)
+        # Bids (buy orders - what people want to buy)
         buy_orders = item_data.get("buy_orders", [])
         if buy_orders:
-            print(f"\n  Buy Orders (you can SELL at these prices):")
+            print(f"\n  Bids:")
             for order in buy_orders[:10]:  # Show top 10
                 price = order.get("price_each", "?")
                 qty = order.get("quantity", "?")
@@ -639,15 +639,15 @@ def _fmt_view_market_item(resp):
                 buyer_type = "NPC" if is_npc else "Player"
                 print(f"    {qty:>6} @ {price:>5} cr  [{buyer_type}]")
         else:
-            print("\n  No buy orders (no one buying this item here)")
+            print("\n  No bids (no one buying this item here)")
 
         # Summary
         if best_buy and best_sell:
-            print(f"\n  Best buy: {best_buy} cr  |  Best sell: {best_sell} cr  |  Spread: {spread} cr")
+            print(f"\n  Best bid: {best_buy} cr  |  Best ask: {best_sell} cr  |  Spread: {spread} cr")
         elif best_sell:
-            print(f"\n  Best sell: {best_sell} cr")
+            print(f"\n  Best ask: {best_sell} cr")
         elif best_buy:
-            print(f"\n  Best buy: {best_buy} cr")
+            print(f"\n  Best bid: {best_buy} cr")
 
         print(f"\n  Hint: sm buy {item_id} <qty>  |  sm sell {item_id} <qty>")
 
@@ -682,11 +682,18 @@ def cmd_listings(api, args):
         print("                 sm market sell <item> <qty> <price>")
         return
 
+    PAGE_SIZE = 20
+    page = getattr(args, "page", 1) or 1
+    total_pages = (len(items) + PAGE_SIZE - 1) // PAGE_SIZE
+    page = max(1, min(page, total_pages))
+    start = (page - 1) * PAGE_SIZE
+    page_items = items[start:start + PAGE_SIZE]
+
     print("Market Listings:")
-    print(f"{'Item ID':<25} {'Buy Price':>11} {'Sell Price':>12} {'Spread':>16} {'Buy Qty':>10} {'Buy Value':>12} {'Sell Qty':>10} {'Sell Value':>12}")
+    print(f"{'Item ID':<25} {'Best Bid':>11} {'Best Ask':>12} {'Spread':>16} {'Bid Qty':>10} {'Bid Value':>12} {'Ask Qty':>10} {'Ask Value':>12}")
     print("-" * 126)
 
-    for item_data in items[:20]:  # Limit to 20 items
+    for item_data in page_items:
         item_id = item_data.get("item_id", "?")
         best_buy = item_data.get("best_buy", 0)
         best_sell = item_data.get("best_sell", 0)
@@ -746,8 +753,9 @@ def cmd_listings(api, args):
 
         print(f"{item_id:<25} {buy_str:>11} {sell_str:>12} {spread:>16} {buy_qty_str:>10} {buy_val_str:>12} {sell_qty_str:>10} {sell_val_str:>12}")
 
-    if len(items) > 20:
-        print(f"\n... and {len(items) - 20} more items")
+    print(f"\n  Page {page}/{total_pages}")
+    if page < total_pages:
+        print(f"  Next page: sm listings --page {page + 1}")
 
     print(f"\n  Hint: sm listings <item_id>  (detailed orders for an item)")
     print("        sm market buy <item_id> <qty> <price>  |  sm market sell <item_id> <qty> <price>")
