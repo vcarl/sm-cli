@@ -110,8 +110,8 @@ def _recipe_skill_tier(recipe):
 
 def _recipe_one_line(recipe):
     """Format a recipe as: inputs -> outputs (with quantities)."""
-    inputs = recipe.get("inputs", [])
-    outputs = recipe.get("outputs", [])
+    inputs = recipe.get("inputs") or []
+    outputs = recipe.get("outputs") or []
     lhs = " + ".join(
         f"{i.get('quantity', 1)}x {i.get('item_id', '?')}" for i in inputs
     )
@@ -248,7 +248,7 @@ def _do_progression(recipe_list, by_output, limit=10, page=1):
         rid = r.get("id", "")
         flow = _recipe_one_line(r)
         crafted_inputs = [
-            i["item_id"] for i in r.get("inputs", [])
+            i["item_id"] for i in (r.get("inputs") or [])
             if i.get("item_id") in by_output
         ]
         chain_marker = " \u25c6" if crafted_inputs else ""
