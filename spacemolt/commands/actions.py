@@ -252,8 +252,20 @@ def cmd_mine(api, args):
 
 
 def cmd_refuel(api, args):
-    api._require_docked()
-    resp = api._post("refuel")
+    payload = {}
+    item_id = getattr(args, "item_id", None)
+    quantity = getattr(args, "quantity", None)
+    if item_id:
+        payload["item_id"] = item_id
+    if quantity:
+        payload["quantity"] = quantity
+    if payload:
+        # Fuel cell consumption works anywhere (no docking required)
+        resp = api._post("refuel", payload)
+    else:
+        # Station refueling requires docking
+        api._require_docked()
+        resp = api._post("refuel")
     if resp.get("error"):
         print(f"ERROR: {resp['error']}")
     else:

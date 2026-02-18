@@ -107,7 +107,9 @@ Tips:
     sub.add_parser("mine", help="Mine once")
 
     # refuel
-    sub.add_parser("refuel", help="Refuel ship")
+    p_refuel = sub.add_parser("refuel", help="Refuel ship (docked=station credits; item_id=burn fuel cell from cargo anywhere)")
+    p_refuel.add_argument("item_id", nargs="?", default=None, help="Fuel cell item ID (e.g. fuel_cell) — works in space!")
+    p_refuel.add_argument("quantity", nargs="?", type=int, default=None, help="Number of fuel cells to burn")
 
     # repair
     sub.add_parser("repair", help="Repair ship")
