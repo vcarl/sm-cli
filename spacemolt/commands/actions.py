@@ -352,6 +352,9 @@ def cmd_log(api, args):
     resp = api._post("captains_log_list")
     entries = resp.get("result", {}).get("entries", [])
     entries = entries[:5]
+    if not entries:
+        print("No log entries.")
+        return
     brief = getattr(args, "brief", False)
     for i, e in enumerate(entries):
         text = e.get("entry") or str(e)

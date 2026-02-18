@@ -1404,7 +1404,7 @@ class TestCmdLog(unittest.TestCase):
         api = mock_api({"result": {"entries": []}})
         with patch("builtins.print") as mock_print:
             cmd_log(api, make_args(brief=False))
-        mock_print.assert_not_called()
+        mock_print.assert_called_once_with("No log entries.")
 
 
 class TestCmdPois(unittest.TestCase):
