@@ -135,6 +135,14 @@ class SpaceMoltAPI:
                 time.sleep(delay)
                 return self._post(endpoint, body, use_session, _retried, _retry_count + 1)
             raise APIError(f"Network error: {e.reason}")
+        except TimeoutError as e:
+            # SSL/socket-level timeout not wrapped by urllib (TimeoutError is OSError subclass)
+            if _retry_count < 2:
+                delay = 2 ** _retry_count
+                print(f"Timeout, retrying in {delay}s...", flush=True)
+                time.sleep(delay)
+                return self._post(endpoint, body, use_session, _retried, _retry_count + 1)
+            raise APIError(f"Request timed out after retries")
 
     @staticmethod
     def _format_notification(n):
