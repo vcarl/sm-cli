@@ -30,7 +30,7 @@ def cmd_insurance_status(api, args):
 
     if not insurance or not isinstance(insurance, dict):
         print("No active insurance coverage.")
-        print("  Hint: sm insurance buy <ticks>")
+        print("  Hint: sm insurance buy <coverage_percent> <ticks>")
         return
 
     ticks_remaining = insurance.get("ticks_remaining") or insurance.get("ticks", 0)
@@ -47,22 +47,26 @@ def cmd_insurance_status(api, args):
 
     if ticks_remaining <= 0:
         print("\n  ⚠️  Insurance has expired!")
-        print("  Hint: sm insurance buy <ticks>")
+        print("  Hint: sm insurance buy <coverage_percent> <ticks>")
     elif ticks_remaining < 10:
         print(f"\n  ⚠️  Insurance expires soon!")
-        print("  Hint: sm insurance buy <ticks>")
+        print("  Hint: sm insurance buy <coverage_percent> <ticks>")
 
 
 def cmd_insurance_buy(api, args):
     """Purchase insurance coverage."""
     as_json = getattr(args, "json", False)
     ticks = args.ticks
+    coverage_percent = args.coverage_percent
 
     if ticks <= 0:
         print("Error: Ticks must be greater than 0")
         return
+    if not (50 <= coverage_percent <= 100):
+        print("Error: Coverage percent must be between 50 and 100")
+        return
 
-    resp = api._post("buy_insurance", {"ticks": ticks})
+    resp = api._post("buy_insurance", {"coverage_percent": coverage_percent, "ticks": ticks})
 
     if as_json:
         print(json.dumps(resp, indent=2))
@@ -110,7 +114,7 @@ def cmd_insurance_claim(api, args):
         # Provide helpful hints based on error
         if "no insurance" in str(err_msg).lower():
             print("\n  You don't have active insurance coverage.")
-            print("  Hint: sm insurance buy <ticks>")
+            print("  Hint: sm insurance buy <coverage_percent> <ticks>")
         elif "not destroyed" in str(err_msg).lower() or "alive" in str(err_msg).lower():
             print("\n  Your ship is still intact - no claim needed!")
         return
