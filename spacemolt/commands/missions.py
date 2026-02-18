@@ -202,9 +202,13 @@ def cmd_active_missions(api, args):
 
         if progress is not None:
             if isinstance(progress, dict):
-                current = progress.get("current", 0)
-                target = progress.get("target", "?")
-                print(f"  Progress: {current}/{target}")
+                pct = progress.get("percent_complete")
+                if pct is not None:
+                    print(f"  Progress: {pct}% complete")
+                else:
+                    current = progress.get("current", 0)
+                    target = progress.get("target", "?")
+                    print(f"  Progress: {current}/{target}")
             else:
                 print(f"  Progress: {progress}")
 
@@ -217,12 +221,16 @@ def cmd_active_missions(api, args):
             cr = rewards.get("credits")
             if cr:
                 reward_parts.append(f"{cr} cr")
-            items = rewards.get("items", [])
-            for ri in items:
-                if isinstance(ri, dict):
-                    reward_parts.append(f"{ri.get('item_id', '?')} x{ri.get('quantity', 1)}")
-                else:
-                    reward_parts.append(str(ri))
+            items = rewards.get("items", {})
+            if isinstance(items, dict):
+                for item_id, qty in items.items():
+                    reward_parts.append(f"{item_id} x{qty}")
+            else:
+                for ri in items:
+                    if isinstance(ri, dict):
+                        reward_parts.append(f"{ri.get('item_id', '?')} x{ri.get('quantity', 1)}")
+                    else:
+                        reward_parts.append(str(ri))
         elif isinstance(rewards, list):
             for ri in rewards:
                 reward_parts.append(str(ri))
