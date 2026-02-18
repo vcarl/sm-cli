@@ -219,11 +219,25 @@ def cmd_jump(api, args):
 
 
 def cmd_dock(api, args):
-    print("Docking is now automatic. No action needed.")
+    resp = api._post("dock")
+    if resp.get("error"):
+        err = resp["error"]
+        print(f"ERROR: {err.get('message', err) if isinstance(err, dict) else err}")
+    else:
+        api._clear_status_cache()
+        r = resp.get("result", {})
+        print(r.get("message", "Docking queued."))
 
 
 def cmd_undock(api, args):
-    print("Undocking is now automatic. No action needed.")
+    resp = api._post("undock")
+    if resp.get("error"):
+        err = resp["error"]
+        print(f"ERROR: {err.get('message', err) if isinstance(err, dict) else err}")
+    else:
+        api._clear_status_cache()
+        r = resp.get("result", {})
+        print(r.get("action", "Undocked."))
 
 
 def cmd_mine(api, args):
