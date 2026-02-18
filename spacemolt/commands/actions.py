@@ -338,9 +338,17 @@ def cmd_chat(api, args):
 
 
 def cmd_log(api, args):
-    resp = api._post("captains_log_list")
-    entries = resp.get("result", {}).get("entries", [])
-    entries = entries[:5]
+    # API returns one entry at a time via index parameter, not a list
+    # Fetch up to 5 most recent entries (index 0 = most recent)
+    entries = []
+    for idx in range(5):
+        resp = api._post("captains_log_list", {"index": idx})
+        result = resp.get("result", {})
+        entry = result.get("entry")
+        if entry:
+            entries.append(entry)
+        if not result.get("has_next"):
+            break
     if not entries:
         print("No log entries.")
         return
