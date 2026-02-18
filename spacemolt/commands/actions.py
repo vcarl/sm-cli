@@ -201,10 +201,9 @@ def _print_login_summary(r):
     if release:
         ver = release.get("version", "?")
         notes = release.get("notes", [])
-        note_str = notes[0] if notes else ""
-        if len(note_str) > 80:
-            note_str = note_str[:77] + "..."
-        print(f"v{ver}: {note_str}")
+        print(f"v{ver} patch notes:")
+        for note in notes:
+            print(f"  - {note}")
 
 
 def cmd_travel(api, args):
