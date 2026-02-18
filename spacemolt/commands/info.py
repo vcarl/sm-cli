@@ -260,19 +260,51 @@ def cmd_base(api, args):
     if active:
         print(f"\nServices: {', '.join(active)}")
 
-    if isinstance(services, dict) and services.get("market"):
-        print("Market: available (use 'sm listings' to browse)")
+    # Service-specific command hints
+    svc = services if isinstance(services, dict) else {}
 
-    # Show storage hints when base has storage service
-    has_storage = (isinstance(services, dict) and services.get("storage")) or \
-                  (isinstance(services, list) and any("storage" in s.lower() for s in services))
-    if has_storage:
-        print("\nStorage commands:")
-        print("  sm storage deposit <item_id> <quantity>")
-        print("  sm storage withdraw <item_id> <quantity>")
-        print("  sm storage deposit --credits <amount>")
-        print("  sm storage withdraw --credits <amount>")
-        print("  sm send-gift <recipient> [item_id] [quantity] [credits] [message]")
+    if svc.get("market"):
+        print("\nMarket:")
+        print("  sm listings                          Browse order book")
+        print("  sm listings <item_id>                Detailed orders for an item")
+        print("  sm market buy <item> <qty> <price>   Place a buy order")
+        print("  sm market sell <item> <qty> <price>  Place a sell order")
+        print("  sm market                            View your active orders")
+        print("  sm market cancel <order_id>          Cancel an order")
+        print("  sm analyze-market                    Price trends & trade insights")
+
+    if svc.get("storage"):
+        print("\nStorage:")
+        print("  sm storage deposit <item_id> <qty>   Deposit items")
+        print("  sm storage withdraw <item_id> <qty>  Withdraw items")
+        print("  sm storage deposit --credits <amt>   Deposit credits")
+        print("  sm storage withdraw --credits <amt>  Withdraw credits")
+        print("  sm send-gift <player> [item] [qty] [credits] [msg]")
+
+    if svc.get("missions"):
+        print("\nMissions:")
+        print("  sm missions                          Browse & track missions")
+        print("  sm missions available                Available missions here")
+        print("  sm missions accept <id>              Accept a mission")
+
+    if svc.get("repair"):
+        print("\nRepair: sm repair")
+    if svc.get("refuel"):
+        print("Refuel: sm refuel")
+    if svc.get("shipyard"):
+        print("Shipyard: sm ships  |  sm buy-ship <id>  |  sm sell-ship <id>")
+    if svc.get("crafting"):
+        print("Crafting: sm recipes  |  sm recipes craft <recipe_id> [count]")
+    if svc.get("insurance"):
+        print("Insurance: sm insurance-buy  |  sm insurance-claim")
+
+    print("\nFacilities:")
+    print("  sm facility help                     Full facility documentation")
+    print("  sm facility types                    Browse buildable facility types")
+    print("  sm facility list                     Your facilities at this base")
+    print("  sm facility build <type>             Build a new facility")
+    print("  sm facility upgrades <facility_id>   Available upgrades")
+    print("  sm facility upgrade <facility_id>    Upgrade a facility")
 
 
 def cmd_cargo(api, args):
