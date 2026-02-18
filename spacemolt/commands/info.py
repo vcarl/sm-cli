@@ -25,7 +25,7 @@ def cmd_status(api, args):
     print(f"Credits: {p.get('credits', '?')}")
     print(f"Location: {location}")
     print(f"Ship: {s.get('class_id', '?')}")
-    print(f"Hull: {s.get('hull', '?')}/{s.get('max_hull', '?')} | Fuel: {s.get('fuel', '?')}/{s.get('max_fuel', '?')}")
+    print(f"Hull: {s.get('hull', '?')}/{s.get('max_hull', '?')} | Shield: {s.get('shield', '?')}/{s.get('max_shield', '?')} | Fuel: {s.get('fuel', '?')}/{s.get('max_fuel', '?')}")
     print(f"Cargo: {s.get('cargo_used', '?')}/{s.get('cargo_capacity', '?')}")
 
 
