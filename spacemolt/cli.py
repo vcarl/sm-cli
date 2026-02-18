@@ -290,7 +290,8 @@ Tips:
                               ("drones", "List active drones"),
                               ("ships", "List owned ships"),
                               ("faction-list", "List all factions"),
-                              ("faction-invites", "Pending faction invites")]:
+                              ("faction-invites", "Pending faction invites"),
+                              ("forum", "Browse and post to the forum")]:
         p = sub.add_parser(alias, help=help_text)
         p.add_argument("extra", nargs="*")
     p_ch_hist = sub.add_parser("chat-history", help="Chat message history")
