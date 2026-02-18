@@ -353,6 +353,7 @@ COMMAND_MAP = {
     "ships": commands.cmd_ships,
     "faction-list": commands.cmd_faction_list,
     "faction-invites": commands.cmd_faction_invites,
+    "forum": commands.cmd_forum,
     # Phase 4: Hierarchical commands
     "insurance": commands.cmd_insurance,
     "storage": commands.cmd_storage,

@@ -86,40 +86,33 @@ def cmd_ship(api, args):
 def cmd_pois(api, args):
     resp = api._post("get_system")
     result = resp.get("result", {})
-    pois = result.get("pois", [])
+    system = result.get("system", {})
+    pois = system.get("pois", [])
 
-    # Check if there's a skill note explaining why we can't see POIs
-    skill_note = result.get("skill_note")
-    if skill_note:
-        print(skill_note)
-        print()
-
-    # Also check for current_poi
-    current_poi = result.get("current_poi")
+    current_poi = result.get("poi")
     if current_poi:
         name = current_poi.get("name") or current_poi.get("type") or "unnamed"
         ptype = current_poi.get("type", "?")
-        line = f"{name} [{ptype}] (current)"
-        line += f"\n  id: {current_poi.get('id', '?')}"
-        print(line)
+        print(f"{name} [{ptype}] (current)")
+        print(f"  id: {current_poi.get('id', '?')}")
 
     if not pois:
-        if not skill_note and not current_poi:
+        if not current_poi:
             print("No POIs found in current system")
         return
 
-    pois.sort(key=lambda p: p.get("distance", 0))
     for p in pois:
         name = p.get("name") or p.get("type") or "unnamed"
         ptype = p.get("type", "?")
-        line = f"{name} [{ptype}]"
-        if p.get("distance") is not None:
-            line += f" ({p['distance']} AU)"
-        base_id = p.get("base_id")
-        if base_id:
-            line += f" *base:{base_id}*"
-        line += f"\n  id: {p.get('id', '?')}"
-        print(line)
+        parts = [f"{name} [{ptype}]"]
+        if p.get("has_base"):
+            base_name = p.get("base_name") or p.get("base_id") or "base"
+            parts.append(f"(base: {base_name})")
+        online = p.get("online")
+        if online:
+            parts.append(f"({online} online)")
+        print(" ".join(parts))
+        print(f"  id: {p.get('id', '?')}")
 
 
 def cmd_system(api, args):

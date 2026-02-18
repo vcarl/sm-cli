@@ -1088,7 +1088,7 @@ class TestExistingCommandsRegression(unittest.TestCase):
         self.assertIn("ERROR", mock_print.call_args[0][0])
 
     def test_cmd_refuel(self):
-        api = mock_api({"result": {"fuel_now": 50, "fuel_max": 50, "cost": 100}})
+        api = mock_api({"result": {"fuel": "50/50", "cost": 100}})
         with patch("builtins.print") as mock_print:
             from spacemolt.commands import cmd_refuel
             cmd_refuel(api, make_args())
@@ -1411,20 +1411,19 @@ class TestCmdLog(unittest.TestCase):
 class TestCmdPois(unittest.TestCase):
 
     def test_with_pois(self):
-        api = mock_api({"result": {"pois": [
-            {"name": "Asteroid Belt", "type": "asteroid_belt", "id": "poi-1", "distance": 2.5},
-            {"name": "Station Alpha", "type": "station", "id": "poi-2", "distance": 0.1, "base_id": "base-1"},
-        ]}})
+        api = mock_api({"result": {"system": {"pois": [
+            {"name": "Asteroid Belt", "type": "asteroid_belt", "id": "poi-1"},
+            {"name": "Station Alpha", "type": "station", "id": "poi-2", "has_base": True, "base_name": "Base One"},
+        ]}}})
         with patch("builtins.print") as mock_print:
             cmd_pois(api, make_args())
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        output = "\n".join(str(c[0][0]) for c in mock_print.call_args_list)
         self.assertIn("Asteroid Belt", output)
         self.assertIn("Station Alpha", output)
-        self.assertIn("base:base-1", output)
-        self.assertIn("2.5 AU", output)
+        self.assertIn("base: Base One", output)
 
     def test_empty_pois(self):
-        api = mock_api({"result": {"pois": []}})
+        api = mock_api({"result": {"system": {"pois": []}}})
         with patch("builtins.print") as mock_print:
             cmd_pois(api, make_args())
         output = "\n".join(str(c[0][0]) for c in mock_print.call_args_list)

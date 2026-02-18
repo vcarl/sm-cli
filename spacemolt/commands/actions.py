@@ -288,7 +288,7 @@ def cmd_refuel(api, args):
         print(f"ERROR: {resp['error']}")
     else:
         r = resp.get("result", {})
-        print(f"Refueled. Fuel: {r.get('fuel_now', '?')}/{r.get('fuel_max', '?')} (cost: {r.get('cost', '?')} cr)")
+        print(f"Refueled. Fuel: {r.get('fuel', '?')} (cost: {r.get('cost', '?')} cr)")
 
 
 def cmd_repair(api, args):

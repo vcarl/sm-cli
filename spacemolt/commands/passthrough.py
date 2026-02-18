@@ -6,6 +6,7 @@ __all__ = [
     "cmd_passthrough", "cmd_commands", "cmd_raw",
     "cmd_notes", "cmd_trades", "cmd_drones", "cmd_ships",
     "cmd_chat_history", "cmd_faction_list", "cmd_faction_invites",
+    "cmd_forum",
 ]
 
 
@@ -1190,3 +1191,4 @@ cmd_ships = _make_passthrough_alias("get_ships")
 cmd_chat_history = _make_passthrough_alias("get_chat_history")
 cmd_faction_list = _make_passthrough_alias("faction_list")
 cmd_faction_invites = _make_passthrough_alias("faction_get_invites")
+cmd_forum = _make_passthrough_alias("forum_list")
