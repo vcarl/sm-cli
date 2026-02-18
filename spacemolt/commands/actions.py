@@ -249,6 +249,12 @@ def cmd_mine(api, args):
     msg = r.get("message")
     if msg:
         print(msg)
+    elif r.get("resource_id"):
+        name = r.get("resource_name") or r["resource_id"]
+        qty = r.get("quantity", "?")
+        remaining = r.get("remaining_display") or (str(r["remaining"]) if r.get("remaining", -1) >= 0 else None)
+        rem_str = f" (remaining: {remaining})" if remaining else ""
+        print(f"Mined: {name} x{qty}{rem_str}")
 
 
 def cmd_refuel(api, args):
