@@ -211,16 +211,6 @@ class TestLongOperationProtection(unittest.TestCase):
         self.assertTrue(args.scan)
         self.assertEqual(args.timeout, 60)
 
-    def test_sell_all_accepts_max_items(self):
-        """Sell-all command should accept max-items argument."""
-        from spacemolt.cli import build_parser
-
-        parser = build_parser()
-        args = parser.parse_args(['sell-all', '--max-items', '5'])
-
-        self.assertEqual(args.max_items, 5)
-
-
 class TestErrorMessages(unittest.TestCase):
     """Test enhanced error messages."""
 
@@ -270,7 +260,7 @@ class TestErrorMessages(unittest.TestCase):
         sys.stdout = sys.__stdout__
         output = captured_output.getvalue()
 
-        self.assertIn("sell-all", output.lower())
+        self.assertIn("jettison", output.lower())
 
 
 if __name__ == '__main__':

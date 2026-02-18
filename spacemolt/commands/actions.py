@@ -326,60 +326,6 @@ def _extract_earned(result_dict):
     return None
 
 
-def cmd_sell_all(api, args):
-    cargo_resp = api._post("get_cargo")
-    items = cargo_resp.get("result", {}).get("cargo", [])
-    items = [i for i in items if i.get("quantity", 0) > 0]
-
-    if not items:
-        print("Nothing to sell (cargo empty or unreadable).")
-        return
-
-    # Apply max items limit if specified
-    max_items = getattr(args, "max_items", None)
-    if max_items and max_items > 0:
-        items = items[:max_items]
-
-    total = 0
-    sold_count = 0
-    total_items = len(items)
-
-    try:
-        for idx, item in enumerate(items, 1):
-            item_id = item.get("item_id") or item.get("name") or item.get("id")
-            qty = item.get("quantity", 1)
-
-            # Show progress
-            print(f"  [{idx}/{total_items}] Selling {item_id} x{qty}...", flush=True)
-
-            try:
-                result = api._post("sell", {"item_id": item_id, "quantity": qty})
-                err = result.get("error")
-                if err:
-                    print(f"    FAILED: {err}")
-                else:
-                    r = result.get("result", {})
-                    earned = _extract_earned(r)
-                    sold_count += 1
-                    if earned is not None:
-                        print(f"    Sold (+{earned} cr)")
-                        total += earned
-                    else:
-                        print(f"    Sold")
-            except Exception as e:
-                print(f"    FAILED: {e}")
-
-            if idx < total_items:
-                time.sleep(11)
-    except KeyboardInterrupt:
-        print(f"\n  Interrupted. Sold {sold_count}/{total_items} items.", flush=True)
-
-    if total > 0:
-        print(f"Done. Total earned: {total} cr")
-    else:
-        print(f"Done. Sold {sold_count} item(s).")
-
-
 def cmd_buy(api, args):
     api._require_docked()
     as_json = getattr(args, "json", False)

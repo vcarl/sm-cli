@@ -497,7 +497,7 @@ class SpaceMoltAPI:
         if docked:
             raise APIError(hint)
 
-    def _check_cargo_space(self, required_space, hint="Not enough cargo space. Hint: sm sell-all or sm jettison"):
+    def _check_cargo_space(self, required_space, hint="Not enough cargo space. Hint: sm jettison <item_id> <quantity>"):
         """Raise APIError if cargo space is insufficient."""
         status = self._get_cached_status()
         result = status.get("result", {})

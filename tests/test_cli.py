@@ -162,7 +162,7 @@ class TestKnownCommands(unittest.TestCase):
 
     def test_includes_original_commands(self):
         known = _known_commands()
-        for cmd in ["login", "status", "sell-all", "mine", "chat", "raw"]:
+        for cmd in ["login", "status", "mine", "chat", "raw"]:
             self.assertIn(cmd, known)
 
     def test_includes_new_formatted_commands(self):

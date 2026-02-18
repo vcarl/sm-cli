@@ -74,10 +74,6 @@ Tips:
     p_sell.add_argument("item_id", help="Item ID to sell (e.g. ore_iron)")
     p_sell.add_argument("quantity", nargs="?", type=int, default=1, help="Quantity to sell (default: 1)")
 
-    # sell-all
-    p_sell_all = sub.add_parser("sell-all", help="Sell all cargo (auto-waits between items)")
-    p_sell_all.add_argument("--max-items", type=int, metavar="N", help="Max number of items to sell (default: no limit)")
-
     # buy
     p_buy = sub.add_parser("buy", help="Buy item from NPC market")
     p_buy.add_argument("item_id", help="Item ID to buy (e.g. ore_iron)")
@@ -321,7 +317,6 @@ COMMAND_MAP = {
     "log-add": commands.cmd_log_add,
     "cargo": commands.cmd_cargo,
     "sell": commands.cmd_sell,
-    "sell-all": commands.cmd_sell_all,
     "buy": commands.cmd_buy,
     "skills": commands.cmd_skills_router,  # NEW: hierarchical router
     "nearby": commands.cmd_nearby,
