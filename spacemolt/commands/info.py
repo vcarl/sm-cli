@@ -498,6 +498,17 @@ def cmd_nearby(api, args):
         bid = base_info.get("id", "?")
         print(f"  \U0001f3ed base: `{bname}`({bid})")
 
+    # --- Police presence ---
+    police_drones = poi_r.get("police_drones")
+    police_warning = poi_r.get("police_warning")
+    if police_drones is not None or police_warning:
+        police_parts = []
+        if police_drones is not None:
+            police_parts.append(f"\U0001f6e1\ufe0f {police_drones} police drones")
+        if police_warning:
+            police_parts.append(f"\u26a0\ufe0f {police_warning}")
+        print("  " + "  ".join(police_parts))
+
     # --- Resources ---
     resources = poi_r.get("resources") or poi_info.get("resources", [])
     if resources:
@@ -516,7 +527,7 @@ def cmd_nearby(api, args):
     print()
 
     # --- Counts ---
-    player_count = len(players)
+    player_count = r.get("count", len(players))
     pirate_count = r.get("pirate_count", len(pirates))
     print(f"\U0001f468\u200d\U0001f468\u200d\U0001f467\u200d\U0001f467 {player_count} / \U0001f3f4\u200d\u2620\ufe0f {pirate_count}")
     print()
@@ -528,6 +539,7 @@ def cmd_nearby(api, args):
         pid = p.get("player_id", "")
         ship = p.get("ship_class", "?")
         clan = p.get("clan_tag", "")
+        faction = p.get("faction_tag", "")
         in_combat = p.get("in_combat", False)
         anon = p.get("anonymous", False)
         status_msg = p.get("status_message", "")
@@ -540,9 +552,15 @@ def cmd_nearby(api, args):
         role = _ship_role(ship)
 
         ship_col = f"{role}({ship}:{pid})"
-        clan_str = f"[{clan}] " if clan else ""
+        tags = ""
+        if clan:
+            tags += f"[{clan}]"
+        if faction:
+            tags += f"{{{faction}}}"
+        if tags:
+            tags += " "
         display_name = "\u2753" if anon else name
-        name_col = f"{clan_str}`{display_name}`(user:{pid})"
+        name_col = f"{tags}`{display_name}`(user:{pid})"
         if in_combat:
             name_col += " \u2694\ufe0f"
         # Annotations after the main columns
