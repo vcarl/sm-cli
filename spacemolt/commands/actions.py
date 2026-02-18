@@ -50,7 +50,9 @@ def cmd_register(api, args):
 
     r = resp.get("result", {})
     password = r.get("password")
-    final_username = r.get('username', username)
+    player = r.get("player", {})
+    final_username = player.get("username", username)
+    final_empire = player.get("empire", empire)
 
     # Check if output is being piped (not a TTY)
     import sys
@@ -67,7 +69,7 @@ def cmd_register(api, args):
         print("=" * 60)
         print()
         print(f"Username: {final_username}")
-        print(f"Empire:   {r.get('empire', empire)}")
+        print(f"Empire:   {final_empire}")
         print()
 
         # Show password prominently
@@ -79,12 +81,6 @@ def cmd_register(api, args):
             print()
             print("⚠️  WARNING: There is NO password recovery!")
             print("   Save this password in a safe place.")
-            print()
-
-        # Show session info
-        session_id = r.get("session_id")
-        if session_id:
-            print(f"Session ID: {session_id[:16]}...")
             print()
 
         print("To save credentials, run:")
@@ -145,22 +141,15 @@ def _print_login_summary(r):
     """Print a compact status summary from the login response."""
     player = r.get("player", {})
     ship = r.get("ship", {})
-    system = r.get("system", {})
-    poi = r.get("poi", {})
-    unread = r.get("unread_chat", {})
-    release = r.get("release_info", {})
     log_entries = r.get("captains_log", [])
     trades = r.get("pending_trades")
 
-    # Location
-    sys_name = system.get("name") or player.get("current_system", "?")
-    poi_name = poi.get("name") or player.get("current_poi", "?")
-    police = system.get("police_level")
+    # Location (from player fields)
+    sys_name = player.get("current_system", "?")
+    poi_name = player.get("current_poi", "?")
     loc_line = f"{sys_name} > {poi_name}"
     if player.get("docked_at_base"):
         loc_line += " (docked)"
-    if police is not None:
-        loc_line += f"  [police: {police}]"
     print(loc_line)
 
     # Credits & empire
@@ -177,12 +166,6 @@ def _print_login_summary(r):
     ]
     print("  ".join(parts))
 
-    # Unread chat
-    if unread:
-        counts = [f"{ch}:{ct}" for ch, ct in unread.items() if ct]
-        if counts:
-            print(f"Unread: {' '.join(counts)}")
-
     # Pending trades
     if trades:
         print(f"Pending trades: {len(trades)}")
@@ -196,14 +179,6 @@ def _print_login_summary(r):
             first_line = first_line[:97] + "..."
         ts = latest.get("created_at", "")[:10]
         print(f"Last log ({ts}): {first_line}")
-
-    # Release info
-    if release:
-        ver = release.get("version", "?")
-        notes = release.get("notes", [])
-        print(f"v{ver} patch notes:")
-        for note in notes:
-            print(f"  - {note}")
 
 
 def cmd_travel(api, args):

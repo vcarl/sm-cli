@@ -41,7 +41,7 @@ def cmd_ship(api, args):
     print(f"Ship: {s.get('class_id', '?')}")
     print(f"Hull: {s.get('hull', '?')}/{s.get('max_hull', '?')} | Shield: {s.get('shield', '?')}/{s.get('max_shield', '?')}")
     print(f"Fuel: {s.get('fuel', '?')}/{s.get('max_fuel', '?')}")
-    print(f"Cargo: {r.get('cargo_used') or s.get('cargo_used', '?')}/{r.get('cargo_max') or s.get('cargo_capacity', '?')}")
+    print(f"Cargo: {r.get('cargo_used', s.get('cargo_used', '?'))}/{r.get('cargo_max', s.get('cargo_capacity', '?'))}")
     print(f"CPU: {s.get('cpu_used', '?')}/{s.get('cpu_capacity', '?')} | Power: {s.get('power_used', '?')}/{s.get('power_capacity', '?')}")
 
     modules = r.get("modules") or s.get("modules") or []
@@ -76,7 +76,7 @@ def cmd_ship(api, args):
         print(f"\nCargo ({s.get('cargo_used', '?')}/{s.get('cargo_capacity', '?')}):")
         for item in cargo:
             if isinstance(item, dict):
-                name = item.get("item_id") or item.get("name", "?")
+                name = item.get("item_id", "?")
                 qty = item.get("quantity", 1)
                 print(f"  {name} x{qty}")
             else:
@@ -121,7 +121,7 @@ def cmd_system(api, args):
     sys_info = r.get("system", r)
 
     print(f"System: {sys_info.get('name', '?')}")
-    print(f"Security: {r.get('security_status', '?')}")
+    print(f"Security: {sys_info.get('security_status', '?')}")
     print()
 
     pois = sys_info.get("pois", [])
@@ -164,7 +164,7 @@ def cmd_poi(api, args):
     p = r.get("poi", r)
 
     print(f"POI: {p.get('name', '?')} [{p.get('type', '?')}]")
-    pid = p.get("id") or p.get("poi_id", "")
+    pid = p.get("id", "")
     if pid:
         print(f"  id: {pid}")
     desc = p.get("description")
@@ -245,24 +245,28 @@ def cmd_base(api, args):
     b = r.get("base", r)
 
     print(f"Base: {b.get('name', '?')}")
-    bid = b.get("id") or b.get("base_id", "")
+    bid = b.get("id", "")
     if bid:
         print(f"  id: {bid}")
-    owner = b.get("owner") or b.get("owner_name")
-    if owner:
-        print(f"  Owner: {owner}")
+    owner_id = b.get("owner_id")
+    if owner_id:
+        print(f"  Owner: {owner_id}")
 
-    services = b.get("services", [])
-    if services:
-        print(f"\nServices: {', '.join(services)}")
+    services = b.get("services", {})
+    if isinstance(services, dict):
+        active = sorted(k for k, v in services.items() if v)
+    else:
+        active = list(services)
+    if active:
+        print(f"\nServices: {', '.join(active)}")
 
-    market = b.get("has_market") or b.get("market")
-    if market:
+    if isinstance(services, dict) and services.get("market"):
         print("Market: available (use 'sm listings' to browse)")
 
     # Show storage hints when base has storage service
-    svc_lower = [s.lower() for s in services]
-    if any("storage" in s for s in svc_lower):
+    has_storage = (isinstance(services, dict) and services.get("storage")) or \
+                  (isinstance(services, list) and any("storage" in s.lower() for s in services))
+    if has_storage:
         print("\nStorage commands:")
         print("  sm storage deposit <item_id> <quantity>")
         print("  sm storage withdraw <item_id> <quantity>")
@@ -280,7 +284,7 @@ def cmd_cargo(api, args):
         print("No cargo items.")
     else:
         for item in items:
-            name = item.get("item_id") or item.get("name") or item.get("id")
+            name = item.get("item_id", "?")
             qty = item.get("quantity", 1)
             print(f"  {name} x{qty}")
     print("\n  Hint: sm sell <item> <qty>  |  sm listings  |  sm storage deposit <item> <qty>")
