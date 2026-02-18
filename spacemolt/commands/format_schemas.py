@@ -548,10 +548,16 @@ FORMAT_SCHEMAS = {
     },
     "craft": {
         "icon": "✓",
-        "message": "Crafted {item_id|output_item} x{quantity}",
+        "message": "{message}",
+        "fields": [
+            ("Recipe", "{recipe}"),
+            ("Count", "{count}"),
+            ("Quality", "{quality}"),
+            ("Skill level", "{skill_level}"),
+        ],
         "list": {
-            "key": "consumed",
-            "header": "\n  Consumed:",
+            "key": "from_storage",
+            "header": "\n  Used from storage:",
             "each": "    - {item_id} x{quantity}",
         },
         "hints": ["sm cargo", "sm recipes"],
