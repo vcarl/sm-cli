@@ -258,17 +258,21 @@ Tips:
 
     # storage group
     p_storage = sub.add_parser("storage", help="Base storage management (shows contents by default)")
+    p_storage.add_argument("--target", default="self", help="Target: self (default), faction, or player name")
     storage_sub = p_storage.add_subparsers(dest="storage_subcommand")
 
     p_sd = storage_sub.add_parser("deposit", help="Deposit items or credits into storage")
     p_sd.add_argument("item_id", nargs="?", help="Item ID to deposit")
     p_sd.add_argument("quantity", nargs="?", type=int, help="Quantity to deposit")
     p_sd.add_argument("--credits", type=int, metavar="AMOUNT", help="Deposit credits instead of items")
+    p_sd.add_argument("--target", default="self", help="Target: self (default), faction, or player name")
+    p_sd.add_argument("--message", help="Optional message (for gifting to a player)")
 
     p_sw = storage_sub.add_parser("withdraw", help="Withdraw items or credits from storage")
     p_sw.add_argument("item_id", nargs="?", help="Item ID to withdraw")
     p_sw.add_argument("quantity", nargs="?", type=int, help="Quantity to withdraw")
     p_sw.add_argument("--credits", type=int, metavar="AMOUNT", help="Withdraw credits instead of items")
+    p_sw.add_argument("--target", default="self", help="Target: self (default) or faction")
 
     # market group
     p_market = sub.add_parser("market", help="Market orders management (shows your orders by default)")

@@ -1,4 +1,4 @@
-"""Base storage commands."""
+"""Base storage commands — uses the unified /storage endpoint."""
 import json
 
 
@@ -7,23 +7,25 @@ def cmd_storage(api, args):
     subcommand = getattr(args, "storage_subcommand", None)
 
     if subcommand == "deposit":
-        cmd_storage_deposit(api, args)
+        _storage_transfer(api, args, "deposit")
     elif subcommand == "withdraw":
-        cmd_storage_withdraw(api, args)
+        _storage_transfer(api, args, "withdraw")
     else:
-        # Default: show storage contents
-        cmd_storage_view(api, args)
+        _storage_view(api, args)
 
 
-def cmd_storage_view(api, args):
+def _storage_view(api, args):
     """View base storage contents."""
     as_json = getattr(args, "json", False)
+    target = getattr(args, "target", None) or "self"
 
-    # Try view_storage endpoint first, fallback to passthrough
+    body = {"action": "view"}
+    if target != "self":
+        body["target"] = target
+
     try:
-        resp = api._post("view_storage")
+        resp = api._post("storage", body)
     except Exception:
-        # Endpoint might not exist, show helpful message
         print("Storage viewing not available.")
         print("  Hint: sm storage deposit <item> <qty>  |  sm storage withdraw <item> <qty>")
         return
@@ -32,21 +34,27 @@ def cmd_storage_view(api, args):
         print(json.dumps(resp, indent=2))
         return
 
+    err = resp.get("error")
+    if err:
+        err_msg = err.get("message", err) if isinstance(err, dict) else err
+        print(f"ERROR: {err_msg}")
+        return
+
     r = resp.get("result", {})
     items = r.get("items", [])
     credits = r.get("credits", 0)
 
+    label = "Faction Storage" if target == "faction" else "Base Storage"
     if not items and credits == 0:
-        print("Storage is empty.")
+        print(f"{label} is empty.")
         print("  Hint: sm storage deposit <item> <qty>")
         return
 
-    print("Base Storage:")
+    print(f"{label}:")
     if credits > 0:
         print(f"  Credits: {credits:,}")
 
     if items:
-        # Group by item type if possible
         print(f"\n  Items ({len(items)}):")
         for item in items:
             if not isinstance(item, dict):
@@ -55,38 +63,47 @@ def cmd_storage_view(api, args):
             qty = item.get("quantity", 0)
             print(f"    {item_id} x{qty}")
 
-    print("\n  Hint: sm storage withdraw <item> <qty>  |  sm storage deposit <item> <qty>")
+    print(f"\n  Hint: sm storage withdraw <item> <qty>  |  sm storage deposit <item> <qty>")
 
 
-def cmd_storage_deposit(api, args):
-    """Deposit items or credits into base storage."""
+def _storage_transfer(api, args, action):
+    """Deposit or withdraw items/credits via the unified /storage endpoint."""
     as_json = getattr(args, "json", False)
     item_id = getattr(args, "item_id", None)
     quantity = getattr(args, "quantity", None)
-    credits = getattr(args, "credits", None)
+    credits_amt = getattr(args, "credits", None)
+    target = getattr(args, "target", None) or "self"
+    message = getattr(args, "message", None)
 
-    # Determine if depositing items or credits
-    if credits is not None:
-        endpoint = "deposit_credits"
-        body = {"amount": credits}
-        action = f"credits: {credits}"
+    body = {"action": action}
+
+    if target != "self":
+        body["target"] = target
+
+    if credits_amt is not None:
+        body["item_id"] = "credits"
+        body["quantity"] = credits_amt
+        desc = f"credits: {credits_amt}"
     elif item_id and quantity:
-        endpoint = "deposit_items"
-        body = {"item_id": item_id, "quantity": quantity}
-        action = f"{item_id} x{quantity}"
+        body["item_id"] = item_id
+        body["quantity"] = quantity
+        desc = f"{item_id} x{quantity}"
     else:
-        print("Usage: sm storage deposit <item> <qty>")
-        print("   or: sm storage deposit --credits <amount>")
+        print(f"Usage: sm storage {action} <item> <qty>")
+        print(f"   or: sm storage {action} --credits <amount>")
+        if action == "deposit":
+            print(f"   or: sm storage {action} <item> <qty> --target <player>  (gift)")
         return
 
-    # Require docked
+    if message:
+        body["message"] = message
+
+    from spacemolt.api import APIError
     try:
-        api._require_docked()
-    except Exception as e:
-        print(f"Error: {e}")
+        resp = api._post("storage", body)
+    except APIError as e:
+        print(f"ERROR: {e}")
         return
-
-    resp = api._post(endpoint, body)
 
     if as_json:
         print(json.dumps(resp, indent=2))
@@ -94,53 +111,17 @@ def cmd_storage_deposit(api, args):
 
     err = resp.get("error")
     if err:
-        err_msg = err.get('message', err) if isinstance(err, dict) else err
+        err_msg = err.get("message", err) if isinstance(err, dict) else err
         print(f"ERROR: {err_msg}")
         return
 
-    print(f"Deposited: {action}")
+    r = resp.get("result", {})
+    msg = r.get("message")
+    if msg:
+        print(msg)
+    else:
+        verb = "Deposited" if action == "deposit" else "Withdrew"
+        if target not in ("self", None):
+            verb = f"{verb} (to {target})"
+        print(f"{verb}: {desc}")
     print("  Hint: sm storage (view storage)")
-
-
-def cmd_storage_withdraw(api, args):
-    """Withdraw items or credits from base storage."""
-    as_json = getattr(args, "json", False)
-    item_id = getattr(args, "item_id", None)
-    quantity = getattr(args, "quantity", None)
-    credits = getattr(args, "credits", None)
-
-    # Determine if withdrawing items or credits
-    if credits is not None:
-        endpoint = "withdraw_credits"
-        body = {"amount": credits}
-        action = f"credits: {credits}"
-    elif item_id and quantity:
-        endpoint = "withdraw_items"
-        body = {"item_id": item_id, "quantity": quantity}
-        action = f"{item_id} x{quantity}"
-    else:
-        print("Usage: sm storage withdraw <item> <qty>")
-        print("   or: sm storage withdraw --credits <amount>")
-        return
-
-    # Require docked
-    try:
-        api._require_docked()
-    except Exception as e:
-        print(f"Error: {e}")
-        return
-
-    resp = api._post(endpoint, body)
-
-    if as_json:
-        print(json.dumps(resp, indent=2))
-        return
-
-    err = resp.get("error")
-    if err:
-        err_msg = err.get('message', err) if isinstance(err, dict) else err
-        print(f"ERROR: {err_msg}")
-        return
-
-    print(f"Withdrew: {action}")
-    print("  Hint: sm storage (view storage)  |  sm cargo")

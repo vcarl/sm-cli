@@ -99,11 +99,8 @@ ENDPOINT_ARGS = {
     "sell_wreck": [],
     # combat (additional)
     "reload": ["ammo_item_id", "weapon_instance_id"],
-    # storage
-    "deposit_items": ["item_id", "quantity:int"],
-    "withdraw_items": ["item_id", "quantity:int"],
-    "deposit_credits": ["amount:int"],
-    "withdraw_credits": ["amount:int"],
+    # storage — unified endpoint (replaces deposit_items, withdraw_items, etc.)
+    "storage": ["action", "item_id?", "quantity?:int", "target?", "message?"],
     "send_gift": ["recipient", "item_id?", "quantity?:int", "credits?:int", "message?"],  # item/qty/credits/message all optional
     # chat
     "get_chat_history": ["channel", "limit?:int", "target_id?", "before?"],  # limit/target/before all optional
@@ -119,7 +116,7 @@ ENDPOINT_ARGS = {
     "get_version": [],
     "get_map": [],
     "view_orders": [],
-    "view_storage": [],
+    # view_storage replaced by unified /storage command
     "help": ["category?", "command?"],
     # New market and exploration commands
     "analyze_market": ["item_id?", "page?:int"],
@@ -131,11 +128,7 @@ ENDPOINT_ARGS = {
     # Facility management
     "facility": ["action", "category?", "direction?", "facility_id?", "facility_type?", "level?:int", "name?", "page?:int", "per_page?:int", "player_id?"],
     # Faction storage
-    "view_faction_storage": [],
-    "faction_deposit_credits": ["amount?:int"],
-    "faction_withdraw_credits": ["amount?:int"],
-    "faction_deposit_items": ["item_id?", "quantity?:int"],
-    "faction_withdraw_items": ["item_id?", "quantity?:int"],
+    # faction storage endpoints replaced by: sm storage --target faction
     "faction_gift": ["faction_id?", "item_id?", "quantity?:int"],
     # Faction market orders
     "faction_create_buy_order": ["item_id?", "quantity?:int", "price_each?:int"],
@@ -1089,10 +1082,12 @@ def _print_full_help():
         ]),
         ("Storage", [
             ("storage", "View base storage"),
+            ("storage --target faction", "View faction storage"),
             ("storage deposit <item_id> <quantity>", "Deposit items"),
             ("storage deposit --credits <amount>", "Deposit credits"),
             ("storage withdraw <item_id> <quantity>", "Withdraw items"),
             ("storage withdraw --credits <amount>", "Withdraw credits"),
+            ("storage deposit <item> <qty> --target <player>", "Gift items to a player"),
             ("send-gift <recipient> [item_id] [qty]", "Send gift to another player"),
         ]),
         ("Crafting", [
@@ -1158,11 +1153,11 @@ def _print_full_help():
             ("faction-write-room [room_id] [name]", "Write/edit a room"),
         ]),
         ("Faction Economy", [
-            ("view-faction-storage", "View faction storage"),
-            ("faction-deposit-credits [amount]", "Deposit credits to faction"),
-            ("faction-withdraw-credits [amount]", "Withdraw faction credits"),
-            ("faction-deposit-items [item_id] [qty]", "Deposit items to faction"),
-            ("faction-withdraw-items [item_id] [qty]", "Withdraw faction items"),
+            ("storage --target faction", "View faction storage"),
+            ("storage deposit <item> <qty> --target faction", "Deposit items to faction"),
+            ("storage withdraw <item> <qty> --target faction", "Withdraw from faction"),
+            ("storage deposit --credits <amt> --target faction", "Deposit credits to faction"),
+            ("storage withdraw --credits <amt> --target faction", "Withdraw faction credits"),
             ("faction-gift [faction_id] [item_id] [qty]", "Gift items to another faction"),
             ("faction-create-buy-order [item] [qty] [price]", "Create faction buy order"),
             ("faction-create-sell-order [item] [qty] [price]", "Create faction sell order"),
