@@ -6,7 +6,7 @@ __all__ = [
     "cmd_passthrough", "cmd_commands", "cmd_raw",
     "cmd_notes", "cmd_trades", "cmd_ships",
     "cmd_chat_history", "cmd_faction_list", "cmd_faction_invites",
-    "cmd_forum",
+    "cmd_forum", "cmd_battle_status",
 ]
 
 
@@ -66,6 +66,8 @@ ENDPOINT_ARGS = {
     "forum_delete_reply": ["reply_id"],
     "forum_list": ["page?:int", "category?"],  # page is optional, category is custom extension
     # combat
+    "battle": ["action", "stance?", "target_id?", "side_id?:int"],
+    "get_battle_status": [],
     "cloak": ["enable?:bool"],  # enable is custom extension (spec has no params)
     "self_destruct": [],
     # market orders - spec supports batch operations via "orders" array (pass as JSON string)
@@ -448,33 +450,25 @@ def _fmt_attack(resp):
     if msg:
         print(msg)
     else:
-        hit = r.get("hit", r.get("success", False))
-        damage = r.get("damage", 0)
-        target = r.get("target") or r.get("target_name", "target")
-        if hit:
-            print(f"Hit {target} for {damage} damage!")
-        else:
-            print(f"Missed {target}.")
-    for k in ("target_hull", "target_shield", "hull", "shield"):
+        print("Attack queued.")
+    if r.get("pending"):
+        cmd = r.get("command", "attack")
+        print(f"  Action: {cmd} (pending next tick)")
+    # Legacy fields (in case server ever returns immediate results)
+    for k in ("target_hull", "target_shield", "hull", "shield", "damage"):
         v = r.get(k)
         if v is not None:
             print(f"  {k}: {v}")
-    print("\n  Hint: sm status  |  sm nearby")
+    print("\n  Hint: sm battle-status  |  sm nearby")
 
 
 def _fmt_scan(resp):
     r = resp.get("result", {})
     scan = r
 
-    if scan.get("queued"):
+    if scan.get("queued") or scan.get("pending"):
         target = scan.get("target_id") or "target"
-        pos = scan.get("position", 0)
-        eta = scan.get("estimated_tick")
-        msg = f"Scanning {target}..."
-        if pos > 0:
-            msg += f" (queued at position {pos})"
-        if eta:
-            msg += f"  ETA tick: {eta}"
+        msg = scan.get("message", f"Scanning {target}...")
         print(msg)
         print("\n  Hint: sm nearby")
         return
@@ -488,17 +482,34 @@ def _fmt_scan(resp):
             print(f"Scan failed.")
         print("\n  Hint: sm nearby  |  sm ship")
         return
+
     target = scan.get("username") or scan.get("target_id", "?")
     print(f"Scan of {target}:")
-    skip = {"success", "revealed_info", "username"}
+
+    # Show known structured fields first
+    for label, key in [("Ship", "ship_class"), ("Hull", "hull"),
+                        ("Shield", "shield"), ("Faction", "faction_id"),
+                        ("Cloaked", "cloaked")]:
+        v = scan.get(key)
+        if v is not None:
+            print(f"  {label}: {v}")
+
+    # Show any extra fields not already printed
+    known = {"success", "revealed_info", "username", "target_id",
+             "ship_class", "hull", "shield", "faction_id", "cloaked"}
     for k, v in scan.items():
-        if k in skip:
+        if k in known:
             continue
         label = k.replace("_", " ").title()
         if isinstance(v, list):
             print(f"  {label}: {', '.join(str(i) for i in v)}")
-        else:
+        elif v is not None:
             print(f"  {label}: {v}")
+
+    revealed = scan.get("revealed_info", [])
+    if revealed:
+        print(f"  Revealed: {', '.join(revealed)}")
+
     target_id = scan.get("target_id") or target
     print(f"\n  Hint: sm attack {target_id}  |  sm trade-offer {target_id}")
 
@@ -721,6 +732,59 @@ def _fmt_survey_system(resp):
     print(f"\n  Hint: sm pois  |  sm system  |  sm travel <poi_id>")
 
 
+def _fmt_battle_status(resp):
+    r = resp.get("result", {})
+    battle_id = r.get("battle_id", "?")
+    system_id = r.get("system_id", "?")
+    is_participant = r.get("is_participant", False)
+    tick_duration = r.get("tick_duration")
+
+    status_str = "PARTICIPANT" if is_participant else "OBSERVER"
+    print(f"Battle {battle_id} in {system_id} [{status_str}]")
+    if tick_duration:
+        print(f"  Tick duration: {tick_duration}s")
+
+    sides = r.get("sides", [])
+    if sides:
+        print(f"\n  Sides ({len(sides)}):")
+        for i, side in enumerate(sides):
+            if isinstance(side, dict):
+                side_id = side.get("side_id") or side.get("id", i)
+                name = side.get("name") or side.get("faction_name", f"Side {side_id}")
+                count = side.get("member_count") or side.get("count", "?")
+                print(f"    [{side_id}] {name} ({count} members)")
+            else:
+                print(f"    {side}")
+
+    participants = r.get("participants", [])
+    if participants:
+        print(f"\n  Participants ({len(participants)}):")
+        for p in participants[:20]:
+            if isinstance(p, dict):
+                name = p.get("username") or p.get("player_id", "?")
+                side = p.get("side_id", "?")
+                stance = p.get("stance", "")
+                hull = p.get("hull")
+                shield = p.get("shield")
+                ship = p.get("ship_class", "")
+                line = f"    {name} (side:{side})"
+                if ship:
+                    line += f" [{ship}]"
+                if stance:
+                    line += f" stance:{stance}"
+                if hull is not None:
+                    line += f" hull:{hull}"
+                if shield is not None:
+                    line += f" shield:{shield}"
+                print(line)
+            else:
+                print(f"    {p}")
+        if len(participants) > 20:
+            print(f"    ... and {len(participants) - 20} more")
+
+    print(f"\n  Hint: sm battle engage  |  sm battle stance fire  |  sm battle retreat")
+
+
 # Complex formatters stay as custom functions; simple ones moved to FORMAT_SCHEMAS
 _FORMATTERS = {
     "get_chat_history": _fmt_chat_history,
@@ -738,6 +802,7 @@ _FORMATTERS = {
     "search_systems": _fmt_search_systems,
     "analyze_market": _fmt_analyze_market,
     "survey_system": _fmt_survey_system,
+    "get_battle_status": _fmt_battle_status,
 }
 
 
@@ -977,6 +1042,8 @@ def _print_full_help():
         ]),
         ("Combat", [
             ("attack <target_id> [weapon_idx]", "Attack a target"),
+            ("battle <action> [stance] [target_id]", "Battle action (engage/advance/retreat/stance/target)"),
+            ("battle-status", "View current battle state"),
             ("scan <target_id>", "Scan a player's ship"),
             ("reload <ammo_item_id> <weapon_id>", "Reload weapon ammo"),
             ("cloak [enable]", "Toggle cloaking device"),
@@ -1164,3 +1231,4 @@ cmd_chat_history = _make_passthrough_alias("get_chat_history")
 cmd_faction_list = _make_passthrough_alias("faction_list")
 cmd_faction_invites = _make_passthrough_alias("faction_get_invites")
 cmd_forum = _make_passthrough_alias("forum_list")
+cmd_battle_status = _make_passthrough_alias("get_battle_status")

@@ -317,7 +317,7 @@ FORMAT_SCHEMAS = {
         "fields": [
             ("Payout", "{payout:,} cr"),
         ],
-        "hints": ["sm status", "sm shipyard"],
+        "hints": ["sm status", "sm buy-ship <class>"],
     },
     "forum_reply": {
         "icon": "✓",
@@ -396,7 +396,13 @@ FORMAT_SCHEMAS = {
     },
     "reload": {
         "icon": "✓",
-        "message": "Reloaded weapon",
+        "message": "Reloaded {weapon_name} with {ammo_name}",
+        "fields": [
+            ("Ammo", "{current_ammo}/{magazine_size}"),
+            ("Weapon ID", "{weapon_id}"),
+            ("Previous ammo", "{previous_ammo}"),
+            ("Rounds discarded", "{rounds_discarded}"),
+        ],
         "hints": ["sm ship", "sm cargo"],
     },
     "logout": {
@@ -405,9 +411,10 @@ FORMAT_SCHEMAS = {
         "hints": ["sm login"],
     },
     "cloak": {
-        "message": "Cloaking device {cloaked|enabled}",
+        "message": "{message}",
         "fields": [
-            ("Fuel drain", "{fuel_drain|fuel_per_tick} per tick"),
+            ("Enabled", "{enabled}"),
+            ("Cloak strength", "{cloak_strength}"),
         ],
         "hints": ["sm nearby", "sm status"],
     },
@@ -561,7 +568,7 @@ FORMAT_SCHEMAS = {
             ("Average price", "{average_price:.2f} cr per unit"),
             ("Available", "{available} units"),
         ],
-        "hints": ["sm buy {item_id} {quantity}"],
+        "hints": ["sm buy <item_id> <quantity>"],
     },
     "get_version": {
         "message": "SpaceMolt version: {version}",
@@ -609,19 +616,19 @@ FORMAT_SCHEMAS = {
     },
     "faction_deposit_credits": {
         "message": "Deposited {amount:,} cr to faction storage",
-        "hints": ["sm faction-info"],
+        "hints": ["sm view-faction-storage", "sm status"],
     },
     "faction_withdraw_credits": {
         "message": "Withdrawn {amount:,} cr from faction storage",
-        "hints": ["sm faction-info"],
+        "hints": ["sm view-faction-storage", "sm status"],
     },
     "faction_deposit_items": {
         "message": "Deposited {item_id} x{quantity} to faction storage",
-        "hints": ["sm faction-info"],
+        "hints": ["sm view-faction-storage", "sm cargo"],
     },
     "faction_withdraw_items": {
         "message": "Withdrawn {item_id} x{quantity} from faction storage",
-        "hints": ["sm faction-info"],
+        "hints": ["sm view-faction-storage", "sm cargo"],
     },
     "faction_gift": {
         "icon": "✓",
@@ -684,19 +691,24 @@ FORMAT_SCHEMAS = {
     "faction_submit_intel": {
         "icon": "✓",
         "message": "Intel submitted",
+        "hints": ["sm faction-intel-status", "sm faction-query-intel <system>"],
     },
     "faction_query_intel": {
         "message": "Intel for {system_name}:",
+        "hints": ["sm faction-submit-intel", "sm faction-intel-status"],
     },
     "faction_trade_intel_status": {
         "message": "Trade intel status: {status}",
+        "hints": ["sm faction-submit-trade-intel", "sm faction-query-trade-intel <base_id>"],
     },
     "faction_submit_trade_intel": {
         "icon": "✓",
         "message": "Trade intel submitted",
+        "hints": ["sm faction-trade-intel-status", "sm faction-query-trade-intel <base_id>"],
     },
     "faction_query_trade_intel": {
         "message": "Trade intel for base {base_id}:",
+        "hints": ["sm faction-submit-trade-intel", "sm faction-trade-intel-status"],
     },
     "faction_rooms": {
         "list": {
@@ -704,12 +716,14 @@ FORMAT_SCHEMAS = {
             "empty": "No faction rooms.",
             "each": "  {name} (id:{room_id|id}) [{access}]",
         },
+        "hints": ["sm faction-visit-room <room_id>", "sm faction-write-room"],
     },
     "faction_visit_room": {
         "message": "Visiting room: {name}",
         "fields": [
             ("Description", "{description}"),
         ],
+        "hints": ["sm faction-rooms", "sm faction-write-room"],
     },
     "faction_write_room": {
         "icon": "✓",
@@ -752,8 +766,19 @@ FORMAT_SCHEMAS = {
         "message": "Declined invite from {faction_id}",
         "hints": ["sm faction-list"],
     },
+    "battle": {
+        "message": "{message}",
+        "fields": [
+            ("Action", "{action}"),
+            ("Battle ID", "{battle_id}"),
+            ("Stance", "{stance}"),
+            ("Target", "{target_id}"),
+        ],
+        "hints": ["sm battle-status", "sm battle stance fire", "sm battle retreat"],
+    },
     "self_destruct": {
         "message": "Self-destruct initiated",
+        "hints": ["sm insurance claim", "sm ships"],
     },
     "register": {
         "icon": "✓",
@@ -761,6 +786,7 @@ FORMAT_SCHEMAS = {
         "fields": [
             ("Empire", "{empire}"),
         ],
+        "hints": ["sm login"],
     },
     "create_note": {
         "icon": "✓",

@@ -30,7 +30,7 @@ def cmd_insurance_status(api, args):
 
     if not insurance or not isinstance(insurance, dict):
         print("No active insurance coverage.")
-        print("  Hint: sm insurance buy <coverage_percent> <ticks>")
+        print("  Hint: sm insurance buy <ticks>")
         return
 
     ticks_remaining = insurance.get("ticks_remaining") or insurance.get("ticks", 0)
@@ -47,10 +47,10 @@ def cmd_insurance_status(api, args):
 
     if ticks_remaining <= 0:
         print("\n  ⚠️  Insurance has expired!")
-        print("  Hint: sm insurance buy <coverage_percent> <ticks>")
+        print("  Hint: sm insurance buy <ticks>")
     elif ticks_remaining < 10:
         print(f"\n  ⚠️  Insurance expires soon!")
-        print("  Hint: sm insurance buy <coverage_percent> <ticks>")
+        print("  Hint: sm insurance buy <ticks>")
 
 
 def cmd_insurance_buy(api, args):
@@ -114,7 +114,7 @@ def cmd_insurance_claim(api, args):
         # Provide helpful hints based on error
         if "no insurance" in str(err_msg).lower():
             print("\n  You don't have active insurance coverage.")
-            print("  Hint: sm insurance buy <coverage_percent> <ticks>")
+            print("  Hint: sm insurance buy <ticks>")
         elif "not destroyed" in str(err_msg).lower() or "alive" in str(err_msg).lower():
             print("\n  Your ship is still intact - no claim needed!")
         return

@@ -293,7 +293,8 @@ Tips:
                               ("ships", "List owned ships"),
                               ("faction-list", "List all factions"),
                               ("faction-invites", "Pending faction invites"),
-                              ("forum", "Browse and post to the forum")]:
+                              ("forum", "Browse and post to the forum"),
+                              ("battle-status", "View current battle state")]:
         p = sub.add_parser(alias, help=help_text)
         p.add_argument("extra", nargs="*")
     p_ch_hist = sub.add_parser("chat-history", help="Chat message history")
@@ -347,6 +348,7 @@ COMMAND_MAP = {
     "faction-list": commands.cmd_faction_list,
     "faction-invites": commands.cmd_faction_invites,
     "forum": commands.cmd_forum,
+    "battle-status": commands.cmd_battle_status,
     # Phase 4: Hierarchical commands
     "insurance": commands.cmd_insurance,
     "storage": commands.cmd_storage,
