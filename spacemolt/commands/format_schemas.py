@@ -374,35 +374,30 @@ FORMAT_SCHEMAS = {
         ],
         "hints": ["sm status"],
     },
-    "build_base": {
+    "tow_wreck": {
         "icon": "✓",
-        "message": "Base constructed: {name|base_name}",
-        "fields": [
-            ("Base ID", "{base_id|id:id}"),
-            ("Cost", "{cost:,} cr"),
-        ],
-        "hints": ["sm base", "sm set-home-base <base_id>"],
+        "message": "Towing wreck {wreck_id}",
+        "hints": ["sm release-tow", "sm sell-wreck"],
     },
-    "deploy_drone": {
+    "release_tow": {
         "icon": "✓",
-        "message": "Deployed {drone_type|type}",
-        "fields": [
-            ("Drone ID", "{drone_id|id:id}"),
-        ],
-        "hints": ["sm drones", "sm order-drone <command> <target>"],
+        "message": "Released towed wreck",
+        "hints": ["sm wrecks"],
     },
-    "recall_drone": {
+    "scrap_wreck": {
         "icon": "✓",
-        "message": "Recalled {drone_type|type}",
-        "hints": ["sm drones"],
+        "message": "Scrapped wreck",
+        "hints": ["sm wrecks", "sm cargo"],
     },
-    "order_drone": {
+    "sell_wreck": {
         "icon": "✓",
-        "message": "Drone order: {command}",
-        "fields": [
-            ("Target", "{target|target_id}"),
-        ],
-        "hints": ["sm drones"],
+        "message": "Sold wreck",
+        "hints": ["sm wrecks", "sm status"],
+    },
+    "reload": {
+        "icon": "✓",
+        "message": "Reloaded weapon",
+        "hints": ["sm ship", "sm cargo"],
     },
     "logout": {
         "icon": "✓",
@@ -447,13 +442,6 @@ FORMAT_SCHEMAS = {
             "key": "notes",
             "empty": "No notes.",
             "each": "  {id|note_id}: {title}  ({updated_at|created_at})",
-        },
-    },
-    "get_drones": {
-        "list": {
-            "key": "drones",
-            "empty": "No active drones.",
-            "each": "  {type|drone_type|name} ({id|drone_id:id}) [{status}]",
         },
     },
     "faction_list": {
@@ -595,18 +583,6 @@ FORMAT_SCHEMAS = {
     # Phase 4: New endpoints from drift sync (no formatters yet)
     # -----------------------------------------------------------------------
 
-    "get_queue": {
-        "list": {
-            "key": "queue",
-            "empty": "Queue is empty.",
-            "header": "Action Queue ({_count}):",
-            "each": "  {action} - {status}",
-        },
-    },
-    "clear_queue": {
-        "icon": "✓",
-        "message": "Queue cleared",
-    },
     "decline_mission": {
         "message": "Mission declined",
         "hints": ["sm missions"],
@@ -776,14 +752,6 @@ FORMAT_SCHEMAS = {
         "message": "Declined invite from {faction_id}",
         "hints": ["sm faction-list"],
     },
-    "attack_base": {
-        "message": "Attacked {base_name|target}",
-        "fields": [
-            ("Damage dealt", "{damage}"),
-            ("Base hull remaining", "{base_hull}"),
-        ],
-        "hints": ["sm raid-status <base_id>", "sm nearby"],
-    },
     "self_destruct": {
         "message": "Self-destruct initiated",
     },
@@ -807,13 +775,6 @@ FORMAT_SCHEMAS = {
         "icon": "✓",
         "message": "Note updated",
         "hints": ["sm notes"],
-    },
-    "get_base_cost": {
-        "message": "Base construction cost:",
-        "fields": [
-            ("Type", "{base_type}"),
-            ("Cost", "{cost:,} cr"),
-        ],
     },
     "refuel": {
         "icon": "✓",

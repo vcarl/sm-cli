@@ -4,7 +4,7 @@ import json
 __all__ = [
     "ENDPOINT_ARGS", "_parse_typed_value", "_arg_name",
     "cmd_passthrough", "cmd_commands", "cmd_raw",
-    "cmd_notes", "cmd_trades", "cmd_drones", "cmd_ships",
+    "cmd_notes", "cmd_trades", "cmd_ships",
     "cmd_chat_history", "cmd_faction_list", "cmd_faction_invites",
     "cmd_forum",
 ]
@@ -90,16 +90,13 @@ ENDPOINT_ARGS = {
     "create_note": ["title?", "content?"],  # custom extensions
     "write_note": ["note_id?", "content?"],  # custom extensions
     "read_note": ["note_id?"],  # custom extension
-    # base building/raiding - custom extensions (spec has no params)
-    "build_base": ["name?", "services?"],  # services replaces description per spec
-    "attack_base": ["base_id?"],  # custom extension
-    "loot_base_wreck": ["wreck_id?", "item_id?", "quantity?:int"],  # custom extensions
-    "salvage_base_wreck": ["wreck_id?"],  # custom extension
-    # drones - custom extensions (spec has no params)
-    "get_drones": [],
-    "deploy_drone": ["drone_item_id?", "target_id?"],  # custom extensions
-    "recall_drone": ["drone_id?", "all?:bool"],  # all=true recalls all drones
-    "order_drone": ["command?", "target_id?"],  # custom extensions
+    # wrecks (additional)
+    "tow_wreck": ["wreck_id"],
+    "release_tow": [],
+    "scrap_wreck": [],
+    "sell_wreck": [],
+    # combat (additional)
+    "reload": ["ammo_item_id", "weapon_instance_id"],
     # storage
     "deposit_items": ["item_id", "quantity:int"],
     "withdraw_items": ["item_id", "quantity:int"],
@@ -121,15 +118,10 @@ ENDPOINT_ARGS = {
     "get_map": [],
     "view_orders": [],
     "view_storage": [],
-    "get_base_cost": ["base_type?"],  # base_type optional
-    "raid_status": ["base_id?"],  # base_id optional
     "help": ["category?", "command?"],
     # New market and exploration commands
     "analyze_market": ["item_id?", "page?:int"],
     "survey_system": [],
-    # Queue management
-    "get_queue": [],
-    "clear_queue": [],
     # Missions
     "decline_mission": ["template_id?"],
     # Items
@@ -511,31 +503,6 @@ def _fmt_scan(resp):
     print(f"\n  Hint: sm attack {target_id}  |  sm trade-offer {target_id}")
 
 
-def _fmt_raid_status(resp):
-    r = resp.get("result", resp)
-    if isinstance(r, str):
-        print(r)
-        return
-    status = r.get("status", "unknown")
-    progress = r.get("progress", 0)
-    defenders = r.get("defenders", [])
-    base_id = r.get("base_id", "")
-    print(f"Raid Status: {status}")
-    if base_id:
-        print(f"  Base: {base_id}")
-    if progress:
-        bar_length = 20
-        filled = int((progress / 100) * bar_length)
-        bar = "█" * filled + "░" * (bar_length - filled)
-        print(f"  Progress: [{bar}] {progress}%")
-    if defenders:
-        print(f"  Defenders ({len(defenders)}):")
-        for defender in defenders[:10]:
-            if isinstance(defender, dict):
-                dname = defender.get("name") or defender.get("player_id", "?")
-                print(f"    - {dname}")
-
-
 def _fmt_help(resp):
     r = resp.get("result", resp)
     help_text = r.get("help") or r.get("message") or r.get("content", "")
@@ -766,7 +733,6 @@ _FORMATTERS = {
     "forum_get_thread": _fmt_forum_get_thread,
     "attack": _fmt_attack,
     "scan": _fmt_scan,
-    "raid_status": _fmt_raid_status,
     "help": _fmt_help,
     "find_route": _fmt_find_route,
     "search_systems": _fmt_search_systems,
@@ -1012,6 +978,7 @@ def _print_full_help():
         ("Combat", [
             ("attack <target_id> [weapon_idx]", "Attack a target"),
             ("scan <target_id>", "Scan a player's ship"),
+            ("reload <ammo_item_id> <weapon_id>", "Reload weapon ammo"),
             ("cloak [enable]", "Toggle cloaking device"),
             ("self-destruct", "Self-destruct your ship"),
         ]),
@@ -1020,6 +987,10 @@ def _print_full_help():
             ("refuel", "Refuel ship (requires docked)"),
             ("repair", "Repair ship (requires docked)"),
             ("jettison <item_id> <quantity>", "Jettison cargo into space"),
+            ("tow-wreck <wreck_id>", "Tow a wreck"),
+            ("release-tow", "Release towed wreck"),
+            ("scrap-wreck", "Scrap wreck at location"),
+            ("sell-wreck", "Sell a wreck"),
         ]),
         ("Trading (NPC)", [
             ("buy <item_id> [quantity]", "Buy item from NPC market"),
@@ -1095,12 +1066,6 @@ def _print_full_help():
             ("forum-reply <thread_id> <content>", "Reply to a thread"),
             ("forum-upvote <thread_id> [reply_id]", "Upvote thread or reply"),
         ]),
-        ("Drones", [
-            ("drones", "List active drones"),
-            ("deploy-drone [drone_item_id] [target_id]", "Deploy a drone"),
-            ("recall-drone [drone_id]", "Recall drone(s)"),
-            ("order-drone [command] [target_id]", "Give drone a command"),
-        ]),
         ("Faction", [
             ("faction-info [faction_id]", "Faction details"),
             ("faction-list", "List all factions"),
@@ -1135,18 +1100,12 @@ def _print_full_help():
             ("faction-create-buy-order [item] [qty] [price]", "Create faction buy order"),
             ("faction-create-sell-order [item] [qty] [price]", "Create faction sell order"),
         ]),
-        ("Base Building", [
-            ("build-base [name] [services]", "Build a base at current POI"),
-            ("get-base-cost [base_type]", "Check base building costs"),
+        ("Base & Facilities", [
             ("set-home-base <base_id>", "Set your home base"),
             ("facility <action> [options...]", "Manage base facilities"),
-            ("attack-base [base_id]", "Attack a base"),
-            ("raid-status [base_id]", "Check raid progress"),
         ]),
-        ("Items & Queue", [
+        ("Items", [
             ("use-item [item_id] [quantity]", "Use an item from cargo"),
-            ("get-queue", "View action queue"),
-            ("clear-queue", "Clear action queue"),
         ]),
         ("Advanced", [
             ("raw <endpoint> [json_body]", "Raw API call (JSON output)"),
@@ -1200,7 +1159,6 @@ def _make_passthrough_alias(endpoint):
 
 cmd_notes = _make_passthrough_alias("get_notes")
 cmd_trades = _make_passthrough_alias("get_trades")
-cmd_drones = _make_passthrough_alias("get_drones")
 cmd_ships = _make_passthrough_alias("get_ships")
 cmd_chat_history = _make_passthrough_alias("get_chat_history")
 cmd_faction_list = _make_passthrough_alias("faction_list")

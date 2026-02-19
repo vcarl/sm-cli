@@ -290,7 +290,6 @@ Tips:
     # Friendly aliases for common queries
     for alias, help_text in [("notes", "List your notes"),
                               ("trades", "List pending trades"),
-                              ("drones", "List active drones"),
                               ("ships", "List owned ships"),
                               ("faction-list", "List all factions"),
                               ("faction-invites", "Pending faction invites"),
@@ -344,7 +343,6 @@ COMMAND_MAP = {
     "chat-history": commands.cmd_chat_history,
     "notes": commands.cmd_notes,
     "trades": commands.cmd_trades,
-    "drones": commands.cmd_drones,
     "ships": commands.cmd_ships,
     "faction-list": commands.cmd_faction_list,
     "faction-invites": commands.cmd_faction_invites,
