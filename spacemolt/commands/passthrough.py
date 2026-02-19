@@ -6,7 +6,7 @@ __all__ = [
     "cmd_passthrough", "cmd_commands", "cmd_raw",
     "cmd_notes", "cmd_trades", "cmd_ships",
     "cmd_chat_history", "cmd_faction_list", "cmd_faction_invites",
-    "cmd_forum", "cmd_battle_status",
+    "cmd_forum", "cmd_battle_status", "cmd_catalog",
 ]
 
 
@@ -118,6 +118,8 @@ ENDPOINT_ARGS = {
     "view_orders": [],
     # view_storage replaced by unified /storage command
     "help": ["category?", "command?"],
+    # Catalog (reference data browser)
+    "catalog": ["type", "search?", "category?", "id?", "page?:int", "page_size?:int"],
     # New market and exploration commands
     "analyze_market": ["item_id?", "page?:int"],
     "survey_system": [],
@@ -778,6 +780,107 @@ def _fmt_battle_status(resp):
     print(f"\n  Hint: sm battle engage  |  sm battle stance fire  |  sm battle retreat")
 
 
+def _fmt_catalog(resp):
+    r = resp.get("result", {})
+    cat_type = r.get("type", "?")
+    items = r.get("items", [])
+    total = r.get("total", len(items))
+    page = r.get("page", 1)
+    total_pages = r.get("total_pages", 1)
+    message = r.get("message", "")
+
+    if message:
+        print(message)
+        print()
+
+    if not items:
+        print(f"No {cat_type} found.")
+        return
+
+    print(f"Catalog: {cat_type} (page {page}/{total_pages}, {total} total)")
+    print()
+
+    for item in items:
+        if not isinstance(item, dict):
+            print(f"  {item}")
+            continue
+
+        name = item.get("name") or item.get("id", "?")
+        item_id = item.get("id") or item.get("item_id") or item.get("class_id", "")
+        category = item.get("category", "")
+        description = item.get("description", "")
+
+        header = f"  {name}"
+        if item_id and item_id != name:
+            header += f"  ({item_id})"
+        if category:
+            header += f"  [{category}]"
+        print(header)
+
+        if cat_type == "ships":
+            for label, key in [("Class", "class_name"), ("Hull", "max_hull"),
+                               ("Shield", "max_shield"), ("Cargo", "cargo_capacity"),
+                               ("Fuel", "max_fuel"), ("Slots", "module_slots"),
+                               ("Price", "price")]:
+                val = item.get(key)
+                if val is not None:
+                    if key == "price":
+                        print(f"    {label}: {val:,} cr")
+                    else:
+                        print(f"    {label}: {val}")
+
+        elif cat_type == "items":
+            for label, key in [("Type", "type"), ("Value", "base_value"),
+                               ("Stack", "stack_size"), ("Weight", "weight")]:
+                val = item.get(key)
+                if val is not None:
+                    if key == "base_value":
+                        print(f"    {label}: {val:,} cr")
+                    else:
+                        print(f"    {label}: {val}")
+
+        elif cat_type == "skills":
+            for label, key in [("Category", "category"), ("Max Level", "max_level"),
+                               ("Bonus", "bonus_per_level")]:
+                val = item.get(key)
+                if val is not None:
+                    print(f"    {label}: {val}")
+
+        elif cat_type == "recipes":
+            ingredients = item.get("ingredients", [])
+            outputs = item.get("outputs", []) or item.get("output", [])
+            skill_req = item.get("required_skill") or item.get("skill_requirement")
+            if skill_req:
+                print(f"    Requires: {skill_req}")
+            if ingredients:
+                parts = []
+                for ing in ingredients:
+                    if isinstance(ing, dict):
+                        parts.append(f"{ing.get('item_id', '?')} x{ing.get('quantity', 1)}")
+                    else:
+                        parts.append(str(ing))
+                print(f"    In: {', '.join(parts)}")
+            if outputs:
+                parts = []
+                for out in outputs:
+                    if isinstance(out, dict):
+                        parts.append(f"{out.get('item_id', '?')} x{out.get('quantity', 1)}")
+                    else:
+                        parts.append(str(out))
+                print(f"    Out: {', '.join(parts)}")
+
+        if description:
+            desc = description.replace("\n", " ")
+            if len(desc) > 100:
+                desc = desc[:97] + "..."
+            print(f"    {desc}")
+
+    if total_pages > 1:
+        print(f"\nPage {page}/{total_pages} ({total} total)  --  --page {page + 1} for next")
+
+    print(f"\n  Hint: sm catalog {cat_type} --search <text>  |  sm catalog {cat_type} --id <id>")
+
+
 # Complex formatters stay as custom functions; simple ones moved to FORMAT_SCHEMAS
 _FORMATTERS = {
     "get_chat_history": _fmt_chat_history,
@@ -796,6 +899,7 @@ _FORMATTERS = {
     "analyze_market": _fmt_analyze_market,
     "survey_system": _fmt_survey_system,
     "get_battle_status": _fmt_battle_status,
+    "catalog": _fmt_catalog,
 }
 
 
@@ -1169,6 +1273,13 @@ def _print_full_help():
         ("Items", [
             ("use-item [item_id] [quantity]", "Use an item from cargo"),
         ]),
+        ("Catalog", [
+            ("catalog ships [--search] [--category]", "Browse ship classes"),
+            ("catalog items [--search] [--category]", "Browse items"),
+            ("catalog skills [--search] [--category]", "Browse skills"),
+            ("catalog recipes [--search] [--category]", "Browse recipes"),
+            ("catalog <type> --id <id>", "Look up a specific entry"),
+        ]),
         ("Advanced", [
             ("raw <endpoint> [json_body]", "Raw API call (JSON output)"),
         ]),
@@ -1227,3 +1338,55 @@ cmd_faction_list = _make_passthrough_alias("faction_list")
 cmd_faction_invites = _make_passthrough_alias("faction_get_invites")
 cmd_forum = _make_passthrough_alias("forum_list")
 cmd_battle_status = _make_passthrough_alias("get_battle_status")
+
+
+def cmd_catalog(api, args):
+    """Handle catalog subcommands: sm catalog <type> [options]."""
+    as_json = getattr(args, "json", False)
+    cat_type = getattr(args, "catalog_type", None)
+
+    if not cat_type:
+        print("Usage: sm catalog <ships|items|skills|recipes> [options]")
+        print()
+        print("Options:")
+        print("  --search <text>    Search by name/description")
+        print("  --category <cat>   Filter by category")
+        print("  --id <id>          Look up a specific entry")
+        print("  --page <n>         Page number (default: 1)")
+        print("  --page-size <n>    Results per page (default: 20, max: 50)")
+        return
+
+    body = {"type": cat_type}
+    search = getattr(args, "search", None)
+    category = getattr(args, "category", None)
+    entry_id = getattr(args, "id", None)
+    page = getattr(args, "page", None)
+    page_size = getattr(args, "page_size", None)
+
+    if search:
+        body["search"] = search
+    if category:
+        body["category"] = category
+    if entry_id:
+        body["id"] = entry_id
+    if page:
+        body["page"] = page
+    if page_size:
+        body["page_size"] = page_size
+
+    from spacemolt.api import APIError
+    try:
+        resp = api._post("catalog", body)
+    except APIError as e:
+        print(f"ERROR: {e}")
+        return
+
+    if as_json:
+        print(json.dumps(resp, indent=2))
+    else:
+        err = resp.get("error")
+        if err:
+            err_msg = err.get('message', err) if isinstance(err, dict) else err
+            print(f"ERROR: {err_msg}")
+        else:
+            _fmt_catalog(resp)

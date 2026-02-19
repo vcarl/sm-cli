@@ -291,6 +291,16 @@ Tips:
     p_mc = market_sub.add_parser("cancel", help="Cancel a market order")
     p_mc.add_argument("order_id", help="Order ID to cancel")
 
+    # catalog
+    p_catalog = sub.add_parser("catalog", help="Browse game reference data (ships, items, skills, recipes)")
+    p_catalog.add_argument("catalog_type", nargs="?", choices=["ships", "items", "skills", "recipes"],
+                           help="Type of data to browse")
+    p_catalog.add_argument("--search", help="Search by name/description")
+    p_catalog.add_argument("--category", help="Filter by category")
+    p_catalog.add_argument("--id", help="Look up a specific entry by ID")
+    p_catalog.add_argument("--page", type=int, help="Page number (default: 1)")
+    p_catalog.add_argument("--page-size", type=int, help="Results per page (default: 20, max: 50)")
+
     # Friendly aliases for common queries
     for alias, help_text in [("notes", "List your notes"),
                               ("trades", "List pending trades"),
@@ -353,6 +363,7 @@ COMMAND_MAP = {
     "faction-invites": commands.cmd_faction_invites,
     "forum": commands.cmd_forum,
     "battle-status": commands.cmd_battle_status,
+    "catalog": commands.cmd_catalog,
     # Phase 4: Hierarchical commands
     "insurance": commands.cmd_insurance,
     "storage": commands.cmd_storage,
