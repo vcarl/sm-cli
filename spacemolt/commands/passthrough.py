@@ -1242,8 +1242,11 @@ def _print_full_help():
             ("send-gift <recipient> [item_id] [qty]", "Send gift to another player"),
         ]),
         ("Crafting", [
-            ("recipes", "Recipe management (list/query/craft)"),
-            ("craft <recipe_id> [count]", "Craft a recipe"),
+            ("recipes", "Recipe list (default view)"),
+            ("recipes query --search <text>", "Search recipes by name/item/category"),
+            ("recipes query --trace <item>", "Trace full ingredient tree for an item"),
+            ("recipes craft <recipe_id> [count]", "Craft a recipe"),
+            ("craft <recipe_id> [count]", "Shortcut for recipes craft"),
         ]),
         ("Missions", [
             ("missions", "Mission overview (active + available)"),
