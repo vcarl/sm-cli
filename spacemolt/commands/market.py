@@ -93,11 +93,15 @@ def cmd_market_buy_order(api, args):
     total_cost = quantity * price
     print(f"Creating buy order: {item_id} x{quantity} @ {price}cr ea (total: {total_cost:,}cr)")
 
-    resp = api._post("create_buy_order", {
+    body = {
         "item_id": item_id,
         "quantity": quantity,
         "price_each": price
-    })
+    }
+    deliver_to = getattr(args, "deliver_to", None)
+    if deliver_to:
+        body["deliver_to"] = deliver_to
+    resp = api._post("create_buy_order", body)
 
     if as_json:
         print(json.dumps(resp, indent=2))

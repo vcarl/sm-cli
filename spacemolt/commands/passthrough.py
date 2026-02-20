@@ -16,7 +16,7 @@ __all__ = [
 # Note: Some endpoints include custom parameters not in the OpenAPI spec (marked with comments).
 ENDPOINT_ARGS = {
     "jump": ["target_system"],
-    "buy": ["item_id", "quantity:int"],
+    "buy": ["item_id", "quantity:int", "auto_list?:bool", "deliver_to?"],
     "scan": ["target_id"],
     "attack": ["target_id", "weapon_idx?:int"],  # weapon_idx is custom extension
     "travel": ["target_poi"],
@@ -25,7 +25,7 @@ ENDPOINT_ARGS = {
     "forum_reply": ["thread_id", "content"],
     "forum_get_thread": ["thread_id"],
     "forum_create_thread": ["title", "content", "category?"],  # category is custom extension
-    "sell": ["item_id", "quantity:int"],
+    "sell": ["item_id", "quantity:int", "auto_list?:bool"],
     "loot_wreck": ["wreck_id", "item_id", "quantity:int"],
     "salvage_wreck": ["wreck_id"],
     "install_mod": ["module_id", "slot_idx?:int"],  # slot_idx is custom extension
@@ -72,7 +72,7 @@ ENDPOINT_ARGS = {
     "self_destruct": [],
     # market orders - spec supports batch operations via "orders" array (pass as JSON string)
     "create_sell_order": ["item_id?", "quantity?:int", "price_each?:int", "orders?"],  # orders is array (JSON string)
-    "create_buy_order": ["item_id?", "quantity?:int", "price_each?:int", "orders?"],  # orders is array (JSON string)
+    "create_buy_order": ["item_id?", "quantity?:int", "price_each?:int", "deliver_to?", "orders?"],  # orders is array (JSON string)
     "cancel_order": ["order_id?", "order_ids?"],  # order_ids is array (JSON string)
     "modify_order": ["order_id?", "new_price?:int", "orders?"],  # orders is array (JSON string)
     "estimate_purchase": ["item_id", "quantity:int"],
@@ -121,7 +121,7 @@ ENDPOINT_ARGS = {
     # Catalog (reference data browser)
     "catalog": ["type", "search?", "category?", "id?", "page?:int", "page_size?:int"],
     # New market and exploration commands
-    "analyze_market": ["item_id?", "page?:int"],
+    "analyze_market": ["item_id?", "mode?", "page?:int"],
     "survey_system": [],
     # Missions
     "decline_mission": ["template_id?"],
@@ -1157,10 +1157,10 @@ def _print_full_help():
             ("sell-wreck", "Sell a wreck"),
         ]),
         ("Trading (NPC)", [
-            ("buy <item_id> [quantity]", "Buy item from NPC market"),
-            ("sell <item_id> [quantity]", "Sell item to NPC market"),
+            ("buy <item_id> [quantity] [--auto-list] [--deliver-to]", "Buy item from NPC market"),
+            ("sell <item_id> [quantity] [--auto-list]", "Sell item to NPC market"),
             ("listings [item_id]", "Market listings at current base"),
-            ("analyze-market [item_id]", "Cross-system market analysis"),
+            ("analyze-market [item_id] [mode]", "Cross-system market analysis (overview/detailed)"),
             ("estimate-purchase <item_id> <quantity>", "Estimate cost before buying"),
         ]),
         ("Market Orders (Player)", [

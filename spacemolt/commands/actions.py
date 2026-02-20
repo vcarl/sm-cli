@@ -290,7 +290,10 @@ def cmd_repair(api, args):
 
 
 def cmd_sell(api, args):
-    result = api._post("sell", {"item_id": args.item_id, "quantity": args.quantity})
+    body = {"item_id": args.item_id, "quantity": args.quantity}
+    if getattr(args, "auto_list", False):
+        body["auto_list"] = True
+    result = api._post("sell", body)
     err = result.get("error")
     if err:
         print(f"ERROR: {err}")
@@ -323,6 +326,11 @@ def cmd_buy(api, args):
     api._require_docked()
     as_json = getattr(args, "json", False)
     body = {"item_id": args.item_id, "quantity": args.quantity}
+    if getattr(args, "auto_list", False):
+        body["auto_list"] = True
+    deliver_to = getattr(args, "deliver_to", None)
+    if deliver_to:
+        body["deliver_to"] = deliver_to
     resp = api._post("buy", body)
     if as_json:
         print(json.dumps(resp, indent=2))

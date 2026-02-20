@@ -73,11 +73,14 @@ Tips:
     p_sell = sub.add_parser("sell", help="Sell an item from cargo")
     p_sell.add_argument("item_id", help="Item ID to sell (e.g. ore_iron)")
     p_sell.add_argument("quantity", nargs="?", type=int, default=1, help="Quantity to sell (default: 1)")
+    p_sell.add_argument("--auto-list", action="store_true", help="Auto-create sell order for unsold items (1%% listing fee)")
 
     # buy
     p_buy = sub.add_parser("buy", help="Buy item from NPC market")
     p_buy.add_argument("item_id", help="Item ID to buy (e.g. ore_iron)")
     p_buy.add_argument("quantity", nargs="?", type=int, default=1, help="Quantity to buy (default: 1)")
+    p_buy.add_argument("--auto-list", action="store_true", help="Auto-create buy order for unfilled quantity (1%% listing fee)")
+    p_buy.add_argument("--deliver-to", choices=["cargo", "storage"], default=None, help="Deliver to cargo (default) or storage")
 
     # NOTE: Old flat "skills" parser removed - replaced with hierarchical version below
 
@@ -281,6 +284,7 @@ Tips:
     p_mb.add_argument("item_id", help="Item ID")
     p_mb.add_argument("quantity", type=int, help="Quantity to buy")
     p_mb.add_argument("price", type=int, help="Price per item (in credits)")
+    p_mb.add_argument("--deliver-to", choices=["cargo", "storage"], default=None, help="Deliver filled items to cargo (default) or storage")
 
     p_ms = market_sub.add_parser("sell", help="Create a sell order")
     p_ms.add_argument("item_id", help="Item ID")
