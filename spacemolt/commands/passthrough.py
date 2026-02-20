@@ -509,6 +509,52 @@ def _fmt_scan(resp):
     print(f"\n  Hint: sm attack {target_id}  |  sm trade-offer {target_id}")
 
 
+def _fmt_craft(resp):
+    r = resp.get("result", {})
+    msg = r.get("message")
+    if msg:
+        print(f"✓ {msg}")
+    else:
+        print("✓ Crafted successfully.")
+    for label, key in [("Recipe", "recipe"), ("Count", "count"),
+                        ("Quality", "quality"), ("Skill level", "skill_level")]:
+        val = r.get(key)
+        if val is not None:
+            print(f"  {label}: {val}")
+
+    xp = r.get("xp_gained", {})
+    if xp:
+        parts = [f"{skill} +{amount}" for skill, amount in xp.items()]
+        print(f"  XP gained: {', '.join(parts)}")
+
+    if r.get("level_up"):
+        skills = r.get("leveled_up_skills", [])
+        if skills:
+            print(f"  Level up: {', '.join(skills)}")
+        else:
+            print("  Level up!")
+
+    from_storage = r.get("from_storage", [])
+    if from_storage:
+        print("\n  Used from storage:")
+        for item in from_storage:
+            if isinstance(item, dict):
+                print(f"    - {item.get('item_id', '?')} x{item.get('quantity', 1)}")
+            else:
+                print(f"    - {item}")
+
+    to_storage = r.get("to_storage", [])
+    if to_storage:
+        print("\n  Overflow to storage:")
+        for item in to_storage:
+            if isinstance(item, dict):
+                print(f"    - {item.get('item_id', '?')} x{item.get('quantity', 1)}")
+            else:
+                print(f"    - {item}")
+
+    print(f"\n  Hint: sm cargo  |  sm recipes")
+
+
 def _fmt_help(resp):
     r = resp.get("result", resp)
     help_text = r.get("help") or r.get("message") or r.get("content", "")
@@ -893,6 +939,7 @@ _FORMATTERS = {
     "forum_get_thread": _fmt_forum_get_thread,
     "attack": _fmt_attack,
     "scan": _fmt_scan,
+    "craft": _fmt_craft,
     "help": _fmt_help,
     "find_route": _fmt_find_route,
     "search_systems": _fmt_search_systems,

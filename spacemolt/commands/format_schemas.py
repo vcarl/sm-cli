@@ -545,22 +545,7 @@ FORMAT_SCHEMAS = {
         ],
         "hints": ["sm market"],
     },
-    "craft": {
-        "icon": "✓",
-        "message": "{message}",
-        "fields": [
-            ("Recipe", "{recipe}"),
-            ("Count", "{count}"),
-            ("Quality", "{quality}"),
-            ("Skill level", "{skill_level}"),
-        ],
-        "list": {
-            "key": "from_storage",
-            "header": "\n  Used from storage:",
-            "each": "    - {item_id} x{quantity}",
-        },
-        "hints": ["sm cargo", "sm recipes"],
-    },
+    # "craft" — handled by custom formatter in passthrough.py (_FORMATTERS)
     "estimate_purchase": {
         "message": "Purchase estimate for {item_id} x{quantity}:",
         "fields": [
