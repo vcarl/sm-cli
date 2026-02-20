@@ -1099,14 +1099,14 @@ class TestExistingCommandsRegression(unittest.TestCase):
         with patch("builtins.print") as mock_print:
             from spacemolt.commands import cmd_dock
             cmd_dock(api, make_args())
-        self.assertIn("automatic", mock_print.call_args_list[0][0][0])
+        self.assertIn("Docking queued.", mock_print.call_args_list[0][0][0])
 
     def test_cmd_undock(self):
         api = mock_api({"result": {}})
         with patch("builtins.print") as mock_print:
             from spacemolt.commands import cmd_undock
             cmd_undock(api, make_args())
-        self.assertIn("automatic", mock_print.call_args_list[0][0][0])
+        self.assertIn("Undocked.", mock_print.call_args_list[0][0][0])
 
     def test_cmd_skills_empty(self):
         api = mock_api({"result": {"player_skills": []}})
@@ -1132,39 +1132,22 @@ class TestPassthroughFormatters(unittest.TestCase):
     """Test that passthrough commands with formatters show human-readable output."""
 
     def test_trades_formatted(self):
-        api = mock_api({"result": {"trades": [
-            {"id": "t1", "partner_name": "SpaceTrader", "status": "pending",
+        api = mock_api({"result": {"incoming": [
+            {"trade_id": "t1", "partner_name": "SpaceTrader", "status": "pending",
              "items_offered": [{"item_id": "ore_iron", "quantity": 10}]},
-        ]}})
+        ], "outgoing": []}})
         with patch("builtins.print") as mock_print:
             cmd_passthrough(api, "get_trades", [])
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        output = "\n".join(str(c[0][0]) for c in mock_print.call_args_list)
         self.assertIn("SpaceTrader", output)
         self.assertIn("pending", output)
         self.assertNotIn("{", output)
 
     def test_trades_empty(self):
-        api = mock_api({"result": {"trades": []}})
+        api = mock_api({"result": {"incoming": [], "outgoing": []}})
         with patch("builtins.print") as mock_print:
             cmd_passthrough(api, "get_trades", [])
         self.assertIn("No pending trades", mock_print.call_args[0][0])
-
-    def test_drones_formatted(self):
-        api = mock_api({"result": {"drones": [
-            {"id": "d1234567890", "type": "mining", "status": "active"},
-        ]}})
-        with patch("builtins.print") as mock_print:
-            cmd_passthrough(api, "get_drones", [])
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("mining", output)
-        self.assertIn("active", output)
-        self.assertNotIn("{", output)
-
-    def test_drones_empty(self):
-        api = mock_api({"result": {"drones": []}})
-        with patch("builtins.print") as mock_print:
-            cmd_passthrough(api, "get_drones", [])
-        self.assertIn("No active drones", mock_print.call_args[0][0])
 
     def test_ships_formatted(self):
         api = mock_api({"result": {"ships": [
@@ -1279,13 +1262,13 @@ class TestAliasCommands(unittest.TestCase):
 
     def test_alias_commands_known(self):
         known = _known_commands()
-        for cmd in ["chat-history", "notes", "trades", "drones", "ships",
+        for cmd in ["chat-history", "notes", "trades", "ships",
                      "faction-list", "faction-invites"]:
             self.assertIn(cmd, known, f"{cmd} not in known commands")
 
     def test_alias_subparsers_registered(self):
         parser = build_parser()
-        for cmd in ["notes", "trades", "drones", "ships",
+        for cmd in ["notes", "trades", "ships",
                      "faction-list", "faction-invites", "chat-history"]:
             args = parser.parse_args([cmd])
             self.assertEqual(args.command, cmd)
@@ -1380,20 +1363,23 @@ class TestCmdRepair(unittest.TestCase):
 class TestCmdLog(unittest.TestCase):
 
     def test_with_entries(self):
-        api = mock_api({"result": {"entries": [
-            {"entry": "Found a rare asteroid field today.\nLots of platinum."},
-            {"entry": "Sold cargo at Sol Station."},
-        ]}})
+        # cmd_log calls captains_log_list per index; mock successive responses
+        api = MagicMock()
+        api._post.side_effect = [
+            {"result": {"entry": {"entry": "Found a rare asteroid field today.\nLots of platinum."}, "has_next": True}},
+            {"result": {"entry": {"entry": "Sold cargo at Sol Station."}, "has_next": False}},
+        ]
         with patch("builtins.print") as mock_print:
             cmd_log(api, make_args(brief=False))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
+        output = "\n".join(str(c[0][0]) for c in mock_print.call_args_list)
         self.assertIn("rare asteroid", output)
         self.assertIn("Sold cargo", output)
 
     def test_brief_mode(self):
-        api = mock_api({"result": {"entries": [
-            {"entry": "Line one\nLine two\nLine three"},
-        ]}})
+        api = MagicMock()
+        api._post.side_effect = [
+            {"result": {"entry": {"entry": "Line one\nLine two\nLine three"}, "has_next": False}},
+        ]
         with patch("builtins.print") as mock_print:
             cmd_log(api, make_args(brief=True))
         printed = mock_print.call_args[0][0]
@@ -1401,7 +1387,7 @@ class TestCmdLog(unittest.TestCase):
         self.assertNotIn("Line two", printed)
 
     def test_empty_entries(self):
-        api = mock_api({"result": {"entries": []}})
+        api = mock_api({"result": {}})
         with patch("builtins.print") as mock_print:
             cmd_log(api, make_args(brief=False))
         mock_print.assert_called_once_with("No log entries.")

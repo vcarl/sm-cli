@@ -57,16 +57,12 @@ def cmd_insurance_buy(api, args):
     """Purchase insurance coverage."""
     as_json = getattr(args, "json", False)
     ticks = args.ticks
-    coverage_percent = args.coverage_percent
 
     if ticks <= 0:
         print("Error: Ticks must be greater than 0")
         return
-    if not (50 <= coverage_percent <= 100):
-        print("Error: Coverage percent must be between 50 and 100")
-        return
 
-    resp = api._post("buy_insurance", {"coverage_percent": coverage_percent, "ticks": ticks})
+    resp = api._post("buy_insurance", {"ticks": ticks})
 
     if as_json:
         print(json.dumps(resp, indent=2))
