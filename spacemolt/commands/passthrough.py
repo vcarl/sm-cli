@@ -1207,7 +1207,10 @@ def _print_full_help():
         ]),
         ("Skills", [
             ("skills", "Trained skills overview"),
-            ("skill <skill_id>", "Deep inspect a skill"),
+            ("skills query --search <text>", "Search all skills by name/category/bonus"),
+            ("skills query --my", "Your trained skills with progress bars"),
+            ("skills inspect <skill_id>", "Deep inspect: prereqs, bonuses, XP table, unlocks"),
+            ("skill <skill_id>", "Shortcut for skills inspect"),
         ]),
         ("Insurance", [
             ("insurance", "Insurance coverage status"),
