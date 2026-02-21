@@ -773,8 +773,8 @@ def _fmt_view_market_item(resp):
             for order in sell_orders[:10]:  # Show top 10
                 price = order.get("price_each", "?")
                 qty = order.get("quantity", "?")
-                is_npc = order.get("is_npc", False)
-                seller_type = "NPC" if is_npc else "Player"
+                source = order.get("source", "")
+                seller_type = "NPC" if source == "station" else "Player"
                 print(f"    {qty:>6} @ {price:>5} cr  [{seller_type}]")
         else:
             print("\n  No asks (cannot buy this item here)")
@@ -786,8 +786,8 @@ def _fmt_view_market_item(resp):
             for order in buy_orders[:10]:  # Show top 10
                 price = order.get("price_each", "?")
                 qty = order.get("quantity", "?")
-                is_npc = order.get("is_npc", False)
-                buyer_type = "NPC" if is_npc else "Player"
+                source = order.get("source", "")
+                buyer_type = "NPC" if source == "station" else "Player"
                 print(f"    {qty:>6} @ {price:>5} cr  [{buyer_type}]")
         else:
             print("\n  No bids (no one buying this item here)")
@@ -841,8 +841,8 @@ def cmd_listings(api, args):
     page_items = items[start:start + PAGE_SIZE]
 
     print("Market Listings:")
-    print(f"{'Item ID':<25} {'Best Bid':>11} {'Best Ask':>12} {'Spread':>16} {'Bid Qty':>10} {'Bid Value':>12} {'Ask Qty':>10} {'Ask Value':>12}")
-    print("-" * 126)
+    print(f"{'Item ID':<25} {'Best Bid':>10} {'Best Ask':>10} {'Spread':>10} {'Bid Qty':>10} {'Bid Value':>12} {'Ask Qty':>10} {'Ask Value':>12}")
+    print("-" * 117)
 
     for item_data in page_items:
         item_id = item_data.get("item_id", "?")
@@ -866,12 +866,8 @@ def cmd_listings(api, args):
                     price = o.get("price_each", 0)
                     buy_qty_total += qty
                     buy_value_total += qty * price
-        elif best_buy:
-            # Fallback: use aggregated quantity if available
-            buy_qty = item_data.get("buy_quantity", 0) or item_data.get("buy_qty", 0)
-            if buy_qty:
-                buy_qty_total = buy_qty
-                buy_value_total = buy_qty * best_buy
+        else:
+            buy_qty_total = item_data.get("buy_quantity", 0) or 0
 
         if sell_orders:
             for o in sell_orders:
@@ -880,20 +876,16 @@ def cmd_listings(api, args):
                     price = o.get("price_each", 0)
                     sell_qty_total += qty
                     sell_value_total += qty * price
-        elif best_sell:
-            # Fallback: use aggregated quantity if available
-            sell_qty = item_data.get("sell_quantity", 0) or item_data.get("sell_qty", 0)
-            if sell_qty:
-                sell_qty_total = sell_qty
-                sell_value_total = sell_qty * best_sell
+        else:
+            sell_qty_total = item_data.get("sell_quantity", 0) or 0
 
-        # Calculate spread with percentage
+        # Use server-provided spread, fall back to simple difference
         spread = ""
-        if best_buy and best_sell:
-            spread_val = best_sell - best_buy
-            avg_price = (best_sell + best_buy) / 2
-            spread_pct = (spread_val / avg_price) * 100
-            spread = f"{spread_val:+d} ({spread_pct:.1f}%)"
+        spread_val = item_data.get("spread")
+        if spread_val is not None:
+            spread = f"{spread_val:+d}"
+        elif best_buy and best_sell:
+            spread = f"{best_sell - best_buy:+d}"
 
         buy_str = f"{best_buy}cr" if best_buy else "-"
         sell_str = f"{best_sell}cr" if best_sell else "-"
@@ -902,11 +894,13 @@ def cmd_listings(api, args):
         sell_qty_str = f"{sell_qty_total:,}" if sell_qty_total else "-"
         sell_val_str = f"{sell_value_total:,}cr" if sell_value_total else "-"
 
-        print(f"{item_id:<25} {buy_str:>11} {sell_str:>12} {spread:>16} {buy_qty_str:>10} {buy_val_str:>12} {sell_qty_str:>10} {sell_val_str:>12}")
+        print(f"{item_id:<25} {buy_str:>10} {sell_str:>10} {spread:>10} {buy_qty_str:>10} {buy_val_str:>12} {sell_qty_str:>10} {sell_val_str:>12}")
 
     print(f"\n  Page {page}/{total_pages}")
     if page < total_pages:
         print(f"  Next page: sm listings --page {page + 1}")
 
+    print("\n  Bid = standing offer to buy (\"I'll pay 100cr, come to me\")")
+    print("  Ask = standing offer to sell (\"I have steel at 150cr, come get it\")")
     print(f"\n  Hint: sm listings <item_id>  (detailed orders for an item)")
     print("        sm market buy <item_id> <qty> <price>  |  sm market sell <item_id> <qty> <price>")
