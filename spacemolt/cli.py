@@ -207,8 +207,6 @@ Tips:
 
     # deprecated recipe commands (redirect to catalog)
     sub.add_parser("recipes", help="(deprecated) Use: sm catalog recipes")
-    p_qr_dep = sub.add_parser("query-recipes", help="(deprecated) Use: sm catalog recipes")
-    p_qr_dep.add_argument("extra", nargs="*")
 
     # insurance group
     p_insurance = sub.add_parser("insurance", help="Insurance management (shows coverage status by default)")
