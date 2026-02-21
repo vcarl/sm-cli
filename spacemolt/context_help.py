@@ -20,22 +20,26 @@ COMMAND_SUGGESTIONS = {
         "sm missions complete <id>  # Complete mission",
     ],
     "skills": [
-        "sm skills query            # Search all skills",
-        "sm skills inspect <id>     # Deep inspect skill",
+        "sm skills query --search <resource>   # Search all skills by name/category",
+        "sm skills query --my                  # Your skills with progress bars",
+        "sm skills inspect <skill_id>          # Deep inspect: prereqs, unlocks, XP",
     ],
     "query-skills": [
-        "sm skills inspect <id>     # Deep inspect skill",
+        "sm skills query --search <resource>   # Search all skills by name/category",
+        "sm skills inspect <skill_id>          # Deep inspect: prereqs, unlocks, XP",
     ],
     "skill": [
-        "sm skills query            # Search all skills",
+        "sm skills query --search <resource>   # Search all skills by name/category",
     ],
     "recipes": [
-        "sm recipes query           # Search recipes",
-        "sm recipes craft <id>      # Craft recipe",
+        "sm recipes query --search <resource>   # Search recipes by name/ingredient",
+        "sm recipes query --trace <item>    # Full ingredient tree",
+        "sm recipes craft <recipe_id>       # Craft a recipe",
     ],
     "query-recipes": [
-        "sm recipes trace <item>    # Ingredient tree",
-        "sm recipes craft <id>      # Craft recipe",
+        "sm recipes query --search <resource>   # Search recipes by name/ingredient",
+        "sm recipes query --trace <item>    # Full ingredient tree",
+        "sm recipes craft <recipe_id>       # Craft a recipe",
     ],
     "ship": [
         "sm install-mod <module_id>   # Install a module",

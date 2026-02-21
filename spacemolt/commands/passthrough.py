@@ -570,7 +570,7 @@ def _fmt_craft(resp):
             else:
                 print(f"    - {item}")
 
-    print(f"\n  Hint: sm cargo  |  sm recipes")
+    print(f"\n  Hint: sm cargo  |  sm recipes  |  sm recipes query --search <resource>")
 
 
 def _fmt_help(resp):
@@ -1238,7 +1238,7 @@ def _print_full_help():
         ]),
         ("Crafting", [
             ("recipes", "Recipe list (default view)"),
-            ("recipes query --search <text>", "Search recipes by name/item/category"),
+            ("recipes query --search <resource>", "Search recipes by name/item/category"),
             ("recipes query --trace <item>", "Trace full ingredient tree for an item"),
             ("recipes craft <recipe_id> [count]", "Craft a recipe"),
             ("craft <recipe_id> [count]", "Shortcut for recipes craft"),
@@ -1252,7 +1252,7 @@ def _print_full_help():
         ]),
         ("Skills", [
             ("skills", "Trained skills overview"),
-            ("skills query --search <text>", "Search all skills by name/category/bonus"),
+            ("skills query --search <resource>", "Search all skills by name/category/bonus"),
             ("skills query --my", "Your trained skills with progress bars"),
             ("skills inspect <skill_id>", "Deep inspect: prereqs, bonuses, XP table, unlocks"),
             ("skill <skill_id>", "Shortcut for skills inspect"),

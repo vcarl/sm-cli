@@ -306,7 +306,7 @@ def _do_search(query, recipe_list, limit=10, page=1):
 def _do_trace(query, by_output, recipe_list):
     """Trace the full ingredient tree for an item or recipe."""
     if not query:
-        print("Usage: sm query-recipes --trace <item_id or recipe_id>")
+        print("Usage: sm recipes query --trace <item_id or recipe_id>")
         return
 
     # Try as item_id first, then as recipe_id
@@ -339,7 +339,7 @@ def _do_trace(query, by_output, recipe_list):
                 print(f"  {c}")
             return
         else:
-            print(f"No recipe produces '{query}'. Try: sm query-recipes --search {query}")
+            print(f"No recipe produces '{query}'. Try: sm recipes query --search {query}")
             return
 
     tree = _trace_ingredient_tree(target_item, target_qty, by_output)

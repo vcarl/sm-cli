@@ -355,7 +355,7 @@ def _do_skill_trace(query, by_id, player_map):
                 print(f"  {s.get('name', c)} (id: {c})")
             return
         else:
-            print(f"No skill matching '{query}'. Try: sm query-skills --search {query}")
+            print(f"No skill matching '{query}'. Try: sm skills query --search {query}")
             return
 
     skill = by_id[target]
