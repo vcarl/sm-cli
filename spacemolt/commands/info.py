@@ -999,3 +999,33 @@ def cmd_listings(api, args):
     print("  Ask = standing offer to sell (\"I have steel at 150cr, come get it\")")
     print(f"\n  Hint: sm listings <item_id>  (detailed orders for an item)")
     print("        sm market buy <item_id> <qty> <price>  |  sm market sell <item_id> <qty> <price>")
+
+
+def cmd_skills(api, args):
+    as_json = getattr(args, "json", False)
+    resp = api._post("get_skills")
+    if as_json:
+        print(json.dumps(resp, indent=2))
+        return
+    r = resp.get("result", {})
+    skills = r.get("skills", {})
+    if not skills:
+        print("No skills trained yet.")
+        return
+    print("Your Skills:\n")
+    for skill_id, data in sorted(skills.items()):
+        level = data.get("level", 0)
+        xp = data.get("xp", 0)
+        next_xp = data.get("next_level_xp", 0)
+        name = skill_id.replace("_", " ").title()
+        if next_xp == 0:
+            bar = "██████████"
+            progress = "maxed"
+        else:
+            pct = min(xp / next_xp, 1.0)
+            filled = int(pct * 10)
+            bar = "█" * filled + "░" * (10 - filled)
+            progress = f"{xp:,}/{next_xp:,} XP"
+        print(f"  {name:<28} L{level:<3} {bar}  {progress}")
+    print(f"\n  {len(skills)} skills tracked.")
+    print("  Hint: sm catalog skills --search <query>  (browse all skill definitions)")

@@ -154,8 +154,8 @@ Tips:
     p_qm.add_argument("--page", type=int, default=1, metavar="N",
                        help="Page number (default: 1)")
 
-    # deprecated skill commands (redirect to catalog)
-    sub.add_parser("skills", help="(deprecated) Use: sm catalog skills")
+    # player skills (fixed: was incorrectly redirected to catalog)
+    sub.add_parser("skills", help="Your skill levels and XP progress")
     p_skill_dep = sub.add_parser("skill", help="(deprecated) Use: sm catalog skills --id <skill_id>")
     p_skill_dep.add_argument("skill_id", nargs="?", help="Skill ID (ignored)")
     sub.add_parser("query-skills", help="(deprecated) Use: sm catalog skills")
@@ -387,7 +387,7 @@ COMMAND_MAP = {
     "missions": commands.cmd_missions_router,     # NEW: hierarchical router
     "active-missions": commands.cmd_active_missions,  # Keep for backwards compatibility
     "query-missions": commands.cmd_query_missions,     # Keep for backwards compatibility
-    "skills": lambda api, args: _deprecated_skills(),
+    "skills": commands.cmd_skills,
     "skill": lambda api, args: _deprecated_skills(),
     "query-skills": lambda api, args: _deprecated_skills(),
     "commands": commands.cmd_commands,
