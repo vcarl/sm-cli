@@ -744,7 +744,7 @@ class TestBuildRecipeIndexes(unittest.TestCase):
 
     def setUp(self):
         self.recipe_list = _normalize_recipes(SAMPLE_RECIPES)
-        self.by_output, self.by_id = _build_recipe_indexes(self.recipe_list)
+        self.by_output, self.by_id, self.alt_recipes = _build_recipe_indexes(self.recipe_list)
 
     def test_by_output_maps_item_to_recipe(self):
         self.assertEqual(self.by_output["refined_steel"]["id"], "basic_smelt_iron")
@@ -795,7 +795,7 @@ class TestTraceIngredientTree(unittest.TestCase):
 
     def setUp(self):
         recipe_list = _normalize_recipes(SAMPLE_RECIPES)
-        self.by_output, _ = _build_recipe_indexes(recipe_list)
+        self.by_output, _, _ = _build_recipe_indexes(recipe_list)
 
     def test_raw_material_is_leaf(self):
         tree = _trace_ingredient_tree("ore_iron", 10, self.by_output)
@@ -841,7 +841,7 @@ class TestTraceIngredientTree(unittest.TestCase):
             {"id": "r2", "inputs": [{"item_id": "a", "quantity": 1}],
              "outputs": [{"item_id": "b", "quantity": 1}]},
         ]
-        by_output, _ = _build_recipe_indexes(circular)
+        by_output, _, _ = _build_recipe_indexes(circular)
         # Should terminate without error
         tree = _trace_ingredient_tree("a", 1, by_output)
         self.assertIsNotNone(tree)
@@ -851,7 +851,7 @@ class TestRenderTree(unittest.TestCase):
 
     def setUp(self):
         recipe_list = _normalize_recipes(SAMPLE_RECIPES)
-        self.by_output, _ = _build_recipe_indexes(recipe_list)
+        self.by_output, _, _ = _build_recipe_indexes(recipe_list)
 
     def test_single_step_rendering(self):
         tree = _trace_ingredient_tree("refined_steel", 1, self.by_output)
@@ -880,7 +880,7 @@ class TestCollectRawTotals(unittest.TestCase):
 
     def setUp(self):
         recipe_list = _normalize_recipes(SAMPLE_RECIPES)
-        self.by_output, _ = _build_recipe_indexes(recipe_list)
+        self.by_output, _, _ = _build_recipe_indexes(recipe_list)
 
     def test_raw_material_only(self):
         tree = _trace_ingredient_tree("ore_iron", 5, self.by_output)
@@ -894,7 +894,7 @@ class TestCollectRawTotals(unittest.TestCase):
                         {"item_id": "ore_b", "quantity": 2}],
              "outputs": [{"item_id": "refined_x", "quantity": 1}]},
         ]
-        by_output, _ = _build_recipe_indexes(recipes)
+        by_output, _, _ = _build_recipe_indexes(recipes)
         tree = _trace_ingredient_tree("refined_x", 2, by_output)
         totals = _collect_raw_totals(tree)
         self.assertEqual(totals, {"ore_a": 6, "ore_b": 4})

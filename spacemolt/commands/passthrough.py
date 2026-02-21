@@ -1413,17 +1413,76 @@ def _normalize_recipes(raw_recipes):
     return list(raw_recipes)
 
 
+def _is_natural_resource(item_id):
+    """Check if an item ID looks like a natural resource (mineable/harvestable)."""
+    return item_id.startswith(("ore_", "gas_", "bio_", "salvage_"))
+
+
+def _leaf_source_score(item_id, all_by_output, depth=0, seen=None):
+    """Score an item by its ultimate source. Higher = more preferred.
+
+    Recursively traces through recipes to score based on the leaf materials.
+    Mine/harvest (ore/gas/bio) = 2, salvage = 1, unknown = 0.
+    """
+    if seen is None:
+        seen = set()
+    if item_id in seen:
+        return 0
+    if item_id.startswith(("ore_", "gas_", "bio_")):
+        return 2
+    if item_id.startswith("salvage_"):
+        return 1
+    # If this item can be crafted, score based on its best recipe's inputs
+    recipes = all_by_output.get(item_id, [])
+    if not recipes or depth > 5:
+        return 0
+    seen = seen | {item_id}
+    best = 0
+    for r in recipes:
+        inputs = r.get("inputs") or []
+        if not inputs:
+            continue
+        score = sum(_leaf_source_score(i.get("item_id", ""), all_by_output, depth + 1, seen)
+                    for i in inputs) / len(inputs)
+        best = max(best, score)
+    return best
+
+
+def _recipe_source_score(recipe, all_by_output):
+    """Score a recipe by how obtainable its inputs ultimately are. Higher = more preferred."""
+    inputs = recipe.get("inputs") or []
+    if not inputs:
+        return 0
+    return sum(_leaf_source_score(i.get("item_id", ""), all_by_output) for i in inputs) / len(inputs)
+
+
 def _build_recipe_indexes(recipe_list):
-    """Build lookup dicts: output_item->recipe, recipe_id->recipe."""
-    by_output = {}  # item_id -> recipe
+    """Build lookup dicts: output_item->recipes (list), recipe_id->recipe.
+
+    When multiple recipes produce the same item, they are sorted so recipes
+    using natural resources (ore, gas, bio, salvage) come first.
+    """
+    from collections import defaultdict
+    all_by_output = defaultdict(list)  # item_id -> [recipes]
     by_id = {}      # recipe_id -> recipe
     for r in recipe_list:
         rid = r.get("id") or r.get("recipe_id", "")
         if rid:
             by_id[rid] = r
         for o in r.get("outputs", []):
-            by_output[o.get("item_id", "")] = r
-    return by_output, by_id
+            all_by_output[o.get("item_id", "")].append(r)
+
+    # Sort each output's recipes: prefer mine/harvest over salvage over crafted
+    by_output = {}
+    alt_recipes = {}  # item_id -> [alternative recipes]
+    for item_id, recipes in all_by_output.items():
+        recipes.sort(key=lambda r: (-_recipe_source_score(r, all_by_output),
+                                     len(r.get("inputs") or [])))
+        by_output[item_id] = recipes[0]
+        if len(recipes) > 1:
+            alt_recipes[item_id] = recipes[1:]
+
+    return by_output, by_id, alt_recipes
 
 
 def _recipe_skill_tier(recipe):
@@ -1467,10 +1526,25 @@ def _trace_ingredient_tree(item_id, qty, by_output, depth=0, seen=None):
     return (depth, item_id, qty, recipe, children)
 
 
-def _render_tree(node, prefix="", is_last=True, lines=None):
+def _item_source_tag(item_id):
+    """Return a short tag describing how to obtain a natural resource."""
+    if item_id.startswith("ore_"):
+        return "mine"
+    if item_id.startswith("gas_"):
+        return "harvest"
+    if item_id.startswith("bio_"):
+        return "harvest"
+    if item_id.startswith("salvage_"):
+        return "salvage"
+    return None
+
+
+def _render_tree(node, prefix="", is_last=True, lines=None, alt_recipes=None):
     """Render a trace tree into lines with box-drawing connectors."""
     if lines is None:
         lines = []
+    if alt_recipes is None:
+        alt_recipes = {}
     depth, item_id, qty, recipe, children = node
 
     connector = "\u2514\u2500\u2500 " if is_last else "\u251c\u2500\u2500 "
@@ -1489,11 +1563,22 @@ def _render_tree(node, prefix="", is_last=True, lines=None):
         if recipe:
             rid = recipe.get("id", "")
             label += f"  ({rid})"
+        elif _item_source_tag(item_id):
+            label += f"  [{_item_source_tag(item_id)}]"
         lines.append(f"{prefix}{connector}{label}")
+
+    # Show alternative recipes for this item
+    alts = alt_recipes.get(item_id, [])
+    if alts:
+        child_prefix = prefix + ("    " if is_last else "\u2502   ")
+        total = len(alts) + 1  # include the primary recipe
+        shown = [_recipe_one_line(a) for a in alts[:3]]
+        more = f" (+{len(alts) - 3} more)" if len(alts) > 3 else ""
+        lines.append(f"{child_prefix}  {total} recipes: {'; '.join(shown)}{more}")
 
     child_prefix = prefix + ("    " if is_last else "\u2502   ")
     for i, child in enumerate(children):
-        _render_tree(child, child_prefix, i == len(children) - 1, lines)
+        _render_tree(child, child_prefix, i == len(children) - 1, lines, alt_recipes)
     return lines
 
 
@@ -1510,8 +1595,83 @@ def _collect_raw_totals(node, totals=None):
     return totals
 
 
-def _do_trace(query, by_output, recipe_list):
+def _print_raw_totals(label, totals):
+    """Print raw material totals grouped by source type."""
+    groups = {}
+    for item_id, qty in totals.items():
+        tag = _item_source_tag(item_id) or "other"
+        groups.setdefault(tag, []).append((item_id, qty))
+
+    GROUP_LABELS = {
+        "mine": "Mine",
+        "harvest": "Harvest",
+        "salvage": "Salvage",
+        "other": "Other",
+    }
+    print(f"\n{'─' * 40}")
+    print(f"{label}:\n")
+    for tag in ["mine", "harvest", "salvage", "other"]:
+        items = groups.get(tag)
+        if not items:
+            continue
+        items.sort(key=lambda x: -x[1])
+        print(f"  {GROUP_LABELS[tag]}:")
+        for item_id, qty in items:
+            print(f"    {qty}x {item_id}")
+        print()
+
+
+def _collect_alt_totals(target_item, target_qty, by_output, alt_recipes):
+    """Build raw material totals for alternative recipe paths.
+
+    For each item in the primary tree that has alternatives, swap in
+    each alt recipe and compute the resulting raw totals.
+    Returns list of (label, totals_dict).
+    """
+    result = []
+    # Find items in the tree that have alternatives
+    items_with_alts = _find_items_with_alts_in_tree(target_item, by_output, alt_recipes)
+
+    for item_id, alts in items_with_alts:
+        for alt_recipe in alts[:1]:  # show best alt per item
+            # Build a modified by_output with this alt swapped in
+            modified = dict(by_output)
+            modified[item_id] = alt_recipe
+            tree = _trace_ingredient_tree(target_item, target_qty, modified)
+            totals = _collect_raw_totals(tree)
+            rid = alt_recipe.get("id", "?")
+            result.append((f"{item_id} via {rid}", totals))
+
+    return result
+
+
+def _find_items_with_alts_in_tree(item_id, by_output, alt_recipes, seen=None):
+    """Walk the primary tree and find items that have alternative recipes."""
+    if seen is None:
+        seen = set()
+    if item_id in seen:
+        return []
+    seen = seen | {item_id}
+    result = []
+    recipe = by_output.get(item_id)
+    if recipe is None:
+        return []
+
+    alts = alt_recipes.get(item_id, [])
+    if alts:
+        result.append((item_id, alts))
+
+    for inp in recipe.get("inputs", []):
+        result.extend(_find_items_with_alts_in_tree(
+            inp.get("item_id", ""), by_output, alt_recipes, seen))
+
+    return result
+
+
+def _do_trace(query, by_output, recipe_list, alt_recipes=None):
     """Trace the full ingredient tree for an item or recipe."""
+    if alt_recipes is None:
+        alt_recipes = {}
     if not query:
         print("Usage: sm catalog recipes trace <item_id or recipe_id>")
         return
@@ -1547,18 +1707,24 @@ def _do_trace(query, by_output, recipe_list):
             return
 
     tree = _trace_ingredient_tree(target_item, target_qty, by_output)
-    lines = _render_tree(tree)
+    lines = _render_tree(tree, alt_recipes=alt_recipes)
 
     print(f"Ingredient tree for {target_item}:\n")
     for line in lines:
         print(line)
 
+    # Collect raw totals for primary path
     totals = _collect_raw_totals(tree)
-    if totals:
-        print(f"\n{'─' * 40}")
-        print("Raw materials needed:")
-        for item_id, qty in sorted(totals.items(), key=lambda x: -x[1]):
-            print(f"  {qty}x {item_id}")
+    if not totals:
+        return
+
+    # Build alt totals by swapping each node's recipe with its alternatives
+    alt_totals_list = _collect_alt_totals(target_item, target_qty, by_output, alt_recipes)
+
+    _print_raw_totals("Primary path", totals)
+
+    for label, alt_total in alt_totals_list[:2]:
+        _print_raw_totals(f"Alt: {label}", alt_total)
 
 
 # ---------------------------------------------------------------------------
@@ -1635,8 +1801,8 @@ def cmd_catalog(api, args):
             if not recipe_list:
                 print("No recipes available.")
                 return
-            by_output, by_id = _build_recipe_indexes(recipe_list)
-            _do_trace(trace_target, by_output, recipe_list)
+            by_output, by_id, alt_recipes = _build_recipe_indexes(recipe_list)
+            _do_trace(trace_target, by_output, recipe_list, alt_recipes)
             return
 
     resp = _catalog_api_call(api, cat_type, args)
