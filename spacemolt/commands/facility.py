@@ -125,7 +125,18 @@ def _cmd_faction_list(api, args, as_json):
     r = _call(api, body, as_json)
     if r is None:
         return
-    _fmt_facility_list(r)
+    # API returns faction_facilities; normalize for shared formatter
+    if "faction_facilities" in r:
+        storage = r.get("faction_storage", {})
+        if storage:
+            credits = storage.get("credits", 0)
+            items = storage.get("item_types", 0)
+            print(f"Faction Treasury: {credits:,} cr  |  Storage: {items} item type(s)\n")
+        normalized = dict(r)
+        normalized["facilities"] = r["faction_facilities"]
+        _fmt_facility_list(normalized)
+    else:
+        _fmt_facility_list(r)
 
 
 def _cmd_transfer(api, args, as_json):
@@ -195,8 +206,8 @@ def _fmt_facility_list(r):
     print(f"  {'Name':<24} {'Type':<20} {'Lvl':>3}  {'Status':<12} {'ID'}")
     print(f"  {'─'*24} {'─'*20} {'─'*3}  {'─'*12} {'─'*12}")
     for f in facilities:
-        name = f.get("name") or f.get("facility_type", "?")
-        ftype = f.get("facility_type", "?")
+        name = f.get("name") or f.get("facility_type") or f.get("type", "?")
+        ftype = f.get("facility_type") or f.get("type", "?")
         level = f.get("level", 1)
         fid = f.get("facility_id", "?")
         # Truncate ID for display
