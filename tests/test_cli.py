@@ -31,8 +31,6 @@ from spacemolt.commands import (
     cmd_poi,
     cmd_wrecks,
     cmd_listings,
-    cmd_recipes,
-    cmd_query_recipes,
     cmd_commands,
     cmd_travel,
     cmd_login,
@@ -651,31 +649,6 @@ class TestCmdListings(unittest.TestCase):
         self.assertIn("ore_iron", output)
 
 
-class TestCmdRecipes(unittest.TestCase):
-
-    def test_empty(self):
-        api = mock_api({"result": {"recipes": []}})
-        with patch("builtins.print") as mock_print:
-            cmd_recipes(api, make_args(json=False))
-        self.assertIn("No recipes", mock_print.call_args[0][0])
-
-    def test_with_recipe(self):
-        api = mock_api({"result": {"recipes": [{
-            "name": "Refined Steel",
-            "id": "recipe-1",
-            "inputs": [{"item_id": "ore_iron", "quantity": 5}],
-            "outputs": [{"item_id": "refined_steel", "quantity": 1}],
-            "requirements": [{"skill": "refinement", "level": 2}],
-        }]}})
-        with patch("builtins.print") as mock_print:
-            cmd_recipes(api, make_args(json=False))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("Refined Steel", output)
-        self.assertIn("ore_iron x5", output)
-        self.assertIn("refined_steel x1", output)
-        self.assertIn("refinement L2", output)
-
-
 class TestCmdCommands(unittest.TestCase):
 
     def test_grouped_output(self):
@@ -926,112 +899,6 @@ class TestCollectRawTotals(unittest.TestCase):
         totals = _collect_raw_totals(tree)
         self.assertEqual(totals, {"ore_a": 6, "ore_b": 4})
 
-
-class TestCmdQueryRecipes(unittest.TestCase):
-
-    def _make_api(self):
-        return mock_api({"result": {"recipes": SAMPLE_RECIPES}})
-
-    def test_progression_default(self):
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_query_recipes(api, make_args(json=False, trace=None, search=None))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        # Should show skill tiers
-        self.assertIn("No skill requirements", output)
-        self.assertIn("crafting_basic", output)
-        self.assertIn("refinement", output)
-        # Should show categories
-        self.assertIn("Refining", output)
-        self.assertIn("Defense", output)
-        # Should show chain markers
-        self.assertIn("◆", output)
-        # Should show legend
-        self.assertIn("--trace", output)
-
-    def test_progression_shows_recipe_flow(self):
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_query_recipes(api, make_args(json=False, trace=None, search=None))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("10x ore_iron -> 1x refined_steel", output)
-
-    def test_search_finds_matches(self):
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_query_recipes(api, make_args(json=False, trace=None, search="steel"))
-        output = "\n".join(str(c) for c in mock_print.call_args_list)
-        # All 4 recipes mention steel in inputs or outputs
-        self.assertIn("Found 4 recipe(s)", output)
-        self.assertIn("Basic Iron Smelting", output)
-        self.assertIn("Hull Plate", output)
-
-    def test_search_no_results(self):
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_query_recipes(api, make_args(json=False, trace=None, search="nonexistent"))
-        printed = mock_print.call_args[0][0]
-        self.assertIn("No recipes matching", printed)
-
-    def test_trace_by_item_id(self):
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_query_recipes(api, make_args(json=False, trace="armor_plate_1", search=None))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("armor_plate_1", output)
-        self.assertIn("ore_iron", output)
-        self.assertIn("comp_hull_plate", output)
-        # Should show raw totals
-        self.assertIn("70x ore_iron", output)
-
-    def test_trace_by_recipe_id(self):
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_query_recipes(api, make_args(json=False, trace="craft_armor_plate_1", search=None))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("armor_plate_1", output)
-
-    def test_trace_shows_tree_connectors(self):
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_query_recipes(api, make_args(json=False, trace="armor_plate_1", search=None))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertTrue("├" in output or "└" in output)
-
-    def test_trace_not_found(self):
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_query_recipes(api, make_args(json=False, trace="nonexistent_item", search=None))
-        printed = mock_print.call_args[0][0]
-        self.assertIn("No recipe produces", printed)
-
-    def test_trace_fuzzy_match(self):
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_query_recipes(api, make_args(json=False, trace="armor", search=None))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        # Should fuzzy-match to armor_plate_1
-        self.assertIn("armor_plate_1", output)
-
-    def test_trace_ambiguous_shows_candidates(self):
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_query_recipes(api, make_args(json=False, trace="refined", search=None))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("did you mean", output.lower())
-
-    def test_json_mode(self):
-        resp = {"result": {"recipes": SAMPLE_RECIPES}}
-        api = mock_api(resp)
-        with patch("builtins.print") as mock_print:
-            cmd_query_recipes(api, make_args(json=True, trace=None, search=None))
-        self.assertEqual(json.loads(mock_print.call_args[0][0]), resp)
-
-    def test_empty_recipes(self):
-        api = mock_api({"result": {"recipes": {}}})
-        with patch("builtins.print") as mock_print:
-            cmd_query_recipes(api, make_args(json=False, trace=None, search=None))
-        self.assertIn("No recipes", mock_print.call_args[0][0])
 
 
 # ---------------------------------------------------------------------------
@@ -1697,33 +1564,6 @@ class TestCmdPassthroughErrors(unittest.TestCase):
         with patch("builtins.print") as mock_print:
             cmd_passthrough(api, "get_map", [])
         self.assertIn("Action completed", mock_print.call_args[0][0])
-
-
-class TestCmdQueryRecipesErrors(unittest.TestCase):
-
-    def test_trace_nonexistent_item(self):
-        api = mock_api({"result": {"recipes": SAMPLE_RECIPES}})
-        with patch("builtins.print") as mock_print:
-            cmd_query_recipes(api, make_args(
-                json=False, trace="totally_fake_item", search=None))
-        printed = mock_print.call_args[0][0]
-        self.assertIn("No recipe produces", printed)
-
-    def test_empty_api_response(self):
-        """Completely empty recipes from API."""
-        api = mock_api({"result": {}})
-        with patch("builtins.print") as mock_print:
-            cmd_query_recipes(api, make_args(
-                json=False, trace=None, search=None))
-        self.assertIn("No recipes", mock_print.call_args[0][0])
-
-    def test_error_response(self):
-        """API returns an error for get_recipes."""
-        api = mock_api({"result": {"recipes": {}}})
-        with patch("builtins.print") as mock_print:
-            cmd_query_recipes(api, make_args(
-                json=False, trace=None, search=None))
-        self.assertIn("No recipes", mock_print.call_args[0][0])
 
 
 class TestCmdMissionsErrors(unittest.TestCase):

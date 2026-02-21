@@ -7,6 +7,9 @@ __all__ = [
     "cmd_notes", "cmd_trades", "cmd_ships",
     "cmd_chat_history", "cmd_faction_list", "cmd_faction_invites",
     "cmd_forum", "cmd_battle_status", "cmd_catalog",
+    "_normalize_recipes", "_build_recipe_indexes", "_recipe_skill_tier",
+    "_recipe_one_line", "_trace_ingredient_tree", "_render_tree",
+    "_collect_raw_totals",
 ]
 
 
@@ -1237,11 +1240,10 @@ def _print_full_help():
             ("send-gift <recipient> [item_id] [qty]", "Send gift to another player"),
         ]),
         ("Crafting", [
-            ("recipes", "Recipe list (default view)"),
-            ("recipes query --search <resource>", "Search recipes by name/item/category"),
-            ("recipes query --trace <item>", "Trace full ingredient tree for an item"),
-            ("recipes craft <recipe_id> [count]", "Craft a recipe"),
-            ("craft <recipe_id> [count]", "Shortcut for recipes craft"),
+            ("catalog recipes", "Browse all recipes"),
+            ("catalog recipes --search <query>", "Search recipes by name/item/category"),
+            ("catalog recipes trace <item>", "Trace full ingredient tree for an item"),
+            ("craft <recipe_id> [count]", "Craft a recipe"),
         ]),
         ("Missions", [
             ("missions", "Mission overview (active + available)"),
@@ -1400,22 +1402,172 @@ cmd_forum = _make_passthrough_alias("forum_list")
 cmd_battle_status = _make_passthrough_alias("get_battle_status")
 
 
-def cmd_catalog(api, args):
-    """Handle catalog subcommands: sm catalog <type> [options]."""
-    as_json = getattr(args, "json", False)
-    cat_type = getattr(args, "catalog_type", None)
+# ---------------------------------------------------------------------------
+# Recipe trace helpers (used by catalog recipes trace)
+# ---------------------------------------------------------------------------
 
-    if not cat_type:
-        print("Usage: sm catalog <ships|items|skills|recipes> [options]")
-        print()
-        print("Options:")
-        print("  --search <text>    Search by name/description")
-        print("  --category <cat>   Filter by category")
-        print("  --id <id>          Look up a specific entry")
-        print("  --page <n>         Page number (default: 1)")
-        print("  --page-size <n>    Results per page (default: 20, max: 50)")
+def _normalize_recipes(raw_recipes):
+    """Turn the API recipes response (dict-keyed or list) into a list."""
+    if isinstance(raw_recipes, dict):
+        return list(raw_recipes.values())
+    return list(raw_recipes)
+
+
+def _build_recipe_indexes(recipe_list):
+    """Build lookup dicts: output_item->recipe, recipe_id->recipe."""
+    by_output = {}  # item_id -> recipe
+    by_id = {}      # recipe_id -> recipe
+    for r in recipe_list:
+        rid = r.get("id") or r.get("recipe_id", "")
+        if rid:
+            by_id[rid] = r
+        for o in r.get("outputs", []):
+            by_output[o.get("item_id", "")] = r
+    return by_output, by_id
+
+
+def _recipe_skill_tier(recipe):
+    """Return a sortable (max_level, skill_string) tuple for ordering."""
+    skills = recipe.get("required_skills", {})
+    if not skills:
+        return (0, "")
+    max_lvl = max(skills.values())
+    label = ", ".join(f"{s} {l}" for s, l in sorted(skills.items()))
+    return (max_lvl, label)
+
+
+def _recipe_one_line(recipe):
+    """Format a recipe as: inputs -> outputs (with quantities)."""
+    inputs = recipe.get("inputs") or []
+    outputs = recipe.get("outputs") or []
+    lhs = " + ".join(
+        f"{i.get('quantity', 1)}x {i.get('item_id', '?')}" for i in inputs
+    )
+    rhs = " + ".join(
+        f"{o.get('quantity', 1)}x {o.get('item_id', '?')}" for o in outputs
+    )
+    return f"{lhs} -> {rhs}"
+
+
+def _trace_ingredient_tree(item_id, qty, by_output, depth=0, seen=None):
+    """Recursively build a tree of (depth, item_id, qty, recipe_or_None, children)."""
+    if seen is None:
+        seen = set()
+    recipe = by_output.get(item_id)
+    if recipe is None or item_id in seen:
+        return (depth, item_id, qty, None, [])
+    seen = seen | {item_id}
+    children = []
+    for inp in recipe.get("inputs", []):
+        inp_id = inp.get("item_id", "?")
+        inp_qty = inp.get("quantity", 1) * qty
+        children.append(
+            _trace_ingredient_tree(inp_id, inp_qty, by_output, depth + 1, seen)
+        )
+    return (depth, item_id, qty, recipe, children)
+
+
+def _render_tree(node, prefix="", is_last=True, lines=None):
+    """Render a trace tree into lines with box-drawing connectors."""
+    if lines is None:
+        lines = []
+    depth, item_id, qty, recipe, children = node
+
+    connector = "\u2514\u2500\u2500 " if is_last else "\u251c\u2500\u2500 "
+    if depth == 0:
+        label = f"{qty}x {item_id}"
+        if recipe:
+            rid = recipe.get("id", "")
+            skills = recipe.get("required_skills", {})
+            skill_str = ""
+            if skills:
+                skill_str = "  [" + ", ".join(f"{s} {l}" for s, l in sorted(skills.items())) + "]"
+            label += f"  ({rid}){skill_str}"
+        lines.append(label)
+    else:
+        label = f"{qty}x {item_id}"
+        if recipe:
+            rid = recipe.get("id", "")
+            label += f"  ({rid})"
+        lines.append(f"{prefix}{connector}{label}")
+
+    child_prefix = prefix + ("    " if is_last else "\u2502   ")
+    for i, child in enumerate(children):
+        _render_tree(child, child_prefix, i == len(children) - 1, lines)
+    return lines
+
+
+def _collect_raw_totals(node, totals=None):
+    """Walk tree and sum up raw material quantities at the leaves."""
+    if totals is None:
+        totals = {}
+    _, item_id, qty, recipe, children = node
+    if recipe is None:
+        totals[item_id] = totals.get(item_id, 0) + qty
+    else:
+        for child in children:
+            _collect_raw_totals(child, totals)
+    return totals
+
+
+def _do_trace(query, by_output, recipe_list):
+    """Trace the full ingredient tree for an item or recipe."""
+    if not query:
+        print("Usage: sm catalog recipes trace <item_id or recipe_id>")
         return
 
+    target_item = None
+    target_qty = 1
+    if query in by_output:
+        target_item = query
+    else:
+        for r in recipe_list:
+            if r.get("id") == query:
+                outputs = r.get("outputs", [])
+                if outputs:
+                    target_item = outputs[0].get("item_id")
+                    target_qty = outputs[0].get("quantity", 1)
+                break
+
+    if not target_item:
+        q = query.lower()
+        candidates = [
+            item_id for item_id in by_output
+            if q in item_id.lower()
+        ]
+        if len(candidates) == 1:
+            target_item = candidates[0]
+        elif candidates:
+            print("Ambiguous \u2014 did you mean one of these?")
+            for c in sorted(candidates):
+                print(f"  {c}")
+            return
+        else:
+            print(f"No recipe produces '{query}'. Try: sm catalog recipes --search {query}")
+            return
+
+    tree = _trace_ingredient_tree(target_item, target_qty, by_output)
+    lines = _render_tree(tree)
+
+    print(f"Ingredient tree for {target_item}:\n")
+    for line in lines:
+        print(line)
+
+    totals = _collect_raw_totals(tree)
+    if totals:
+        print(f"\n{'─' * 40}")
+        print("Raw materials needed:")
+        for item_id, qty in sorted(totals.items(), key=lambda x: -x[1]):
+            print(f"  {qty}x {item_id}")
+
+
+# ---------------------------------------------------------------------------
+# Catalog command
+# ---------------------------------------------------------------------------
+
+def _catalog_api_call(api, cat_type, args):
+    """Make a catalog API call and return the response, or None on error."""
+    as_json = getattr(args, "json", False)
     body = {"type": cat_type}
     search = getattr(args, "search", None)
     category = getattr(args, "category", None)
@@ -1439,14 +1591,54 @@ def cmd_catalog(api, args):
         resp = api._post("catalog", body)
     except APIError as e:
         print(f"ERROR: {e}")
-        return
+        return None
 
     if as_json:
         print(json.dumps(resp, indent=2))
-    else:
-        err = resp.get("error")
-        if err:
-            err_msg = err.get('message', err) if isinstance(err, dict) else err
-            print(f"ERROR: {err_msg}")
-        else:
-            _fmt_catalog(resp)
+        return None  # already handled
+
+    err = resp.get("error")
+    if err:
+        err_msg = err.get('message', err) if isinstance(err, dict) else err
+        print(f"ERROR: {err_msg}")
+        return None
+
+    return resp
+
+
+def cmd_catalog(api, args):
+    """Handle catalog commands: sm catalog <type> [options]."""
+    cat_type = getattr(args, "catalog_type", None)
+
+    if not cat_type:
+        print("Usage: sm catalog <ships|items|skills|recipes> [options]")
+        print()
+        print("Options:")
+        print("  --search <text>    Search by name/description")
+        print("  --category <cat>   Filter by category")
+        print("  --id <id>          Look up a specific entry")
+        print("  --page <n>         Page number (default: 1)")
+        print("  --page-size <n>    Results per page (default: 20, max: 50)")
+        print()
+        print("Recipes also supports:")
+        print("  sm catalog recipes trace <item>   Trace full ingredient tree")
+        return
+
+    # For recipes, check for trace subcommand
+    if cat_type == "recipes":
+        trace_target = getattr(args, "trace_item", None)
+        if trace_target:
+            # Trace needs all recipes — fetch via get_recipes endpoint
+            resp = api._post("get_recipes")
+            raw = resp.get("result", {}).get("recipes", {})
+            recipe_list = _normalize_recipes(raw)
+            if not recipe_list:
+                print("No recipes available.")
+                return
+            by_output, by_id = _build_recipe_indexes(recipe_list)
+            _do_trace(trace_target, by_output, recipe_list)
+            return
+
+    resp = _catalog_api_call(api, cat_type, args)
+    if resp:
+        _fmt_catalog(resp)

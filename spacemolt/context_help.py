@@ -19,16 +19,6 @@ COMMAND_SUGGESTIONS = {
         "sm missions accept <id>    # Accept a mission",
         "sm missions complete <id>  # Complete mission",
     ],
-    "recipes": [
-        "sm recipes query --search <resource>   # Search recipes by name/ingredient",
-        "sm recipes query --trace <item>    # Full ingredient tree",
-        "sm recipes craft <recipe_id>       # Craft a recipe",
-    ],
-    "query-recipes": [
-        "sm recipes query --search <resource>   # Search recipes by name/ingredient",
-        "sm recipes query --trace <item>    # Full ingredient tree",
-        "sm recipes craft <recipe_id>       # Craft a recipe",
-    ],
     "ship": [
         "sm install-mod <module_id>   # Install a module",
         "sm uninstall-mod <module_id> # Uninstall a module",

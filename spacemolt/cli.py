@@ -205,24 +205,10 @@ Tips:
     p_mab = missions_sub.add_parser("abandon", help="Abandon mission")
     p_mab.add_argument("mission_id", help="Mission ID")
 
-    # recipes group
-    p_recipes_hier = sub.add_parser("recipes", help="Recipe management (shows recipe list by default)")
-    p_recipes_hier.add_argument("--json", action="store_true", help="Output raw JSON")
-    recipes_sub = p_recipes_hier.add_subparsers(dest="recipes_cmd")
-
-    p_rl = recipes_sub.add_parser("list", help="List recipes (default)")
-    p_rl.add_argument("--limit", type=int, default=10, metavar="N", help="Max items per page (default: 10)")
-    p_rl.add_argument("--page", type=int, default=1, metavar="N", help="Page number (default: 1)")
-
-    p_rq = recipes_sub.add_parser("query", help="Recipe progression, search, and ingredient trees")
-    p_rq.add_argument("--trace", metavar="ITEM", dest="trace_query", help="Trace full ingredient tree for an item or recipe")
-    p_rq.add_argument("--search", metavar="QUERY", dest="search_query", help="Search recipes by name, item, or category")
-    p_rq.add_argument("--limit", type=int, default=10, metavar="N", help="Max items per page (default: 10)")
-    p_rq.add_argument("--page", type=int, default=1, metavar="N", help="Page number (default: 1)")
-
-    p_rc = recipes_sub.add_parser("craft", help="Craft a recipe")
-    p_rc.add_argument("recipe_id", help="Recipe ID")
-    p_rc.add_argument("count", nargs="?", type=int, help="Quantity to craft (optional)")
+    # deprecated recipe commands (redirect to catalog)
+    sub.add_parser("recipes", help="(deprecated) Use: sm catalog recipes")
+    p_qr_dep = sub.add_parser("query-recipes", help="(deprecated) Use: sm catalog recipes")
+    p_qr_dep.add_argument("extra", nargs="*")
 
     # insurance group
     p_insurance = sub.add_parser("insurance", help="Insurance management (shows coverage status by default)")
@@ -319,13 +305,27 @@ Tips:
 
     # catalog
     p_catalog = sub.add_parser("catalog", help="Browse game reference data (ships, items, skills, recipes)")
-    p_catalog.add_argument("catalog_type", nargs="?", choices=["ships", "items", "skills", "recipes"],
-                           help="Type of data to browse")
-    p_catalog.add_argument("--search", help="Search by name/description")
-    p_catalog.add_argument("--category", help="Filter by category")
-    p_catalog.add_argument("--id", help="Look up a specific entry by ID")
-    p_catalog.add_argument("--page", type=int, help="Page number (default: 1)")
-    p_catalog.add_argument("--page-size", type=int, help="Results per page (default: 20, max: 50)")
+    catalog_sub = p_catalog.add_subparsers(dest="catalog_type")
+
+    # catalog ships/items/skills — simple browse with filters
+    for cat_name in ["ships", "items", "skills"]:
+        p_cat = catalog_sub.add_parser(cat_name, help=f"Browse {cat_name}")
+        p_cat.add_argument("--search", help="Search by name/description")
+        p_cat.add_argument("--category", help="Filter by category")
+        p_cat.add_argument("--id", help="Look up a specific entry by ID")
+        p_cat.add_argument("--page", type=int, help="Page number (default: 1)")
+        p_cat.add_argument("--page-size", type=int, help="Results per page (default: 20, max: 50)")
+
+    # catalog recipes — browse + trace subcommand
+    p_cat_recipes = catalog_sub.add_parser("recipes", help="Browse recipes and trace ingredient trees")
+    p_cat_recipes.add_argument("--search", help="Search by name/description")
+    p_cat_recipes.add_argument("--category", help="Filter by category")
+    p_cat_recipes.add_argument("--id", help="Look up a specific entry by ID")
+    p_cat_recipes.add_argument("--page", type=int, help="Page number (default: 1)")
+    p_cat_recipes.add_argument("--page-size", type=int, help="Results per page (default: 20, max: 50)")
+    recipes_cat_sub = p_cat_recipes.add_subparsers(dest="recipes_subcmd")
+    p_trace = recipes_cat_sub.add_parser("trace", help="Trace full ingredient tree for an item or recipe")
+    p_trace.add_argument("trace_item", help="Item ID or recipe ID to trace")
 
     # Friendly aliases for common queries
     for alias, help_text in [("notes", "List your notes"),
@@ -348,6 +348,14 @@ def _deprecated_skills():
     print("  sm catalog skills                    Browse all skill definitions")
     print("  sm catalog skills --search <query>   Search skills by name/category")
     print("  sm catalog skills --id <skill_id>    Look up a specific skill")
+
+
+def _deprecated_recipes():
+    print("Recipe browsing has moved to the catalog:")
+    print("  sm catalog recipes                       Browse all recipes")
+    print("  sm catalog recipes --search <query>       Search recipes")
+    print("  sm catalog recipes trace <item>           Trace full ingredient tree")
+    print("  sm craft <recipe_id> [count]              Craft a recipe")
 
 
 COMMAND_MAP = {
@@ -376,8 +384,8 @@ COMMAND_MAP = {
     "repair": commands.cmd_repair,
     "wrecks": commands.cmd_wrecks,
     "listings": commands.cmd_listings,
-    "recipes": commands.cmd_recipes_router,  # NEW: hierarchical router
-    "query-recipes": commands.cmd_query_recipes,  # Keep for backwards compatibility
+    "recipes": lambda api, args: _deprecated_recipes(),
+    "query-recipes": lambda api, args: _deprecated_recipes(),
     "missions": commands.cmd_missions_router,     # NEW: hierarchical router
     "active-missions": commands.cmd_active_missions,  # Keep for backwards compatibility
     "query-missions": commands.cmd_query_missions,     # Keep for backwards compatibility
