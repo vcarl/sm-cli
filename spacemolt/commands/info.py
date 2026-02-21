@@ -128,6 +128,7 @@ def cmd_ship(api, args):
                 print(f"  {item}")
 
 
+
 def cmd_pois(api, args):
     resp = api._post("get_system")
     result = resp.get("result", {})

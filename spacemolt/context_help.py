@@ -37,6 +37,12 @@ COMMAND_SUGGESTIONS = {
         "sm recipes trace <item>    # Ingredient tree",
         "sm recipes craft <id>      # Craft recipe",
     ],
+    "ship": [
+        "sm install-mod <module_id>   # Install a module",
+        "sm uninstall-mod <module_id> # Uninstall a module",
+        "sm ships                     # List owned ships",
+        "sm switch-ship <ship_id>     # Switch active ship",
+    ],
 }
 
 
