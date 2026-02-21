@@ -18,7 +18,7 @@ ENDPOINT_ARGS = {
     "jump": ["target_system"],
     "buy": ["item_id", "quantity:int", "auto_list?:bool", "deliver_to?"],
     "scan": ["target_id"],
-    "attack": ["target_id", "weapon_idx?:int"],  # weapon_idx is custom extension
+    "attack": ["target_id"],
     "travel": ["target_poi"],
     "chat": ["channel", "content", "target_id?"],  # target_id optional per spec
     "craft": ["recipe_id", "count?:int"],  # count is optional batch parameter
@@ -471,6 +471,7 @@ def _fmt_attack(resp):
         if v is not None:
             print(f"  {k}: {v}")
     print("\n  Hint: sm battle-status  |  sm nearby")
+    print("  Note: Combat is in beta. If something seems wrong, check the CLI source and fix it!")
 
 
 def _fmt_scan(resp):
@@ -523,6 +524,7 @@ def _fmt_scan(resp):
 
     target_id = scan.get("target_id") or target
     print(f"\n  Hint: sm attack {target_id}  |  sm trade-offer {target_id}")
+    print("  Note: Combat is in beta. If something seems wrong, check the CLI source and fix it!")
 
 
 def _fmt_craft(resp):
@@ -820,6 +822,7 @@ def _fmt_battle_status(resp):
             print(f"    ... and {len(participants) - 20} more")
 
     print(f"\n  Hint: sm battle engage  |  sm battle stance fire  |  sm battle retreat")
+    print("  Note: Combat is in beta. If something seems wrong, check the CLI source and fix it!")
 
 
 def _fmt_catalog(resp):
@@ -961,11 +964,9 @@ def _print_error_hints(endpoint, err_msg, api=None):
         # Try to find actual weapon modules and suggest the right index
         weapons = _find_weapon_modules(api)
         if weapons:
-            indices = ", ".join(str(idx) for idx, _ in weapons)
-            names = ", ".join(f"{name} (index {idx})" for idx, name in weapons)
+            names = ", ".join(f"{name}" for _, name in weapons)
             print(f"\n  Your weapon modules: {names}")
-            first_idx = weapons[0][0]
-            print(f"  Hint: sm attack <target_id> {first_idx}")
+            print(f"  Hint: sm attack <target_id>")
         else:
             print("\n  You have no weapon modules installed.")
             print("  Hint: sm listings  |  sm install-mod <module_id>")
@@ -1179,12 +1180,12 @@ def _print_full_help():
             ("survey-system", "Survey current system (astrometrics)"),
         ]),
         ("Combat", [
-            ("attack <target_id> [weapon_idx]", "Attack a target"),
-            ("battle <action> [stance] [target_id]", "Battle action (engage/advance/retreat/stance/target)"),
+            ("attack <target_id>", "Attack a target"),
+            ("battle <action> [stance] [target_id] [side_id]", "Battle action (engage/advance/retreat/stance/target)"),
             ("battle-status", "View current battle state"),
             ("scan <target_id>", "Scan a player's ship"),
-            ("reload <ammo_item_id> <weapon_id>", "Reload weapon ammo"),
-            ("cloak [enable]", "Toggle cloaking device"),
+            ("reload <ammo_item_id> <weapon_instance_id>", "Reload weapon ammo"),
+            ("cloak <true|false>", "Enable or disable cloaking device"),
             ("self-destruct", "Self-destruct your ship"),
         ]),
         ("Mining & Resources", [
