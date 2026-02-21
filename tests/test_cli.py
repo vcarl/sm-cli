@@ -11,6 +11,11 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from spacemolt.cli import build_parser, COMMAND_MAP, _known_commands, main
+from spacemolt.commands.passthrough import (
+    _find_items_with_alts_in_tree,
+    _do_trace,
+    _print_raw_totals,
+)
 from spacemolt.commands import (
     ENDPOINT_ARGS,
     _parse_typed_value,
@@ -900,6 +905,99 @@ class TestCollectRawTotals(unittest.TestCase):
         self.assertEqual(totals, {"ore_a": 6, "ore_b": 4})
 
 
+# Sample recipes with alternatives (multiple recipes producing refined_steel)
+SAMPLE_RECIPES_WITH_ALTS = {
+    **SAMPLE_RECIPES,
+    "refine_steel": {
+        "id": "refine_steel", "name": "Refine Steel",
+        "category": "Refining",
+        "inputs": [{"item_id": "ore_iron", "quantity": 5}],
+        "outputs": [{"item_id": "refined_steel", "quantity": 2}],
+        "required_skills": {"refinement": 1}, "crafting_time": 3,
+        "base_quality": 35, "skill_quality_mod": 3,
+    },
+    "salvage_to_steel": {
+        "id": "salvage_to_steel", "name": "Salvage to Steel",
+        "category": "Refining",
+        "inputs": [{"item_id": "salvage_metal", "quantity": 8}],
+        "outputs": [{"item_id": "refined_steel", "quantity": 1}],
+        "required_skills": {}, "crafting_time": 2,
+        "base_quality": 20, "skill_quality_mod": 2,
+    },
+}
+
+
+class TestFindItemsWithAltsInTree(unittest.TestCase):
+
+    def setUp(self):
+        recipe_list = _normalize_recipes(SAMPLE_RECIPES_WITH_ALTS)
+        self.by_output, self.by_id, self.alt_recipes = _build_recipe_indexes(recipe_list)
+
+    def test_finds_alt_recipes(self):
+        items = _find_items_with_alts_in_tree("armor_plate_1", self.by_output, self.alt_recipes)
+        item_ids = [item_id for item_id, _ in items]
+        self.assertIn("refined_steel", item_ids)
+
+    def test_no_duplicates(self):
+        """Items appearing multiple times in tree should only appear once in alt list."""
+        items = _find_items_with_alts_in_tree("armor_plate_1", self.by_output, self.alt_recipes)
+        item_ids = [item_id for item_id, _ in items]
+        self.assertEqual(len(item_ids), len(set(item_ids)),
+                         f"Duplicate items in alt list: {item_ids}")
+
+    def test_no_alts_for_raw_materials(self):
+        items = _find_items_with_alts_in_tree("ore_iron", self.by_output, self.alt_recipes)
+        self.assertEqual(items, [])
+
+    def test_returns_empty_for_no_recipe(self):
+        items = _find_items_with_alts_in_tree("nonexistent", self.by_output, self.alt_recipes)
+        self.assertEqual(items, [])
+
+
+class TestDoTrace(unittest.TestCase):
+
+    def setUp(self):
+        recipe_list = _normalize_recipes(SAMPLE_RECIPES_WITH_ALTS)
+        self.by_output, self.by_id, self.alt_recipes = _build_recipe_indexes(recipe_list)
+        self.recipe_list = recipe_list
+
+    def test_primary_path_shown(self):
+        with patch("builtins.print") as mock_print:
+            _do_trace("armor_plate_1", self.by_output, self.recipe_list, self.alt_recipes)
+        output = "\n".join(str(c[0][0]) if c[0] else "" for c in mock_print.call_args_list)
+        self.assertIn("Primary path", output)
+        self.assertIn("armor_plate_1", output)
+
+    def test_alt_paths_shown(self):
+        with patch("builtins.print") as mock_print:
+            _do_trace("armor_plate_1", self.by_output, self.recipe_list, self.alt_recipes)
+        output = "\n".join(str(c[0][0]) if c[0] else "" for c in mock_print.call_args_list)
+        self.assertIn("Alt:", output)
+
+    def test_each_path_has_raw_materials(self):
+        """Each path section should have its own raw materials list."""
+        with patch("builtins.print") as mock_print:
+            _do_trace("armor_plate_1", self.by_output, self.recipe_list, self.alt_recipes)
+        output = "\n".join(str(c[0][0]) if c[0] else "" for c in mock_print.call_args_list)
+        self.assertGreater(output.count("Raw materials"), 1)
+
+    def test_salvage_path_shows_salvage_materials(self):
+        with patch("builtins.print") as mock_print:
+            _do_trace("refined_steel", self.by_output, self.recipe_list, self.alt_recipes)
+        output = "\n".join(str(c[0][0]) if c[0] else "" for c in mock_print.call_args_list)
+        self.assertIn("salvage_metal", output)
+
+    def test_no_duplicate_alt_paths(self):
+        """Same item should not generate duplicate alt path sections."""
+        with patch("builtins.print") as mock_print:
+            _do_trace("armor_plate_1", self.by_output, self.recipe_list, self.alt_recipes)
+        output = "\n".join(str(c[0][0]) if c[0] else "" for c in mock_print.call_args_list)
+        # Count occurrences of each alt label
+        alt_lines = [l for l in output.split("\n") if l.strip().startswith("Alt:")]
+        alt_labels = [l.split("—")[0].strip() for l in alt_lines]
+        self.assertEqual(len(alt_labels), len(set(alt_labels)),
+                         f"Duplicate alt paths: {alt_labels}")
+
 
 # ---------------------------------------------------------------------------
 # Existing command regression
@@ -999,7 +1097,7 @@ class TestPassthroughFormatters(unittest.TestCase):
         ], "outgoing": []}})
         with patch("builtins.print") as mock_print:
             cmd_passthrough(api, "get_trades", [])
-        output = "\n".join(str(c[0][0]) for c in mock_print.call_args_list)
+        output = "\n".join(str(c[0][0]) if c[0] else "" for c in mock_print.call_args_list)
         self.assertIn("SpaceTrader", output)
         self.assertIn("pending", output)
         self.assertNotIn("{", output)
@@ -1232,7 +1330,7 @@ class TestCmdLog(unittest.TestCase):
         ]
         with patch("builtins.print") as mock_print:
             cmd_log(api, make_args(brief=False))
-        output = "\n".join(str(c[0][0]) for c in mock_print.call_args_list)
+        output = "\n".join(str(c[0][0]) if c[0] else "" for c in mock_print.call_args_list)
         self.assertIn("rare asteroid", output)
         self.assertIn("Sold cargo", output)
 
@@ -1263,7 +1361,7 @@ class TestCmdPois(unittest.TestCase):
         ]}}})
         with patch("builtins.print") as mock_print:
             cmd_pois(api, make_args())
-        output = "\n".join(str(c[0][0]) for c in mock_print.call_args_list)
+        output = "\n".join(str(c[0][0]) if c[0] else "" for c in mock_print.call_args_list)
         self.assertIn("Asteroid Belt", output)
         self.assertIn("Station Alpha", output)
         self.assertIn("base: Base One", output)
@@ -1272,7 +1370,7 @@ class TestCmdPois(unittest.TestCase):
         api = mock_api({"result": {"system": {"pois": []}}})
         with patch("builtins.print") as mock_print:
             cmd_pois(api, make_args())
-        output = "\n".join(str(c[0][0]) for c in mock_print.call_args_list)
+        output = "\n".join(str(c[0][0]) if c[0] else "" for c in mock_print.call_args_list)
         self.assertIn("No POIs found", output)
 
 
