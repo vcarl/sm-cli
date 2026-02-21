@@ -201,6 +201,23 @@ class SpaceMoltAPI:
                     parts.append(msg_type.replace("_", " ").title())
                 parts.append("\n  Hint: sm status  |  sm nearby")
                 msg = "  ".join(parts)
+            elif msg_type == "pirate_combat":
+                pirate = data.get("pirate_name") or data.get("pirate_id", "pirate")
+                tier = data.get("pirate_tier", "")
+                damage = data.get("damage", 0)
+                dmg_type = data.get("damage_type", "")
+                hull = data.get("your_hull", "?")
+                max_hull = data.get("your_max_hull", "?")
+                shield = data.get("your_shield", "?")
+                is_boss = data.get("is_boss", False)
+
+                boss_tag = " [BOSS]" if is_boss else ""
+                tier_tag = f" ({tier})" if tier else ""
+                dmg_info = f"{damage} {dmg_type}" if dmg_type else str(damage)
+
+                msg = f"Pirate attack! {pirate}{tier_tag}{boss_tag} hit you for {dmg_info} damage"
+                msg += f"  [Hull: {hull}/{max_hull}  Shield: {shield}]"
+                msg += "\n  Hint: sm battle-status  |  sm status  |  sm repair"
             elif msg_type in ("trade_offer", "trade_received"):
                 partner = data.get("from") or data.get("sender") or data.get("partner", "?")
                 trade_id = data.get("trade_id") or data.get("id", "")

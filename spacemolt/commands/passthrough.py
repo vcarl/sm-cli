@@ -1539,12 +1539,10 @@ def _item_source_tag(item_id):
     return None
 
 
-def _render_tree(node, prefix="", is_last=True, lines=None, alt_recipes=None):
+def _render_tree(node, prefix="", is_last=True, lines=None):
     """Render a trace tree into lines with box-drawing connectors."""
     if lines is None:
         lines = []
-    if alt_recipes is None:
-        alt_recipes = {}
     depth, item_id, qty, recipe, children = node
 
     connector = "\u2514\u2500\u2500 " if is_last else "\u251c\u2500\u2500 "
@@ -1567,18 +1565,9 @@ def _render_tree(node, prefix="", is_last=True, lines=None, alt_recipes=None):
             label += f"  [{_item_source_tag(item_id)}]"
         lines.append(f"{prefix}{connector}{label}")
 
-    # Show alternative recipes for this item
-    alts = alt_recipes.get(item_id, [])
-    if alts:
-        child_prefix = prefix + ("    " if is_last else "\u2502   ")
-        total = len(alts) + 1  # include the primary recipe
-        shown = [_recipe_one_line(a) for a in alts[:3]]
-        more = f" (+{len(alts) - 3} more)" if len(alts) > 3 else ""
-        lines.append(f"{child_prefix}  {total} recipes: {'; '.join(shown)}{more}")
-
     child_prefix = prefix + ("    " if is_last else "\u2502   ")
     for i, child in enumerate(children):
-        _render_tree(child, child_prefix, i == len(children) - 1, lines, alt_recipes)
+        _render_tree(child, child_prefix, i == len(children) - 1, lines)
     return lines
 
 
@@ -1621,29 +1610,6 @@ def _print_raw_totals(label, totals):
         print()
 
 
-def _collect_alt_totals(target_item, target_qty, by_output, alt_recipes):
-    """Build raw material totals for alternative recipe paths.
-
-    For each item in the primary tree that has alternatives, swap in
-    each alt recipe and compute the resulting raw totals.
-    Returns list of (label, totals_dict).
-    """
-    result = []
-    # Find items in the tree that have alternatives
-    items_with_alts = _find_items_with_alts_in_tree(target_item, by_output, alt_recipes)
-
-    for item_id, alts in items_with_alts:
-        for alt_recipe in alts[:1]:  # show best alt per item
-            # Build a modified by_output with this alt swapped in
-            modified = dict(by_output)
-            modified[item_id] = alt_recipe
-            tree = _trace_ingredient_tree(target_item, target_qty, modified)
-            totals = _collect_raw_totals(tree)
-            rid = alt_recipe.get("id", "?")
-            result.append((f"{item_id} via {rid}", totals))
-
-    return result
-
 
 def _find_items_with_alts_in_tree(item_id, by_output, alt_recipes, seen=None):
     """Walk the primary tree and find items that have alternative recipes."""
@@ -1651,7 +1617,7 @@ def _find_items_with_alts_in_tree(item_id, by_output, alt_recipes, seen=None):
         seen = set()
     if item_id in seen:
         return []
-    seen = seen | {item_id}
+    seen.add(item_id)
     result = []
     recipe = by_output.get(item_id)
     if recipe is None:
@@ -1706,25 +1672,39 @@ def _do_trace(query, by_output, recipe_list, alt_recipes=None):
             print(f"No recipe produces '{query}'. Try: sm catalog recipes --search {query}")
             return
 
+    # Build list of (label, tree, totals) for primary + alt paths
+    paths = []
+
+    # Primary path
     tree = _trace_ingredient_tree(target_item, target_qty, by_output)
-    lines = _render_tree(tree, alt_recipes=alt_recipes)
-
-    print(f"Ingredient tree for {target_item}:\n")
-    for line in lines:
-        print(line)
-
-    # Collect raw totals for primary path
     totals = _collect_raw_totals(tree)
-    if not totals:
-        return
+    paths.append(("Primary path", tree, totals))
 
-    # Build alt totals by swapping each node's recipe with its alternatives
-    alt_totals_list = _collect_alt_totals(target_item, target_qty, by_output, alt_recipes)
+    # Alt paths: for each item with alternatives, show each alt recipe
+    MAX_ALT_PATHS = 4
+    items_with_alts = _find_items_with_alts_in_tree(target_item, by_output, alt_recipes)
+    for item_id, alts in items_with_alts:
+        for alt_recipe in alts:
+            modified = dict(by_output)
+            modified[item_id] = alt_recipe
+            alt_tree = _trace_ingredient_tree(target_item, target_qty, modified)
+            alt_totals = _collect_raw_totals(alt_tree)
+            rid = alt_recipe.get("id", "?")
+            paths.append((f"Alt: {item_id} via {rid}", alt_tree, alt_totals))
+            if len(paths) >= 1 + MAX_ALT_PATHS:
+                break
+        if len(paths) >= 1 + MAX_ALT_PATHS:
+            break
 
-    _print_raw_totals("Primary path", totals)
-
-    for label, alt_total in alt_totals_list[:2]:
-        _print_raw_totals(f"Alt: {label}", alt_total)
+    for i, (label, path_tree, path_totals) in enumerate(paths):
+        if i > 0:
+            print(f"\n{'═' * 50}\n")
+        lines = _render_tree(path_tree)
+        print(f"{label} — ingredient tree for {target_item}:\n")
+        for line in lines:
+            print(line)
+        if path_totals:
+            _print_raw_totals("Raw materials", path_totals)
 
 
 # ---------------------------------------------------------------------------
