@@ -1044,17 +1044,24 @@ def cmd_passthrough(api, endpoint, extra_args, as_json=False):
     specs = ENDPOINT_ARGS.get(endpoint, [])
 
     # Separate key=value pairs from positional args
+    # Only treat "key=value" as named arg if key matches a known parameter name.
+    # This prevents content strings containing "=" from being misparse as key=value.
+    known_names = {_arg_name(s) for s in specs}
     positional = []
     for arg in extra_args:
         if "=" in arg and not arg.startswith("="):
             key, val = arg.split("=", 1)
-            # Find the matching spec for type conversion
-            matching_spec = next((s for s in specs if _arg_name(s) == key), key)
-            try:
-                body[key] = _parse_typed_value(matching_spec, val)
-            except ValueError as e:
-                print(f"Error: {e}")
-                return
+            if key in known_names:
+                # Find the matching spec for type conversion
+                matching_spec = next((s for s in specs if _arg_name(s) == key), key)
+                try:
+                    body[key] = _parse_typed_value(matching_spec, val)
+                except ValueError as e:
+                    print(f"Error: {e}")
+                    return
+            else:
+                # "=" in arg but key is not a known param — treat as positional
+                positional.append(arg)
         else:
             positional.append(arg)
 
