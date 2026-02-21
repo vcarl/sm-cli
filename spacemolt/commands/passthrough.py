@@ -128,7 +128,6 @@ ENDPOINT_ARGS = {
     # Items
     "use_item": ["item_id?", "quantity?:int"],
     # Facility management
-    "facility": ["action", "category?", "direction?", "facility_id?", "facility_type?", "level?:int", "name?", "page?:int", "per_page?:int", "player_id?"],
     # Faction storage
     # faction storage endpoints replaced by: sm storage --target faction
     "faction_gift": ["faction_id?", "item_id?", "quantity?:int"],
@@ -1319,12 +1318,20 @@ def _print_full_help():
         ]),
         ("Base & Facilities", [
             ("set-home-base <base_id>", "Set your home base"),
-            ("facility help", "Show facility actions and examples"),
+            ("facility", "List facilities at current base"),
             ("facility types", "List buildable facility types"),
-            ("facility list", "List built facilities at current base"),
-            ("facility build <facility_type>", "Build a new facility"),
-            ("facility upgrade <facility_id>", "Upgrade a facility"),
-            ("facility toggle <facility_id>", "Enable/disable a facility"),
+            ("facility type <type>", "Detail view for a facility type"),
+            ("facility build <type>", "Build a new facility"),
+            ("facility upgrade <id>", "Upgrade a facility"),
+            ("facility upgrades [id]", "Show available upgrades"),
+            ("facility toggle <id>", "Enable/disable a facility"),
+            ("facility faction-build <type>", "Build a faction facility"),
+            ("facility faction-list", "List faction facilities"),
+            ("facility transfer <id> <dir>", "Transfer facility ownership"),
+            ("facility quarters [user]", "Visit quarters"),
+            ("facility decorate <desc>", "Set quarters description"),
+            ("facility quarters-build", "Build personal quarters"),
+            ("facility help", "Show facility actions from API"),
         ]),
         ("Items", [
             ("use-item [item_id] [quantity]", "Use an item from cargo"),

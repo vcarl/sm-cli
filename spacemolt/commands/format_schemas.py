@@ -584,9 +584,6 @@ FORMAT_SCHEMAS = {
         "message": "Used {item_id} x{quantity}",
         "hints": ["sm cargo"],
     },
-    "facility": {
-        "message": "{message}",
-    },
     "view_faction_storage": {
         "fields": [
             ("Credits", "{credits:,}"),

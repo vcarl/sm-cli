@@ -276,6 +276,54 @@ Tips:
     p_sw.add_argument("--credits", type=int, metavar="AMOUNT", help="Withdraw credits instead of items")
     p_sw.add_argument("--target", default="self", help="Target: self (default) or faction")
 
+    # facility group
+    p_facility = sub.add_parser("facility", help="Facility management (shows facilities at current base by default)")
+    p_facility.add_argument("--json", action="store_true", help="Output raw JSON")
+    facility_sub = p_facility.add_subparsers(dest="facility_cmd")
+
+    facility_sub.add_parser("list", help="List facilities at current base (default)")
+
+    p_ft = facility_sub.add_parser("types", help="Browse buildable facility types")
+    p_ft.add_argument("--category", metavar="CAT", help="Filter by category")
+    p_ft.add_argument("--name", metavar="TEXT", help="Filter by name")
+    p_ft.add_argument("--page", type=int, metavar="N", help="Page number")
+
+    p_ftd = facility_sub.add_parser("type", help="Detail view for one facility type")
+    p_ftd.add_argument("facility_type", help="Facility type ID")
+
+    p_fb = facility_sub.add_parser("build", help="Build a personal/production facility")
+    p_fb.add_argument("facility_type", help="Facility type ID to build")
+
+    p_fu = facility_sub.add_parser("upgrade", help="Upgrade a facility")
+    p_fu.add_argument("facility_id", help="Facility ID to upgrade")
+
+    p_fus = facility_sub.add_parser("upgrades", help="Show available upgrades")
+    p_fus.add_argument("facility_id", nargs="?", help="Optional facility ID to filter")
+
+    p_ftog = facility_sub.add_parser("toggle", help="Enable/disable a facility")
+    p_ftog.add_argument("facility_id", help="Facility ID to toggle")
+
+    p_ffb = facility_sub.add_parser("faction-build", help="Build a faction facility")
+    p_ffb.add_argument("facility_type", help="Facility type ID to build")
+
+    facility_sub.add_parser("faction-list", help="List faction facilities")
+
+    p_ftr = facility_sub.add_parser("transfer", help="Transfer facility ownership")
+    p_ftr.add_argument("facility_id", help="Facility ID to transfer")
+    p_ftr.add_argument("direction", choices=["to_faction", "to_player"], help="Transfer direction")
+    p_ftr.add_argument("player_id", nargs="?", help="Player ID (required for to_player)")
+
+    p_fq = facility_sub.add_parser("quarters", help="Visit your or someone's quarters")
+    p_fq.add_argument("username", nargs="?", help="Username to visit (default: yourself)")
+
+    p_fd = facility_sub.add_parser("decorate", help="Write quarters description")
+    p_fd.add_argument("description", help="Description text for your quarters")
+    p_fd.add_argument("--access", choices=["private", "public"], help="Access level")
+
+    facility_sub.add_parser("quarters-build", help="Build personal quarters")
+
+    facility_sub.add_parser("help", help="Show facility actions from API")
+
     # market group
     p_market = sub.add_parser("market", help="Market orders management (shows your orders by default)")
     market_sub = p_market.add_subparsers(dest="market_subcommand")
@@ -371,6 +419,7 @@ COMMAND_MAP = {
     "insurance": commands.cmd_insurance,
     "storage": commands.cmd_storage,
     "market": commands.cmd_market,
+    "facility": commands.cmd_facility_router,
 }
 
 
