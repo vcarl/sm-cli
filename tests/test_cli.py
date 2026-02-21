@@ -374,7 +374,7 @@ class TestCmdPassthrough(unittest.TestCase):
         api = mock_api({"result": {"ok": True}})
         with patch("builtins.print"):
             cmd_passthrough(api, "attack", ["target_id=xyz", "weapon_idx=0"])
-        api._post.assert_called_once_with("attack", {"target_id": "xyz", "weapon_idx": 0})
+        api._post.assert_called_once_with("attack", {"target_id": "xyz", "weapon_idx": "0"})
 
     def test_typed_int_arg(self):
         api = mock_api({"result": {"ok": True}})

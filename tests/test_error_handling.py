@@ -263,5 +263,51 @@ class TestErrorMessages(unittest.TestCase):
         self.assertIn("jettison", output.lower())
 
 
+class TestFormatPirateCombatNotification(unittest.TestCase):
+    """Test pirate_combat notification formatting."""
+
+    def test_pirate_combat_basic(self):
+        n = {
+            "msg_type": "pirate_combat",
+            "data": {
+                "pirate_name": "Blackbeard",
+                "pirate_tier": "elite",
+                "damage": 42,
+                "damage_type": "kinetic",
+                "your_hull": 80,
+                "your_max_hull": 100,
+                "your_shield": 15,
+                "is_boss": False,
+            },
+        }
+        result = SpaceMoltAPI._format_notification(n)
+        self.assertIn("Blackbeard", result)
+        self.assertIn("(elite)", result)
+        self.assertIn("42 kinetic", result)
+        self.assertIn("Hull: 80/100", result)
+        self.assertIn("Shield: 15", result)
+        self.assertIn("sm battle-status", result)
+        self.assertNotIn("[BOSS]", result)
+
+    def test_pirate_combat_boss(self):
+        n = {
+            "msg_type": "pirate_combat",
+            "data": {
+                "pirate_name": "Dread King",
+                "damage": 99,
+                "is_boss": True,
+            },
+        }
+        result = SpaceMoltAPI._format_notification(n)
+        self.assertIn("[BOSS]", result)
+        self.assertIn("Dread King", result)
+
+    def test_pirate_combat_minimal(self):
+        n = {"msg_type": "pirate_combat", "data": {}}
+        result = SpaceMoltAPI._format_notification(n)
+        self.assertIn("Pirate attack!", result)
+        self.assertIn("pirate", result)
+
+
 if __name__ == '__main__':
     unittest.main()
