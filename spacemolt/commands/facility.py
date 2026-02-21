@@ -235,7 +235,7 @@ def _fmt_facility_types(r):
     print(f"  {'─'*24} {'─'*24} {'─'*3}  {'─'*10}  {'─'*14}")
     for t in types:
         name = t.get("name", "?")
-        tid = t.get("type_id") or t.get("facility_type", "?")
+        tid = t.get("type_id") or t.get("id") or t.get("facility_type", "?")
         level = t.get("level", 1)
         cost = t.get("build_cost", 0)
         cat = t.get("category", "")
@@ -255,7 +255,7 @@ def _fmt_facility_type_detail(r):
 
     name = t.get("name", "?")
     desc = t.get("description", "")
-    tid = t.get("type_id") or t.get("facility_type", "?")
+    tid = t.get("type_id") or t.get("id") or t.get("facility_type", "?")
     cost = t.get("build_cost", 0)
     build_time = t.get("build_time")
     labor = t.get("labor_cost")
