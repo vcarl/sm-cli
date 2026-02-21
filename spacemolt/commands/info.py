@@ -82,34 +82,125 @@ def cmd_ship(api, args):
         return
     r = resp.get("result", {})
     s = r.get("ship", r)
+    cls = r.get("class", {})
 
-    print(f"Ship: {s.get('class_id', '?')}")
-    print(f"Hull: {s.get('hull', '?')}/{s.get('max_hull', '?')} | Shield: {s.get('shield', '?')}/{s.get('max_shield', '?')}")
+    # Header with ship ID
+    ship_id = s.get("id", "")
+    ship_name = s.get("name") or cls.get("name") or s.get("class_id", "?")
+    class_id = s.get("class_id") or cls.get("id", "")
+    header = f"Ship: {ship_name}"
+    if class_id and class_id != ship_name:
+        header += f" ({class_id})"
+    if ship_id:
+        sid = ship_id[:12]
+        header += f"  id:{sid}"
+    print(header)
+
+    # Stats
+    print(f"Hull: {s.get('hull', '?')}/{s.get('max_hull', '?')} | Shield: {s.get('shield', '?')}/{s.get('max_shield', '?')} | Armor: {s.get('armor', '?')}")
+    shield_recharge = s.get("shield_recharge")
+    speed = s.get("speed")
+    extras = []
+    if shield_recharge is not None:
+        extras.append(f"Shield Recharge: {shield_recharge}/tick")
+    if speed is not None:
+        extras.append(f"Speed: {speed}")
+    if extras:
+        print(f"{'  |  '.join(extras)}")
     print(f"Fuel: {s.get('fuel', '?')}/{s.get('max_fuel', '?')}")
     print(f"Cargo: {r.get('cargo_used', s.get('cargo_used', '?'))}/{r.get('cargo_max', s.get('cargo_capacity', '?'))}")
     print(f"CPU: {s.get('cpu_used', '?')}/{s.get('cpu_capacity', '?')} | Power: {s.get('power_used', '?')}/{s.get('power_capacity', '?')}")
 
+    # Slot usage
+    weapon_slots = s.get("weapon_slots") or cls.get("weapon_slots")
+    defense_slots = s.get("defense_slots") or cls.get("defense_slots")
+    utility_slots = s.get("utility_slots") or cls.get("utility_slots")
+    if weapon_slots is not None or defense_slots is not None or utility_slots is not None:
+        modules_list = r.get("modules") or s.get("modules") or []
+        rich_modules = [m for m in modules_list if isinstance(m, dict)]
+        used_w = sum(1 for m in rich_modules if (m.get("type") or "").lower() == "weapon")
+        used_d = sum(1 for m in rich_modules if (m.get("type") or "").lower() == "defense")
+        used_u = sum(1 for m in rich_modules if (m.get("type") or "").lower() in ("utility", "mining"))
+        slot_parts = []
+        if weapon_slots is not None:
+            slot_parts.append(f"Weapon: {used_w}/{weapon_slots}")
+        if defense_slots is not None:
+            slot_parts.append(f"Defense: {used_d}/{defense_slots}")
+        if utility_slots is not None:
+            slot_parts.append(f"Utility: {used_u}/{utility_slots}")
+        print(f"Slots: {' | '.join(slot_parts)}")
+
+    # Special ability
+    special = cls.get("special") or s.get("special")
+    if special:
+        print(f"Special: {special}")
+
+    # Modules
     modules = r.get("modules") or s.get("modules") or []
-    # Filter to only rich dicts if we got a mix
     rich_modules = [m for m in modules if isinstance(m, dict)]
     if rich_modules:
         print(f"\nModules ({len(rich_modules)}):")
         for m in rich_modules:
             name = m.get("name") or m.get("module_id") or m.get("id", "?")
             mtype = m.get("type") or m.get("type_id", "")
+            mid = m.get("id", "")
+            type_id = m.get("type_id", "")
             quality = m.get("quality_grade") or ""
             wear = m.get("wear_status") or ""
+
             line = f"  {name}"
             if mtype:
                 line += f" [{mtype}]"
-            parts = []
-            if quality:
-                parts.append(quality)
+            meta = []
+            if quality and quality != "Standard":
+                meta.append(quality)
             if wear and wear != "Pristine":
-                parts.append(wear)
-            if parts:
-                line += f" ({', '.join(parts)})"
+                meta.append(wear)
+            if meta:
+                line += f" ({', '.join(meta)})"
             print(line)
+
+            # Stats line
+            stats = []
+            cpu = m.get("cpu_usage")
+            power = m.get("power_usage")
+            if cpu is not None:
+                stats.append(f"cpu:{cpu}")
+            if power is not None:
+                stats.append(f"power:{power}")
+            # All optional stat fields from the schema
+            stat_keys = [
+                "damage", "damage_type", "range", "reach", "cooldown",
+                "current_ammo", "magazine_size", "ammo_type",
+                "loaded_ammo_name",
+                "mining_power", "mining_range",
+                "harvest_power", "harvest_range",
+                "scanner_power",
+                "shield_bonus", "armor_bonus", "hull_bonus",
+                "speed_bonus", "cargo_bonus",
+                "fuel_efficiency",
+                "cloak_strength",
+                "drone_bandwidth", "drone_capacity",
+            ]
+            for key in stat_keys:
+                val = m.get(key)
+                if val is not None:
+                    stats.append(f"{key.replace('_', ' ')}:{val}")
+            special_mod = m.get("special")
+            if special_mod:
+                stats.append(f"special:{special_mod}")
+            id_str = f"id:{mid[:12]}" if mid else ""
+            if type_id:
+                id_str = f"type:{type_id}  {id_str}"
+            if stats or id_str:
+                detail = "    "
+                if stats:
+                    detail += "  ".join(stats)
+                if id_str:
+                    if stats:
+                        detail += "  "
+                    detail += id_str
+                print(detail)
     elif modules:
         print(f"\nModules ({len(modules)}):")
         for m in modules:
