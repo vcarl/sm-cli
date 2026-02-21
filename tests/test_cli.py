@@ -619,17 +619,21 @@ class TestCmdWrecks(unittest.TestCase):
 
     def test_with_wrecks(self):
         api = mock_api({"result": {"wrecks": [{
-            "id": "wreck-1",
-            "owner": "pirate",
-            "cargo": [{"item_id": "ore_iron", "quantity": 10}],
-            "modules": [{"name": "Laser Mk1"}],
+            "wreck_id": "wreck-1",
+            "ship_class": "fighter",
+            "owner_id": "pirate_01",
+            "cargo_count": 3,
+            "module_count": 1,
+            "salvage_value": 500,
+            "insured": True,
         }]}})
         with patch("builtins.print") as mock_print:
             cmd_wrecks(api, make_args(json=False))
         output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("pirate", output)
-        self.assertIn("ore_iron", output)
-        self.assertIn("Laser Mk1", output)
+        self.assertIn("fighter", output)
+        self.assertIn("INSURED", output)
+        self.assertIn("3 items", output)
+        self.assertIn("500", output)
 
 
 class TestCmdListings(unittest.TestCase):

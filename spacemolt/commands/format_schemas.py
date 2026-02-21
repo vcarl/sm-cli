@@ -377,7 +377,15 @@ FORMAT_SCHEMAS = {
     "tow_wreck": {
         "icon": "✓",
         "message": "Towing wreck {wreck_id}",
-        "hints": ["sm release-tow", "sm sell-wreck"],
+        "fields": [
+            ("Ship class", "{ship_class}"),
+            ("Cargo", "{cargo_count} items"),
+            ("Modules", "{module_count} fitted"),
+            ("Salvage value", "{salvage_value:,} cr"),
+            ("Insured", "{insured}"),
+        ],
+        "hints": ["sm release-tow", "sm sell-wreck", "sm scrap-wreck"],
+        "static": ["  Note: Wreck commands are in beta. If output looks wrong, fix the formatter in spacemolt/commands/."],
     },
     "release_tow": {
         "icon": "✓",
@@ -387,12 +395,26 @@ FORMAT_SCHEMAS = {
     "scrap_wreck": {
         "icon": "✓",
         "message": "Scrapped wreck",
-        "hints": ["sm wrecks", "sm cargo"],
+        "list": {
+            "key": "materials",
+            "header": "  Recovered ({_count} materials):",
+            "each": "    {name|item_id} x{quantity}",
+            "empty": "  No materials recovered.",
+        },
+        "hints": ["sm cargo", "sm wrecks"],
+        "static": ["  Note: Wreck commands are in beta. If output looks wrong, fix the formatter in spacemolt/commands/."],
     },
     "sell_wreck": {
         "icon": "✓",
-        "message": "Sold wreck",
+        "message": "Sold wreck {wreck_id}",
+        "fields": [
+            ("Salvage value", "{salvage_value:,} cr"),
+            ("Cargo value", "{cargo_value:,} cr"),
+            ("Total earned", "{total_earned:,} cr"),
+            ("New balance", "{new_balance:,} cr"),
+        ],
         "hints": ["sm wrecks", "sm status"],
+        "static": ["  Note: Wreck commands are in beta. If output looks wrong, fix the formatter in spacemolt/commands/."],
     },
     "reload": {
         "icon": "✓",
@@ -467,16 +489,20 @@ FORMAT_SCHEMAS = {
     },
     "salvage_wreck": {
         "message": "Salvaged wreck",
-        "list": {
-            "key": "items",
-            "header": "\n  Recovered:",
-            "each": "    - {item_id} x{quantity}",
-        },
+        "fields": [
+            ("Metal scrap", "{metal_scrap}"),
+            ("Components", "{components}"),
+            ("Rare materials", "{rare_materials}"),
+            ("Total value", "{total_value:,} cr"),
+            ("XP gained", "{xp_gained}"),
+            ("Level up", "{level_up}"),
+        ],
         "hints": ["sm cargo", "sm wrecks"],
     },
     "loot_wreck": {
         "message": "Looted {item_id} x{quantity} from wreck",
         "hints": ["sm wrecks", "sm salvage-wreck <wreck_id>"],
+        "static": ["  Note: Wreck commands are in beta. If output looks wrong, fix the formatter in spacemolt/commands/."],
     },
     "complete_mission": {
         "icon": "✓",

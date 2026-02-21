@@ -817,28 +817,31 @@ def cmd_wrecks(api, args):
         print("No wrecks at this location.")
         return
 
+    print(f"Wrecks ({len(wrecks)}):")
     for w in wrecks:
-        wid = w.get("id") or w.get("wreck_id", "?")
-        owner = w.get("owner") or w.get("ship_class") or "unknown"
-        print(f"Wreck: {owner} (id:{wid})")
-        cargo = w.get("cargo") or w.get("items", [])
-        if cargo:
-            for item in cargo:
-                if isinstance(item, dict):
-                    name = item.get("item_id") or item.get("name", "?")
-                    qty = item.get("quantity", 1)
-                    print(f"  {name} x{qty}")
-                else:
-                    print(f"  {item}")
-        modules = w.get("modules", [])
-        if modules:
-            for m in modules:
-                if isinstance(m, dict):
-                    print(f"  [mod] {m.get('name') or m.get('module_id', '?')}")
-                else:
-                    print(f"  [mod] {m}")
+        wid = w.get("wreck_id") or w.get("id", "?")
+        ship_class = w.get("ship_class", "unknown")
+        owner = w.get("owner_id", "")
+        insured = w.get("insured", False)
+        cargo_count = w.get("cargo_count", 0)
+        module_count = w.get("module_count", 0)
+        salvage_value = w.get("salvage_value", 0)
+
+        flags = []
+        if insured:
+            flags.append("INSURED")
+        flag_str = f"  [{', '.join(flags)}]" if flags else ""
+
+        print(f"\n  {ship_class}{flag_str}  (id:{wid})")
+        if owner:
+            print(f"    Owner: {owner}")
+        print(f"    Cargo: {cargo_count} items  |  Modules: {module_count}")
+        if salvage_value:
+            print(f"    Salvage value: {salvage_value:,} cr")
 
     print("\n  Hint: sm loot-wreck <wreck_id> <item_id> <qty>  |  sm salvage-wreck <wreck_id>")
+    print("        sm tow-wreck <wreck_id>  |  sm sell-wreck  |  sm scrap-wreck")
+    print("  Note: Wreck commands are in beta. If output looks wrong, fix the formatter in spacemolt/commands/.")
 
 
 def _fmt_view_market_item(resp):
