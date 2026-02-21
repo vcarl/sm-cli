@@ -1155,7 +1155,7 @@ def _print_full_help():
         ("Getting Started", [
             ("register <username> <empire>", "Register a new account"),
             ("login [cred_file]", "Login and save session"),
-            ("claim <registration_code>", "Link player to website account"),
+            ("claim <registration_code>", "Link player to spacemolt.com account"),
             ("logout", "End current session"),
             ("help", "Show this help"),
         ]),
@@ -1178,8 +1178,6 @@ def _print_full_help():
         ("Navigation", [
             ("travel <poi_id>", "Travel to POI in current system"),
             ("jump <target_system>", "Jump to adjacent system"),
-            ("dock", "No-op (docking is automatic)"),
-            ("undock", "No-op (undocking is automatic)"),
             ("find-route <target_system>", "Find route to a system"),
             ("search-systems <query>", "Search systems by name"),
             ("survey-system", "Survey current system (astrometrics)"),
@@ -1195,7 +1193,7 @@ def _print_full_help():
         ]),
         ("Mining & Resources", [
             ("mine", "Mine once at current location"),
-            ("refuel", "Refuel ship (requires docked)"),
+            ("refuel [fuel_cell] [qty]", "Refuel at station, or burn fuel cells from cargo"),
             ("repair", "Repair ship (requires docked)"),
             ("jettison <item_id> <quantity>", "Jettison cargo into space"),
             ("tow-wreck <wreck_id>", "Tow a wreck"),
@@ -1253,7 +1251,7 @@ def _print_full_help():
             ("missions accept <mission_id>", "Accept a mission"),
             ("missions complete <mission_id>", "Complete a mission"),
             ("missions abandon <mission_id>", "Abandon a mission"),
-            ("decline-mission [template_id]", "Decline a mission template"),
+            ("decline-mission [template_id]", "Decline an offered mission (hides it)"),
         ]),
         ("Skills", [
             ("skills", "Trained skills overview"),
@@ -1302,26 +1300,31 @@ def _print_full_help():
             ("faction-set-enemy <faction_id>", "Set faction as enemy"),
         ]),
         ("Faction Intel & Rooms", [
-            ("faction-intel-status", "Intel collection status"),
-            ("faction-submit-intel", "Submit intel"),
-            ("faction-query-intel [system_name]", "Query intel for a system"),
-            ("faction-rooms", "List faction rooms"),
-            ("faction-visit-room <room_id>", "Visit a faction room"),
-            ("faction-write-room [room_id] [name]", "Write/edit a room"),
+            ("faction-intel-status", "Your faction's intel coverage stats"),
+            ("faction-submit-intel", "Report system/POI data to faction intel database"),
+            ("faction-query-intel [system_name]", "Look up faction intel on a system"),
+            ("faction-rooms", "List rooms in faction's Common Space"),
+            ("faction-visit-room <room_id>", "Read a faction room's contents"),
+            ("faction-write-room [room_id] [name]", "Create or edit a faction room (lore/descriptions)"),
         ]),
         ("Faction Economy", [
             ("storage --target faction", "View faction storage"),
-            ("storage deposit <item> <qty> --target faction", "Deposit items to faction"),
-            ("storage withdraw <item> <qty> --target faction", "Withdraw from faction"),
-            ("storage deposit --credits <amt> --target faction", "Deposit credits to faction"),
-            ("storage withdraw --credits <amt> --target faction", "Withdraw faction credits"),
-            ("faction-gift [faction_id] [item_id] [qty]", "Gift items to another faction"),
-            ("faction-create-buy-order [item] [qty] [price]", "Create faction buy order"),
-            ("faction-create-sell-order [item] [qty] [price]", "Create faction sell order"),
+            ("storage deposit <item> <qty> --target faction", "Deposit items to faction storage"),
+            ("storage withdraw <item> <qty> --target faction", "Withdraw from faction storage"),
+            ("storage deposit --credits <amt> --target faction", "Deposit credits to faction treasury"),
+            ("storage withdraw --credits <amt> --target faction", "Withdraw credits from faction treasury"),
+            ("faction-gift [faction_id] [item_id] [qty]", "Gift items from faction storage to another faction"),
+            ("faction-create-buy-order [item] [qty] [price]", "Buy order using faction treasury (needs manage_treasury)"),
+            ("faction-create-sell-order [item] [qty] [price]", "Sell order from faction storage (needs manage_treasury)"),
         ]),
         ("Base & Facilities", [
             ("set-home-base <base_id>", "Set your home base"),
-            ("facility <action> [options...]", "Manage base facilities"),
+            ("facility help", "Show facility actions and examples"),
+            ("facility types", "List buildable facility types"),
+            ("facility list", "List built facilities at current base"),
+            ("facility build <facility_type>", "Build a new facility"),
+            ("facility upgrade <facility_id>", "Upgrade a facility"),
+            ("facility toggle <facility_id>", "Enable/disable a facility"),
         ]),
         ("Items", [
             ("use-item [item_id] [quantity]", "Use an item from cargo"),
@@ -1343,13 +1346,14 @@ def _print_full_help():
     name_w = 0
     for _, cmds in categories:
         for name, _ in cmds:
-            name_w = max(name_w, len(name))
+            name_w = max(name_w, len(f"sm {name}"))
     name_w += 2
 
     for cat_name, cmds in categories:
         print(f"  {cat_name}:")
         for name, desc in cmds:
-            print(f"    {name:<{name_w}} {desc}")
+            full_name = f"sm {name}"
+            print(f"    {full_name:<{name_w}} {desc}")
         print()
 
     print("Tips:")

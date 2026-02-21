@@ -24,9 +24,54 @@ def cmd_status(api, args):
 
     print(f"Credits: {p.get('credits', '?')}")
     print(f"Location: {location}")
-    print(f"Ship: {s.get('class_id', '?')}")
+
+    # Player context
+    faction_id = p.get("faction_id")
+    if faction_id:
+        rank = p.get("faction_rank", "")
+        faction_str = f"Faction: {faction_id}"
+        if rank:
+            faction_str += f" ({rank})"
+        print(faction_str)
+    xp = p.get("experience")
+    if xp is not None:
+        print(f"XP: {xp}")
+    home = p.get("home_base")
+    if home:
+        print(f"Home Base: {home}")
+
+    # Ship vitals
+    ship_name = s.get("name", "")
+    ship_class = s.get("class_id", "?")
+    ship_label = f"{ship_name} ({ship_class})" if ship_name and ship_name != ship_class else ship_class
+    print(f"Ship: {ship_label}")
     print(f"Hull: {s.get('hull', '?')}/{s.get('max_hull', '?')} | Shield: {s.get('shield', '?')}/{s.get('max_shield', '?')} | Fuel: {s.get('fuel', '?')}/{s.get('max_fuel', '?')}")
     print(f"Cargo: {s.get('cargo_used', '?')}/{s.get('cargo_capacity', '?')}")
+
+    # Situational flags
+    flags = []
+    if p.get("is_cloaked"):
+        flags.append("CLOAKED")
+    if p.get("towing_wreck_id"):
+        flags.append(f"TOWING:{p['towing_wreck_id']}")
+    if p.get("anonymous"):
+        flags.append("ANONYMOUS")
+    disruption = s.get("disruption_ticks_remaining")
+    if disruption:
+        flags.append(f"DISRUPTED:{disruption}t")
+    if flags:
+        print(f"Flags: [{'] ['.join(flags)}]")
+
+    # Modules summary
+    modules = r.get("modules", [])
+    if modules:
+        mod_names = []
+        for m in modules:
+            if isinstance(m, dict):
+                mod_names.append(m.get("name") or m.get("module_id") or m.get("type", "?"))
+            else:
+                mod_names.append(str(m))
+        print(f"Modules: {', '.join(mod_names)}")
 
 
 def cmd_ship(api, args):
@@ -583,7 +628,7 @@ def cmd_nearby(api, args):
         emoji = _threat_emoji(level)
         role = _ship_role(ship)
 
-        ship_col = f"{role}({ship}:{pid})"
+        ship_col = f"{role}({ship})"
         tags = ""
         if clan:
             tags += f"[{clan}]"
