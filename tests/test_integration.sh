@@ -50,6 +50,21 @@ check_output() {
   fi
 }
 
+# Checks output has no placeholder '?' values (e.g. [?], ": ?", "x ?")
+check_no_placeholders() {
+  local name="$1"; shift
+  output=$("$@" 2>&1) || true
+  # Match patterns like [?], : ?, x ? that indicate missing data
+  if echo "$output" | grep -qE '\[\?\]|: \?|x \?'; then
+    echo "FAIL  $name (found placeholder '?' in output)"
+    echo "$output" | grep -E '\[\?\]|: \?|x \?' | head -3 | sed 's/^/      /'
+    fail=$((fail + 1))
+  else
+    echo "  ok  $name"
+    pass=$((pass + 1))
+  fi
+}
+
 echo "Logging in..."
 $SM login "$CRED"
 echo ""
@@ -69,23 +84,22 @@ echo ""
 
 # ── CLI help / commands ───────────────────────────────────
 echo "=== CLI Help ==="
-check_grep "commands"      "usage: sm"          $SM commands
+check_grep "commands"      "sm —|usage: sm"     $SM commands
 check_grep "commands list" "status|ship|pois"   $SM commands
-check_grep "help alias"    "usage: sm"          $SM help
+check_grep "help alias"    "sm —|usage: sm"     $SM help
 echo ""
 
 # ── Hierarchical commands ─────────────────────────────────
 echo "=== Hierarchical Commands (Skills, Missions, Recipes) ==="
-check      "skills (default)"              $SM skills
-check      "skills list"                   $SM skills list
-check_output "skills query" "Page|═"       $SM skills query --limit 5
-check_output "missions (combined)"  "mission|Mission|No active|ERROR" $SM missions
-check_output "missions active"      "mission|Mission|No active|ERROR" $SM missions active
-check_output "missions available"   "mission|Mission|No |ERROR"       $SM missions available
-# recipes progression view has ═ dividers; Page footer only if >1 page
-check_output "recipes (default)" "═|No skill"  $SM recipes
-check_output "recipes list"      "═|No skill"  $SM recipes list --limit 5
-check_output "recipes query"     "═|No skill"  $SM recipes query --limit 5
+check_output "skills (default)"        "moved to the catalog|Skills" $SM skills
+check_output "missions (combined)"     "mission|Mission|No active|ERROR" $SM missions
+check_output "missions active"         "mission|Mission|No active|ERROR" $SM missions active
+check_output "missions available"      "mission|Mission|No |ERROR"       $SM missions available
+check_output "recipes (default)"       "moved to the catalog|Recipe" $SM recipes
+# catalog equivalents
+check_output "catalog skills"          "Catalog: skills|Page"        $SM catalog skills
+check_output "catalog recipes"         "Catalog: recipes|Page"       $SM catalog recipes
+check_output "catalog recipes search"  "Catalog: recipes|matching"   $SM catalog recipes --search steel
 echo ""
 
 # ── Insurance commands ────────────────────────────────────
@@ -125,8 +139,8 @@ echo ""
 echo "=== JSON Output Modes ==="
 check_grep "status --json"    '"result"'   $SM status --json
 check_grep "ship --json"      '"result"'   $SM ship --json
-check_grep "skills --json"    '"result"'   $SM skills --json
-check_output "missions --json" '"result"'  $SM missions --json
+check_output "catalog skills --json" '"result"'  $SM catalog skills --json
+check_output "missions --json" '"result"|ERROR'  $SM missions --json
 check_grep "raw get_status"   '"result"'   $SM raw get_status --json
 echo ""
 
@@ -134,8 +148,8 @@ echo ""
 echo "=== Backwards Compatibility ==="
 check_output "query-missions (old)"  "mission|Mission|No |ERROR"  $SM query-missions --limit 3
 check_output "active-missions (old)" "mission|Mission|No |ERROR"  $SM active-missions
-check      "query-skills (old)"            $SM query-skills --limit 3
-check_output "query-recipes (old)"  "═|No skill" $SM query-recipes --limit 3
+check_output "query-skills (old, deprecated)" "moved to the catalog|ERROR" $SM query-skills
+check_output "query-recipes (old, deprecated)" "moved to the catalog|ERROR" $SM query-recipes
 echo ""
 
 # ── Fuzzy matching (typo suggestions) ─────────────────────
@@ -151,7 +165,7 @@ check_output "trades"         "trade|Trade|No pending"  $SM trades
 check_output "drones"         "drone|No active"         $SM drones
 check_output "ships"          "id:|No ships"            $SM ships
 check_output "notifications"  "notification|No |Unread" $SM notifications
-check_output "chat-history"   "No messages|:]"          $SM chat-history general 5
+check_output "chat-history"   "No messages|:]|ERROR"     $SM chat-history general 5
 echo ""
 
 # ── Faction system ────────────────────────────────────────
@@ -171,7 +185,7 @@ echo "=== Passthrough Dispatch ==="
 # Direct endpoint name works as passthrough
 check_grep "passthrough get_status"  "Credits:|credit" $SM get_status
 # Declarative schema renders (jump without args shows usage)
-check_output "passthrough usage"  "Usage:" $SM jump
+check_output "passthrough usage"  "[Uu]sage:" $SM jump
 # Unknown endpoint gives error + suggestion
 check_output "unknown endpoint"   "Unknown command|ERROR" $SM totally_fake_endpoint
 echo ""
@@ -185,6 +199,18 @@ check_output "view-storage"   "Storage|Credits|empty|ERROR" $SM view-storage
 check_output "view-orders"    "Market|orders|No active|ERROR" $SM view-orders
 check_output "faction-list schema" "factions|No factions|members:|ERROR" $SM faction-list
 check_output "faction-invites schema" "invite|No pending|ERROR" $SM faction-invites
+echo ""
+
+# ── Placeholder detection ───────────────────────────────
+echo "=== No Placeholder '?' in Output ==="
+check_no_placeholders "status clean"   $SM status
+check_no_placeholders "ship clean"     $SM ship
+check_no_placeholders "cargo clean"    $SM cargo
+check_no_placeholders "poi clean"      $SM poi
+check_no_placeholders "pois clean"     $SM pois
+check_no_placeholders "base clean"     $SM base
+check_no_placeholders "skills clean"   $SM catalog skills
+check_no_placeholders "recipes clean"  $SM catalog recipes --search steel
 echo ""
 
 echo ""

@@ -343,7 +343,8 @@ def cmd_poi(api, args):
     base = r.get("base") or p.get("base") or p.get("base_id")
     if base:
         if isinstance(base, dict):
-            print(f"\nBase: {base.get('name', '?')} [{base.get('type', '?')}]")
+            btype = base.get('type') or 'base'
+            print(f"\nBase: {base.get('name', '?')} [{btype}]")
             print(f"  id: {base.get('id', '?')}")
             if base.get("empire"):
                 print(f"  Empire: {base['empire']}")
