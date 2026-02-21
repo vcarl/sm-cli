@@ -121,7 +121,7 @@ ENDPOINT_ARGS = {
     # Catalog (reference data browser)
     "catalog": ["type", "search?", "category?", "id?", "page?:int", "page_size?:int"],
     # New market and exploration commands
-    "analyze_market": ["item_id?", "mode?", "page?:int"],
+    "analyze_market": [],
     "survey_system": [],
     # Missions
     "decline_mission": ["template_id?"],
@@ -629,65 +629,45 @@ def _fmt_search_systems(resp):
 
 def _fmt_analyze_market(resp):
     r = resp.get("result", resp)
-    item_id = r.get("item_id", "?")
-    item_name = r.get("item_name", item_id)
-    systems = r.get("systems", [])
-    skill_level = r.get("skill_level") or r.get("market_analysis_level")
-    range_systems = r.get("range") or r.get("systems_scanned")
+    msg = r.get("message")
+    if msg:
+        print(msg)
 
-    print(f"Market Analysis: {item_name} ({item_id})")
+    skill_level = r.get("skill_level")
+    station = r.get("station")
+    if skill_level is not None and not msg:
+        header = f"Market Analysis (trading level {skill_level})"
+        if station:
+            header += f" at {station}"
+        print(header)
 
-    if skill_level is not None:
-        print(f"  Market Analysis Skill: Level {skill_level}")
-    if range_systems is not None:
-        print(f"  Systems scanned: {range_systems}")
-
-    if not systems:
-        print("\n  No market data found in range")
-        print("\n  Hint: Increase market_analysis skill to scan more systems")
+    insights = r.get("insights", [])
+    if not insights:
+        print("\n  No insights found. Higher trading skill reveals more opportunities.")
         return
 
-    print(f"\n  Found markets in {len(systems)} systems:")
-
-    systems_with_spread = []
-    for sys_data in systems:
-        if not isinstance(sys_data, dict):
+    # Group by category
+    by_cat = {}
+    for insight in insights:
+        if not isinstance(insight, dict):
             continue
-        sys_name = sys_data.get("system_name") or sys_data.get("system_id", "?")
-        sys_id = sys_data.get("system_id", "")
-        best_buy = sys_data.get("best_buy_price")
-        best_sell = sys_data.get("best_sell_price")
-        distance = sys_data.get("distance") or sys_data.get("jumps", "?")
+        cat = insight.get("category", "other")
+        by_cat.setdefault(cat, []).append(insight)
 
-        if best_buy is not None or best_sell is not None:
-            spread = (best_sell or 0) - (best_buy or 0)
-            systems_with_spread.append((sys_name, sys_id, best_buy, best_sell, spread, distance))
+    for cat, items in by_cat.items():
+        print(f"\n  {cat.replace('_', ' ').title()} ({len(items)}):")
+        for insight in items:
+            item = insight.get("item", "")
+            item_id = insight.get("item_id", "")
+            message = insight.get("message", "")
+            if item and item_id:
+                print(f"    `{item}`({item_id}): {message}")
+            elif item or item_id:
+                print(f"    `{item or item_id}`: {message}")
+            else:
+                print(f"    {message}")
 
-    systems_with_spread.sort(key=lambda x: x[4], reverse=True)
-
-    for sys_name, sys_id, best_buy, best_sell, spread, distance in systems_with_spread[:15]:
-        buy_str = f"{best_buy} cr" if best_buy else "---"
-        sell_str = f"{best_sell} cr" if best_sell else "---"
-        spread_str = f"+{spread}" if spread > 0 else str(spread) if spread else "---"
-        dist_str = f"{distance}j" if distance != "?" else "?"
-
-        line = f"    {sys_name:20s}  Buy:{buy_str:>8s}  Sell:{sell_str:>8s}  Spread:{spread_str:>6s}  ({dist_str})"
-        print(line)
-
-    if len(systems_with_spread) > 15:
-        print(f"\n  ... and {len(systems_with_spread) - 15} more systems")
-
-    if len(systems_with_spread) >= 2:
-        best_buy_sys = min(systems_with_spread, key=lambda x: x[2] if x[2] else float('inf'))
-        best_sell_sys = max(systems_with_spread, key=lambda x: x[3] if x[3] else 0)
-
-        if best_buy_sys[2] and best_sell_sys[3] and best_buy_sys != best_sell_sys:
-            profit = best_sell_sys[3] - best_buy_sys[2]
-            print(f"\n  💡 Best trade route:")
-            print(f"    Buy at {best_buy_sys[0]} ({best_buy_sys[2]} cr) → Sell at {best_sell_sys[0]} ({best_sell_sys[3]} cr)")
-            print(f"    Profit: {profit} cr per unit")
-
-    print(f"\n  Hint: sm find-route <system>  |  sm listings {item_id}")
+    print(f"\n  Hint: sm listings <item_id>  |  sm find-route <system>")
 
 
 def _fmt_survey_system(resp):
@@ -1204,7 +1184,7 @@ def _print_full_help():
             ("buy <item_id> [quantity] [--auto-list] [--deliver-to]", "Buy item from NPC market"),
             ("sell <item_id> [quantity] [--auto-list]", "Sell item to NPC market"),
             ("listings [item_id]", "Market listings at current base"),
-            ("analyze-market [item_id] [mode]", "Cross-system market analysis (overview/detailed)"),
+            ("analyze-market", "Trading insights at current station (skill-gated)"),
             ("estimate-purchase <item_id> <quantity>", "Estimate cost before buying"),
         ]),
         ("Market Orders (Player)", [
