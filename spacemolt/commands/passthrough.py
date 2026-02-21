@@ -280,27 +280,44 @@ def _fmt_ships(resp):
     if not ships:
         print("No ships owned.")
         return
+    count = r.get("count", len(ships))
+    print(f"Ships ({count}):")
     for s in ships:
-        sid = s.get("id") or s.get("ship_id", "?")
-        sclass = s.get("class_id") or s.get("ship_class") or s.get("class", "?")
-        name = s.get("name", "")
+        sid = s.get("ship_id") or s.get("id", "?")
+        sclass = s.get("class_id") or s.get("ship_class", "?")
+        class_name = s.get("class_name") or s.get("name", "")
         location = s.get("location") or s.get("system_name") or s.get("current_system", "")
-        active = s.get("active", False) or s.get("is_active", False)
+        active = s.get("is_active", False) or s.get("active", False)
         hull = s.get("hull")
-        max_hull = s.get("max_hull")
-        label = name if name else sclass
+        fuel = s.get("fuel")
+        cargo_used = s.get("cargo_used")
+        modules = s.get("modules")
+
+        label = class_name if class_name else sclass
         line = f"  {label}"
-        if name and name != sclass:
+        if class_name and sclass and class_name != sclass:
             line += f" ({sclass})"
-        sid_str = sid[:8] if isinstance(sid, str) and len(sid) > 8 else str(sid)
-        line += f" id:{sid_str}"
+        sid_str = sid[:12] if isinstance(sid, str) and len(sid) > 12 else str(sid)
+        line += f"  id:{sid_str}"
         if active:
-            line += " [ACTIVE]"
-        if hull is not None and max_hull is not None:
-            line += f" Hull:{hull}/{max_hull}"
-        if location:
-            line += f" @ {location}"
+            line += "  [ACTIVE]"
         print(line)
+
+        details = []
+        if hull is not None:
+            details.append(f"Hull:{hull}")
+        if fuel is not None:
+            details.append(f"Fuel:{fuel}")
+        if cargo_used is not None:
+            details.append(f"Cargo:{cargo_used}")
+        if modules is not None:
+            details.append(f"Modules:{modules}")
+        if location:
+            details.append(f"@ {location}")
+        if details:
+            print(f"    {'  '.join(details)}")
+
+    print(f"\n  Hint: sm switch-ship <ship_id>  |  sm sell-ship <ship_id>  |  sm ship")
 
 
 def _fmt_faction_info(resp):
@@ -1376,7 +1393,7 @@ def _make_passthrough_alias(endpoint):
 
 cmd_notes = _make_passthrough_alias("get_notes")
 cmd_trades = _make_passthrough_alias("get_trades")
-cmd_ships = _make_passthrough_alias("get_ships")
+cmd_ships = _make_passthrough_alias("list_ships")
 cmd_chat_history = _make_passthrough_alias("get_chat_history")
 cmd_faction_list = _make_passthrough_alias("faction_list")
 cmd_faction_invites = _make_passthrough_alias("faction_get_invites")
