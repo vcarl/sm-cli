@@ -44,9 +44,6 @@ from spacemolt.commands import (
     cmd_missions,
     cmd_active_missions,
     cmd_query_missions,
-    cmd_skills,
-    cmd_query_skills,
-    cmd_skill,
     cmd_nearby,
     cmd_cargo,
     cmd_sell,
@@ -1112,13 +1109,6 @@ class TestExistingCommandsRegression(unittest.TestCase):
             cmd_undock(api, make_args())
         self.assertIn("Undocked.", mock_print.call_args_list[0][0][0])
 
-    def test_cmd_skills_empty(self):
-        api = mock_api({"result": {"player_skills": []}})
-        with patch("builtins.print") as mock_print:
-            from spacemolt.commands import cmd_skills
-            cmd_skills(api, make_args())
-        self.assertIn("no skills", mock_print.call_args[0][0])
-
     def test_cmd_nearby_empty(self):
         api = mock_api({"result": {"nearby": [], "pirates": [], "pirate_count": 0}})
         with patch("builtins.print") as mock_print:
@@ -1598,167 +1588,6 @@ class TestCmdQueryMissions(unittest.TestCase):
                 json=False, active=False, search="nonexistent", limit=10, page=1))
         self.assertIn("No missions matching", mock_print.call_args[0][0])
 
-
-class TestCmdSkills(unittest.TestCase):
-
-    def test_with_skills(self):
-        api = mock_api({"result": {"player_skills": [
-            {"name": "Mining", "level": 3, "current_xp": 150, "next_level_xp": 300},
-            {"name": "Trading", "level": 1, "current_xp": 10, "next_level_xp": 100},
-        ]}})
-        with patch("builtins.print") as mock_print:
-            cmd_skills(api, make_args())
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("Mining", output)
-        self.assertIn("L3", output)
-        self.assertIn("Trading", output)
-
-    def test_no_skills(self):
-        api = mock_api({"result": {"player_skills": []}})
-        with patch("builtins.print") as mock_print:
-            cmd_skills(api, make_args())
-        self.assertIn("no skills", mock_print.call_args[0][0])
-
-
-SAMPLE_SKILL_DATA = {
-    "mining_basic": {
-        "id": "mining_basic", "name": "Basic Mining", "category": "Resource",
-        "max_level": 5, "required_skills": {},
-        "description": "Improves mining yield",
-        "bonus_per_level": {"mining_yield": 0.1},
-        "xp_per_level": [100, 250, 500, 1000, 2000],
-    },
-    "mining_advanced": {
-        "id": "mining_advanced", "name": "Advanced Mining", "category": "Resource",
-        "max_level": 3, "required_skills": {"mining_basic": 3},
-        "description": "Unlocks rare ore mining",
-        "bonus_per_level": {"rare_ore_chance": 0.05},
-        "xp_per_level": [500, 1500, 4000],
-    },
-    "trading_basic": {
-        "id": "trading_basic", "name": "Basic Trading", "category": "Commerce",
-        "max_level": 5, "required_skills": {},
-        "description": "Better trade prices",
-        "bonus_per_level": {"price_bonus": 0.02},
-        "xp_per_level": [100, 200, 400, 800, 1600],
-    },
-}
-
-
-class TestCmdQuerySkills(unittest.TestCase):
-
-    def _make_api(self, player_skills=None):
-        return mock_api({"result": {
-            "skills": SAMPLE_SKILL_DATA,
-            "player_skills": player_skills or [],
-        }})
-
-    def test_list_by_category(self):
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_query_skills(api, make_args(
-                json=False, search=None, my=False, limit=10, page=1))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("RESOURCE", output)
-        self.assertIn("COMMERCE", output)
-        self.assertIn("Basic Mining", output)
-
-    def test_search(self):
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_query_skills(api, make_args(
-                json=False, search="mining", my=False, limit=10, page=1))
-        output = "\n".join(str(c) for c in mock_print.call_args_list)
-        self.assertIn("Basic Mining", output)
-        self.assertIn("Advanced Mining", output)
-        self.assertNotIn("Trading", output)
-
-    def test_no_skill_data(self):
-        api = mock_api({"result": {"skills": {}, "player_skills": []}})
-        with patch("builtins.print") as mock_print:
-            cmd_query_skills(api, make_args(
-                json=False, search=None, my=False, limit=10, page=1))
-        self.assertIn("No skill data", mock_print.call_args[0][0])
-
-    def test_json_mode(self):
-        resp = {"result": {"skills": SAMPLE_SKILL_DATA, "player_skills": []}}
-        api = mock_api(resp)
-        with patch("builtins.print") as mock_print:
-            cmd_query_skills(api, make_args(
-                json=True, search=None, my=False, limit=10, page=1))
-        self.assertEqual(json.loads(mock_print.call_args[0][0]), resp)
-
-    def test_my_skills(self):
-        api = self._make_api(player_skills=[
-            {"skill_id": "mining_basic", "name": "Basic Mining", "level": 3,
-             "current_xp": 400, "next_level_xp": 1000, "max_level": 5},
-        ])
-        with patch("builtins.print") as mock_print:
-            cmd_query_skills(api, make_args(
-                json=False, search=None, my=True, limit=10, page=1))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("Basic Mining", output)
-        self.assertIn("L3", output)
-
-
-class TestCmdSkill(unittest.TestCase):
-
-    def _make_api(self, player_skills=None):
-        return mock_api({"result": {
-            "skills": SAMPLE_SKILL_DATA,
-            "player_skills": player_skills or [],
-        }})
-
-    def test_exact_match(self):
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_skill(api, make_args(
-                json=False, skill_id="mining_basic"))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("Basic Mining", output)
-        self.assertIn("Prerequisite tree", output)
-
-    def test_fuzzy_match(self):
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_skill(api, make_args(
-                json=False, skill_id="trading"))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("Basic Trading", output)
-
-    def test_not_found(self):
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_skill(api, make_args(
-                json=False, skill_id="nonexistent_skill"))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("No skill matching", output)
-
-    def test_no_skill_data(self):
-        api = mock_api({"result": {"skills": {}, "player_skills": []}})
-        with patch("builtins.print") as mock_print:
-            cmd_skill(api, make_args(
-                json=False, skill_id="mining_basic"))
-        self.assertIn("No skill data", mock_print.call_args[0][0])
-
-    def test_shows_unlocks(self):
-        """Should show what skills are unlocked at each level."""
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_skill(api, make_args(
-                json=False, skill_id="mining_basic"))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        # mining_basic L3 unlocks mining_advanced
-        self.assertIn("Advanced Mining", output)
-
-    def test_shows_xp_table(self):
-        api = self._make_api()
-        with patch("builtins.print") as mock_print:
-            cmd_skill(api, make_args(
-                json=False, skill_id="mining_basic"))
-        output = "\n".join(c[0][0] for c in mock_print.call_args_list)
-        self.assertIn("XP requirements", output)
-        self.assertIn("L1:", output)
 
 
 # ---------------------------------------------------------------------------

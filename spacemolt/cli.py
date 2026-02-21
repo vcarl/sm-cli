@@ -154,20 +154,11 @@ Tips:
     p_qm.add_argument("--page", type=int, default=1, metavar="N",
                        help="Page number (default: 1)")
 
-    # query-skills
-    p_qs = sub.add_parser("query-skills", help="Compact skill list by category")
-    p_qs.add_argument("--search", metavar="QUERY",
-                       help="Search skills by name, category, or bonus")
-    p_qs.add_argument("--my", action="store_true",
-                       help="Show only your trained skills with progress bars")
-    p_qs.add_argument("--limit", type=int, default=10, metavar="N",
-                       help="Max items per page (default: 10)")
-    p_qs.add_argument("--page", type=int, default=1, metavar="N",
-                       help="Page number (default: 1)")
-
-    # skill (deep inspect)
-    p_si = sub.add_parser("skill", help="Deep inspect a skill: prereqs, bonuses, XP table, unlocks")
-    p_si.add_argument("skill_id", help="Skill ID or name (fuzzy matched)")
+    # deprecated skill commands (redirect to catalog)
+    sub.add_parser("skills", help="(deprecated) Use: sm catalog skills")
+    p_skill_dep = sub.add_parser("skill", help="(deprecated) Use: sm catalog skills --id <skill_id>")
+    p_skill_dep.add_argument("skill_id", nargs="?", help="Skill ID (ignored)")
+    sub.add_parser("query-skills", help="(deprecated) Use: sm catalog skills")
 
     # commands / help
     sub.add_parser("commands", help="Show this help message")
@@ -213,22 +204,6 @@ Tips:
 
     p_mab = missions_sub.add_parser("abandon", help="Abandon mission")
     p_mab.add_argument("mission_id", help="Mission ID")
-
-    # skills group
-    p_skills_hier = sub.add_parser("skills", help="Skill management (shows trained skills by default)")
-    p_skills_hier.add_argument("--json", action="store_true", help="Output raw JSON")
-    skills_sub = p_skills_hier.add_subparsers(dest="skills_cmd")
-
-    skills_sub.add_parser("list", help="List trained skills (default)")
-
-    p_sq = skills_sub.add_parser("query", help="Search all skills")
-    p_sq.add_argument("--search", metavar="QUERY", help="Search skills by name, category, or bonus")
-    p_sq.add_argument("--my", action="store_true", help="Show only your trained skills with progress bars")
-    p_sq.add_argument("--limit", type=int, default=10, metavar="N", help="Max items per page (default: 10)")
-    p_sq.add_argument("--page", type=int, default=1, metavar="N", help="Page number (default: 1)")
-
-    p_si = skills_sub.add_parser("inspect", help="Deep inspect a skill")
-    p_si.add_argument("skill_id_inspect", metavar="skill_id", help="Skill ID or name (fuzzy matched)")
 
     # recipes group
     p_recipes_hier = sub.add_parser("recipes", help="Recipe management (shows recipe list by default)")
@@ -368,6 +343,13 @@ Tips:
     return parser
 
 
+def _deprecated_skills():
+    print("Skills commands have moved to the catalog:")
+    print("  sm catalog skills                    Browse all skill definitions")
+    print("  sm catalog skills --search <query>   Search skills by name/category")
+    print("  sm catalog skills --id <skill_id>    Look up a specific skill")
+
+
 COMMAND_MAP = {
     "register": commands.cmd_register,
     "login": commands.cmd_login,
@@ -383,7 +365,6 @@ COMMAND_MAP = {
     "cargo": commands.cmd_cargo,
     "sell": commands.cmd_sell,
     "buy": commands.cmd_buy,
-    "skills": commands.cmd_skills_router,  # NEW: hierarchical router
     "nearby": commands.cmd_nearby,
     "notifications": commands.cmd_notifications,
     "travel": commands.cmd_travel,
@@ -400,8 +381,9 @@ COMMAND_MAP = {
     "missions": commands.cmd_missions_router,     # NEW: hierarchical router
     "active-missions": commands.cmd_active_missions,  # Keep for backwards compatibility
     "query-missions": commands.cmd_query_missions,     # Keep for backwards compatibility
-    "query-skills": commands.cmd_query_skills,  # Keep for backwards compatibility
-    "skill": commands.cmd_skill,  # Keep for backwards compatibility
+    "skills": lambda api, args: _deprecated_skills(),
+    "skill": lambda api, args: _deprecated_skills(),
+    "query-skills": lambda api, args: _deprecated_skills(),
     "commands": commands.cmd_commands,
     "help": commands.cmd_commands,
     "chat": commands.cmd_chat,

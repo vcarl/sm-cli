@@ -19,18 +19,6 @@ COMMAND_SUGGESTIONS = {
         "sm missions accept <id>    # Accept a mission",
         "sm missions complete <id>  # Complete mission",
     ],
-    "skills": [
-        "sm skills query --search <resource>   # Search all skills by name/category",
-        "sm skills query --my                  # Your skills with progress bars",
-        "sm skills inspect <skill_id>          # Deep inspect: prereqs, unlocks, XP",
-    ],
-    "query-skills": [
-        "sm skills query --search <resource>   # Search all skills by name/category",
-        "sm skills inspect <skill_id>          # Deep inspect: prereqs, unlocks, XP",
-    ],
-    "skill": [
-        "sm skills query --search <resource>   # Search all skills by name/category",
-    ],
     "recipes": [
         "sm recipes query --search <resource>   # Search recipes by name/ingredient",
         "sm recipes query --trace <item>    # Full ingredient tree",

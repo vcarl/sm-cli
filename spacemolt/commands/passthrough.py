@@ -1251,11 +1251,9 @@ def _print_full_help():
             ("decline-mission [template_id]", "Decline an offered mission (hides it)"),
         ]),
         ("Skills", [
-            ("skills", "Trained skills overview"),
-            ("skills query --search <resource>", "Search all skills by name/category/bonus"),
-            ("skills query --my", "Your trained skills with progress bars"),
-            ("skills inspect <skill_id>", "Deep inspect: prereqs, bonuses, XP table, unlocks"),
-            ("skill <skill_id>", "Shortcut for skills inspect"),
+            ("catalog skills", "Browse all skill definitions"),
+            ("catalog skills --search <query>", "Search skills by name/category"),
+            ("catalog skills --id <skill_id>", "Look up a specific skill"),
         ]),
         ("Insurance", [
             ("insurance", "Insurance coverage status"),
