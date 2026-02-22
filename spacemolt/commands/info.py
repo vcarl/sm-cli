@@ -446,7 +446,12 @@ def cmd_base(api, args):
 
 
 def cmd_cargo(api, args):
+    import json as _json
     resp = api._post("get_cargo")
+    as_json = getattr(args, "json", False)
+    if as_json:
+        print(_json.dumps(resp, indent=2))
+        return
     r = resp.get("result", {})
     items = r.get("cargo", [])
     print(f"{r.get('used', 0)}/{r.get('capacity', '?')} used")
