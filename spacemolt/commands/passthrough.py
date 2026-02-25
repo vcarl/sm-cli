@@ -696,80 +696,55 @@ def _fmt_survey_system(resp):
     r = resp.get("result", resp)
     system_name = r.get("system_name") or r.get("system", "?")
     system_id = r.get("system_id", "")
-    skill_level = r.get("astrometrics_level") or r.get("skill_level")
-    scanner_bonus = r.get("scanner_bonus") or r.get("module_bonus")
+    survey_power = r.get("survey_power")
+    message = r.get("message", "")
 
     print(f"System Survey: {system_name}" + (f" ({system_id})" if system_id else ""))
+    if survey_power is not None:
+        print(f"  Survey Power: {survey_power}")
+    if message:
+        print(f"  {message}")
 
-    if skill_level is not None:
-        print(f"  Astrometrics Skill: Level {skill_level}")
-    if scanner_bonus is not None:
-        print(f"  Scanner Bonus: +{scanner_bonus}%")
-
-    print("\n  System Properties:")
-    for key in ["security_level", "police_level", "faction_control", "population"]:
-        val = r.get(key)
-        if val is not None:
-            label = key.replace("_", " ").title()
-            print(f"    {label}: {val}")
-
-    pois = r.get("points_of_interest", []) or r.get("pois", [])
-    if pois:
-        print(f"\n  Points of Interest ({len(pois)}):")
-        for poi in pois[:20]:
-            if isinstance(poi, dict):
-                poi_name = poi.get("name", "?")
-                poi_type = poi.get("type", "?")
-                resources = poi.get("resources", [])
-
-                line = f"    [{poi_type:12s}] {poi_name}"
-                if resources:
-                    res_str = ", ".join(str(r) for r in resources[:3])
-                    line += f"  ({res_str})"
-                print(line)
-
-                hidden_info = poi.get("hidden_info", {})
-                if hidden_info:
-                    for k, v in hidden_info.items():
-                        print(f"        └─ {k}: {v}")
-
-        if len(pois) > 20:
-            print(f"    ... and {len(pois) - 20} more")
-
-    resources = r.get("system_resources", []) or r.get("resources", [])
-    if resources:
-        print(f"\n  System Resources:")
+    def _fmt_deposit(dep, label):
+        dep_name = dep.get("name", "?")
+        dep_type = dep.get("type", "")
+        dep_id = dep.get("id", "")
+        dep_desc = dep.get("description", "")
+        print(f"\n  {label}: {dep_name}" + (f" [{dep_type}]" if dep_type else "") + (f" (id: {dep_id})" if dep_id else ""))
+        if dep_desc:
+            print(f"    {dep_desc}")
+        resources = dep.get("resources", [])
         for res in resources:
-            if isinstance(res, dict):
-                res_name = res.get("name") or res.get("resource_id", "?")
-                abundance = res.get("abundance", "?")
-                quality = res.get("quality")
-                print(f"    {res_name:20s}  Abundance: {abundance}" + (f"  Quality: {quality}" if quality else ""))
-            else:
-                print(f"    {res}")
+            res_name = res.get("name") or res.get("resource_id", "?")
+            richness = res.get("richness", "?")
+            remaining = res.get("remaining", "?")
+            depletion = res.get("depletion_percent")
+            line = f"    {res_name}  richness:{richness}  remaining:{remaining}"
+            if depletion is not None:
+                line += f"  depleted:{depletion}%"
+            print(line)
 
-    connections = r.get("connections", []) or r.get("adjacent_systems", [])
-    if connections:
-        print(f"\n  Connected Systems ({len(connections)}):")
-        for conn in connections[:10]:
-            if isinstance(conn, dict):
-                conn_name = conn.get("name") or conn.get("system_id", "?")
-                distance = conn.get("distance") or conn.get("fuel_cost")
-                print(f"    {conn_name}" + (f" ({distance} fuel)" if distance else ""))
-            else:
-                print(f"    {conn}")
+    newly_revealed = r.get("newly_revealed", [])
+    for dep in newly_revealed:
+        _fmt_deposit(dep, "✨ NEW DISCOVERY")
 
-    discoveries = r.get("discoveries", []) or r.get("hidden_features", [])
-    if discoveries:
-        print(f"\n  ✨ Discoveries:")
-        for disc in discoveries:
-            if isinstance(disc, dict):
-                disc_name = disc.get("name", "?")
-                disc_type = disc.get("type", "")
-                reward = disc.get("reward")
-                print(f"    {disc_name}" + (f" [{disc_type}]" if disc_type else "") + (f" - Reward: {reward}" if reward else ""))
-            else:
-                print(f"    {disc}")
+    already_revealed = r.get("already_revealed", [])
+    for dep in already_revealed:
+        _fmt_deposit(dep, "Known Deposit")
+
+    faint_signatures = r.get("faint_signatures", [])
+    if faint_signatures:
+        print(f"\n  Faint Signatures (scanner power too low to reveal):")
+        for sig in faint_signatures:
+            sig_type = sig.get("type", "?")
+            hint = sig.get("hint", "")
+            difficulty = sig.get("difficulty", "?")
+            print(f"    [{sig_type}] difficulty:{difficulty}  hint: {hint}")
+
+    xp_gained = r.get("xp_gained", {})
+    if any(v > 0 for v in xp_gained.values()):
+        xp_str = ", ".join(f"{k}+{v}" for k, v in xp_gained.items() if v > 0)
+        print(f"\n  XP: {xp_str}")
 
     print(f"\n  Hint: sm pois  |  sm system  |  sm travel <poi_id>")
 
