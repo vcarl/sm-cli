@@ -1781,10 +1781,18 @@ def cmd_catalog(api, args):
     if cat_type == "recipes":
         trace_target = getattr(args, "trace_item", None)
         if trace_target:
-            # Trace needs all recipes — fetch via get_recipes endpoint
-            resp = api._post("get_recipes")
-            raw = resp.get("result", {}).get("recipes", {})
-            recipe_list = _normalize_recipes(raw)
+            # Trace needs all recipes — fetch all pages via catalog endpoint
+            recipe_list = []
+            page = 1
+            while True:
+                resp = api._post("catalog", {"type": "recipes", "page": page, "page_size": 50})
+                result = resp.get("result", {})
+                items = result.get("items", [])
+                recipe_list.extend(items)
+                total = result.get("total", 0)
+                if len(recipe_list) >= total or not items:
+                    break
+                page += 1
             if not recipe_list:
                 print("No recipes available.")
                 return
