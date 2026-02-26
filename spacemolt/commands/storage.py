@@ -80,7 +80,14 @@ def _storage_view(api, args):
 
 
 def _storage_transfer(api, args, action):
-    """Deposit or withdraw items/credits via the unified /storage endpoint."""
+    """Deposit or withdraw items/credits via storage endpoints.
+
+    For item deposits (not credits, not gifting), uses the /deposit_items endpoint
+    which supports auto-docking — works even when explicit docking is unavailable
+    (e.g. on stations in critical condition). Falls back to /storage on error.
+
+    For all other operations (withdrawals, credits, gifts), uses /storage.
+    """
     as_json = getattr(args, "json", False)
     item_id = getattr(args, "item_id", None)
     quantity = getattr(args, "quantity", None)
@@ -111,9 +118,22 @@ def _storage_transfer(api, args, action):
     if message:
         body["message"] = message
 
+    # Use deposit_items endpoint for plain item deposits (auto-docks, works on critical stations)
+    use_deposit_items = (
+        action == "deposit"
+        and item_id
+        and quantity
+        and credits_amt is None
+        and target == "self"
+        and message is None
+    )
+
     from spacemolt.api import APIError
     try:
-        resp = api._post("storage", body)
+        if use_deposit_items:
+            resp = api._post("deposit_items", {"item_id": item_id, "quantity": quantity})
+        else:
+            resp = api._post("storage", body)
     except APIError as e:
         print(f"ERROR: {e}")
         return
@@ -129,12 +149,20 @@ def _storage_transfer(api, args, action):
         return
 
     r = resp.get("result", {})
-    msg = r.get("message")
-    if msg:
-        print(msg)
+    if use_deposit_items and r.get("action") == "deposit_items":
+        auto = " (auto-docked)" if r.get("auto_docked") else ""
+        qty = r.get("quantity", quantity)
+        storage_total = r.get("storage_total", "?")
+        cargo_space = r.get("cargo_space", "?")
+        print(f"Deposited: {item_id} x{qty}{auto}")
+        print(f"  Storage total: {storage_total}  |  Cargo space free: {cargo_space}")
     else:
-        verb = "Deposited" if action == "deposit" else "Withdrew"
-        if target not in ("self", None):
-            verb = f"{verb} (to {target})"
-        print(f"{verb}: {desc}")
+        msg = r.get("message")
+        if msg:
+            print(msg)
+        else:
+            verb = "Deposited" if action == "deposit" else "Withdrew"
+            if target not in ("self", None):
+                verb = f"{verb} (to {target})"
+            print(f"{verb}: {desc}")
     print("  Hint: sm storage (view storage)")
