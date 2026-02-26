@@ -502,17 +502,17 @@ class SpaceMoltAPI:
         self._status_cache_time = 0
 
     def _require_docked(self, hint="You must be docked at a base for this action."):
-        """Check that player is at a station POI.
+        """Check that player is docked at a base.
 
-        Note: get_status does not expose docked_at_base in the player object.
-        We check current_poi instead — if at a station, the server manages dock
-        state. The server will return its own error if docking is truly required.
+        get_status returns docked_at_base in the player object when docked.
+        Stations can have non-standard POI IDs (e.g. krynn_citadel, not krynn_station),
+        so checking docked_at_base is more reliable than inspecting the POI ID string.
         """
         status = self._get_cached_status()
         result = status.get("result", {})
         player = result.get("player", {})
-        current_poi = player.get("current_poi", "")
-        if not current_poi or not current_poi.endswith("_station"):
+        docked_at_base = player.get("docked_at_base", "")
+        if not docked_at_base:
             raise APIError("You are not at a station. Travel to a station first.")
 
     def _require_undocked(self, hint="You must be undocked for this action."):
