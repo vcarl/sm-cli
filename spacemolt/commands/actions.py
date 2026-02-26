@@ -196,8 +196,25 @@ def cmd_travel(api, args):
 
 
 def cmd_jump(api, args):
+    from spacemolt.api import APIError
     as_json = getattr(args, "json", False)
-    resp = api._post("jump", {"target_system": args.target_system})
+    try:
+        resp = api._post("jump", {"target_system": args.target_system})
+    except APIError as e:
+        # When a jump times out client-side but succeeds server-side, the retry
+        # gets HTTP 400 "Systems are not connected" because we're already there.
+        # Detect this: if we're already at the target system, treat as success.
+        if e.status_code == 400 and "not connected" in str(e).lower():
+            try:
+                status_resp = api._post("get_status")
+                player = status_resp.get("result", {}).get("player", {})
+                if player.get("current_system") == args.target_system:
+                    api._clear_status_cache()
+                    print(f"Jump initiated. (command: jump, pending: False)")
+                    return
+            except Exception:
+                pass
+        raise
     if as_json:
         print(json.dumps(resp, indent=2))
         return
