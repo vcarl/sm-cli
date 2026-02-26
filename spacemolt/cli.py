@@ -345,6 +345,51 @@ Tips:
     p_ch_hist = sub.add_parser("chat-history", help="Chat message history")
     p_ch_hist.add_argument("extra", nargs="*", help="[channel] [limit] [target_id]")
 
+    # shipyard group
+    p_shipyard = sub.add_parser("shipyard", help="Shipyard: browse, commission, buy/sell ships (shows listings by default)")
+    p_shipyard.add_argument("--json", action="store_true", help="Output raw JSON")
+    shipyard_sub = p_shipyard.add_subparsers(dest="shipyard_cmd")
+
+    p_sy_browse = shipyard_sub.add_parser("browse", help="Browse player-listed ships at current base")
+    p_sy_browse.add_argument("--class", dest="ship_class", metavar="CLASS", help="Filter by ship class")
+    p_sy_browse.add_argument("--max-price", type=int, metavar="N", help="Maximum price filter")
+    p_sy_browse.add_argument("--base", metavar="ID", help="Base ID to browse at")
+
+    p_sy_showroom = shipyard_sub.add_parser("showroom", help="Pre-built ships in stock")
+    p_sy_showroom.add_argument("--category", metavar="CAT", help="Filter by category")
+    p_sy_showroom.add_argument("--scale", type=int, metavar="N", help="Filter by scale")
+
+    p_sy_quote = shipyard_sub.add_parser("quote", help="Get commission pricing")
+    p_sy_quote.add_argument("ship_class", help="Ship class to get quote for")
+
+    p_sy_commission = shipyard_sub.add_parser("commission", help="Place a build order")
+    p_sy_commission.add_argument("ship_class", help="Ship class to commission")
+    p_sy_commission.add_argument("--provide-materials", action="store_true", help="Supply your own materials for reduced cost")
+
+    p_sy_status = shipyard_sub.add_parser("status", help="View your active commissions")
+    p_sy_status.add_argument("--base", metavar="ID", help="Base ID to check")
+
+    p_sy_supply = shipyard_sub.add_parser("supply", help="Supply materials to a commission")
+    p_sy_supply.add_argument("commission_id", help="Commission ID")
+    p_sy_supply.add_argument("item_id", help="Item ID to supply")
+    p_sy_supply.add_argument("quantity", type=int, help="Quantity to supply")
+
+    p_sy_cancel = shipyard_sub.add_parser("cancel", help="Cancel a commission (50%% refund)")
+    p_sy_cancel.add_argument("commission_id", help="Commission ID to cancel")
+
+    p_sy_claim = shipyard_sub.add_parser("claim", help="Pick up a finished ship")
+    p_sy_claim.add_argument("commission_id", help="Commission ID to claim")
+
+    p_sy_list = shipyard_sub.add_parser("list", help="List your ship for sale (1%% fee)")
+    p_sy_list.add_argument("ship_id", help="Ship ID to list")
+    p_sy_list.add_argument("price", type=int, help="Asking price in credits")
+
+    p_sy_buy = shipyard_sub.add_parser("buy", help="Buy a listed ship")
+    p_sy_buy.add_argument("listing_id", help="Listing ID to buy")
+
+    p_sy_unlist = shipyard_sub.add_parser("unlist", help="Cancel your ship listing")
+    p_sy_unlist.add_argument("listing_id", help="Listing ID to cancel")
+
     # complain
     p_complain = sub.add_parser("complain", help="Log a complaint about sm client usability")
     p_complain.add_argument("complaint_text", help="What's bugging you? (quote your complaint)")
@@ -424,6 +469,7 @@ COMMAND_MAP = {
     "storage": commands.cmd_storage,
     "market": commands.cmd_market,
     "facility": commands.cmd_facility_router,
+    "shipyard": commands.cmd_shipyard_router,
     "complain": commands.cmd_complain,
     "schema": lambda api, args: commands.cmd_schema_list(api, args) if getattr(args, "schema_list", False) else commands.cmd_schema(api, args),
 }
