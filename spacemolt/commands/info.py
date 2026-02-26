@@ -819,7 +819,7 @@ def cmd_cargo(api, args):
             name = item.get("item_id", "?")
             qty = item.get("quantity", 1)
             print(f"  {name} x{qty}")
-    print("\n  Hint: sm sell <item> <qty>  |  sm listings  |  sm storage deposit <item> <qty>")
+    print("\n  Hint: sm market sell <item> <qty> <price>  |  sm listings  |  sm storage deposit <item> <qty>")
 
 
 def _threat_level(nearby_info):
@@ -1029,7 +1029,7 @@ def _fmt_view_market_item(resp):
         elif best_buy:
             print(f"\n  Best bid: {best_buy} cr")
 
-        print(f"\n  Hint: sm buy {item_id} <qty>  |  sm sell {item_id} <qty>")
+        print(f"\n  Hint: sm buy {item_id} <qty>  |  sm market sell {item_id} <qty> <price>")
 
 
 def cmd_listings(api, args):

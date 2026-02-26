@@ -70,12 +70,6 @@ Tips:
     # cargo
     sub.add_parser("cargo", help="Cargo contents")
 
-    # sell
-    p_sell = sub.add_parser("sell", help="Sell an item from cargo")
-    p_sell.add_argument("item_id", help="Item ID to sell (e.g. ore_iron)")
-    p_sell.add_argument("quantity", nargs="?", type=int, default=1, help="Quantity to sell (default: 1)")
-    p_sell.add_argument("--auto-list", action="store_true", help="Auto-create sell order for unsold items (1%% listing fee)")
-
     # buy
     p_buy = sub.add_parser("buy", help="Buy item from NPC market")
     p_buy.add_argument("item_id", help="Item ID to buy (e.g. ore_iron)")
@@ -428,7 +422,6 @@ COMMAND_MAP = {
     "log": commands.cmd_log,
     "log-add": commands.cmd_log_add,
     "cargo": commands.cmd_cargo,
-    "sell": commands.cmd_sell,
     "buy": commands.cmd_buy,
     "nearby": commands.cmd_nearby,
     "notifications": commands.cmd_notifications,

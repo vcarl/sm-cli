@@ -28,7 +28,6 @@ ENDPOINT_ARGS = {
     "forum_reply": ["thread_id", "content"],
     "forum_get_thread": ["thread_id"],
     "forum_create_thread": ["title", "content", "category?"],  # category is custom extension
-    "sell": ["item_id", "quantity:int", "auto_list?:bool"],
     "loot_wreck": ["wreck_id", "item_id", "quantity:int"],
     "salvage_wreck": ["wreck_id"],
     "install_mod": ["module_id", "slot_idx?:int"],  # slot_idx is custom extension

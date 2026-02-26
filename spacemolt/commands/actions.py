@@ -306,39 +306,6 @@ def cmd_repair(api, args):
         print(f"Repaired: {r.get('repaired', '?')} (cost: {r.get('cost', '?')} cr)")
 
 
-def cmd_sell(api, args):
-    body = {"item_id": args.item_id, "quantity": args.quantity}
-    if getattr(args, "auto_list", False):
-        body["auto_list"] = True
-    result = api._post("sell", body)
-    err = result.get("error")
-    if err:
-        print(f"ERROR: {err}")
-    else:
-        r = result.get("result", {})
-        qty_sold = r.get("quantity_sold", args.quantity)
-        unsold = r.get("unsold", 0)
-        earned = _extract_earned(r)
-        if unsold and unsold > 0:
-            msg = r.get("message", "No buyers at this station. Items remain in cargo.")
-            print(f"WARNING: {msg}")
-        elif earned is not None:
-            print(f"Sold {args.item_id} x{qty_sold} (+{earned} cr)")
-        else:
-            print(f"Sold {args.item_id} x{qty_sold}")
-
-
-def _extract_earned(result_dict):
-    """Extract credits earned from a sell response, returning int or None."""
-    val = result_dict.get("total_earned")
-    if val is not None:
-        try:
-            return int(val)
-        except (ValueError, TypeError):
-            pass
-    return None
-
-
 def cmd_buy(api, args):
     api._require_docked()
     as_json = getattr(args, "json", False)
