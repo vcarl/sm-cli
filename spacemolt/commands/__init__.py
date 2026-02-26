@@ -26,3 +26,4 @@ from spacemolt.commands.insurance import *
 from spacemolt.commands.storage import *
 from spacemolt.commands.market import *
 from spacemolt.commands.facility import *
+from spacemolt.commands.schema import *
