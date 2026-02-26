@@ -502,22 +502,26 @@ class SpaceMoltAPI:
         self._status_cache_time = 0
 
     def _require_docked(self, hint="You must be docked at a base for this action."):
-        """Raise APIError if not currently docked at a station."""
+        """Check that player is at a station POI.
+
+        Note: get_status does not expose docked_at_base in the player object.
+        We check current_poi instead — if at a station, the server manages dock
+        state. The server will return its own error if docking is truly required.
+        """
         status = self._get_cached_status()
         result = status.get("result", {})
         player = result.get("player", {})
-        docked = bool(player.get("docked_at_base"))
-        if not docked:
-            raise APIError(hint)
+        current_poi = player.get("current_poi", "")
+        if not current_poi or not current_poi.endswith("_station"):
+            raise APIError("You are not at a station. Travel to a station first.")
 
     def _require_undocked(self, hint="You must be undocked for this action."):
-        """Raise APIError if currently docked at a station."""
-        status = self._get_cached_status()
-        result = status.get("result", {})
-        player = result.get("player", {})
-        docked = bool(player.get("docked_at_base"))
-        if docked:
-            raise APIError(hint)
+        """Check that player is NOT at a station POI (or let server decide).
+
+        Note: get_status does not expose docked_at_base. We skip the client-side
+        check here and rely on the server to reject if docking is an issue.
+        """
+        pass  # Server enforces undock requirement; client-side check was broken
 
     def _check_cargo_space(self, required_space, hint="Not enough cargo space. Hint: sm jettison <item_id> <quantity>"):
         """Raise APIError if cargo space is insufficient."""
