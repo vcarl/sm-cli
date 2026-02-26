@@ -721,7 +721,10 @@ def _fmt_survey_system(resp):
             depletion = res.get("depletion_percent")
             line = f"    {res_name}  richness:{richness}  remaining:{remaining}"
             if depletion is not None:
-                line += f"  depleted:{depletion}%"
+                if depletion >= 100:
+                    line += f"  ⚠️ historically_depleted:{depletion}% (deposit regenerates — check 'remaining' for current availability)"
+                else:
+                    line += f"  used:{depletion}%"
             print(line)
 
     newly_revealed = r.get("newly_revealed", [])
