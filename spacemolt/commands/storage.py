@@ -28,22 +28,33 @@ def _storage_view(api, args):
             print(f"Could not view storage at station '{station}'.")
             return
     elif target == "self":
-        # view_storage works without docking — derive base_id from current location
+        # view_storage works without docking — get base_id from current POI data
         base_id = None
         try:
-            status_resp = api._post("get_status")
-            current_poi = status_resp.get("result", {}).get("player", {}).get("current_poi", "")
-            if current_poi:
-                base_id = current_poi.replace("_station", "_base")
+            poi_resp = api._post("get_poi")
+            base_id = poi_resp.get("result", {}).get("poi", {}).get("base_id")
         except Exception:
             pass
+        if not base_id:
+            # Fallback: derive from current_poi in status
+            try:
+                status_resp = api._post("get_status")
+                current_poi = status_resp.get("result", {}).get("player", {}).get("current_poi", "")
+                if current_poi and "_station" in current_poi:
+                    base_id = current_poi.replace("_station", "_base")
+            except Exception:
+                pass
         if base_id:
             try:
                 resp = api._post("view_storage", {"station_id": base_id})
             except Exception:
-                print("Storage viewing not available.")
-                print("  Hint: sm storage deposit <item> <qty>  |  sm storage withdraw <item> <qty>")
-                return
+                # Fall back to generic storage endpoint
+                try:
+                    resp = api._post("storage", {"action": "view"})
+                except Exception:
+                    print("Storage viewing not available.")
+                    print("  Hint: sm storage deposit <item> <qty>  |  sm storage withdraw <item> <qty>")
+                    return
         else:
             try:
                 resp = api._post("storage", {"action": "view"})
