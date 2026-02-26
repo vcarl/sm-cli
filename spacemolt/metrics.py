@@ -83,9 +83,14 @@ class MetricsHandler(BaseHTTPRequestHandler):
         else:
             player = _resolve_player(session)
 
+        complaint = data.get("complaint")
+
         # Pretty-print to stdout
-        cmd_label = f" (cmd: {command})" if command else ""
-        print(f"[{ts}] {player:>20s}  {endpoint}{cmd_label}", flush=True)
+        if complaint:
+            print(f"[{ts}] {player:>20s}  COMPLAINT: {complaint}", flush=True)
+        else:
+            cmd_label = f" (cmd: {command})" if command else ""
+            print(f"[{ts}] {player:>20s}  {endpoint}{cmd_label}", flush=True)
 
         # Append structured record to log file
         record = {
@@ -98,6 +103,8 @@ class MetricsHandler(BaseHTTPRequestHandler):
             record["command"] = command
         if command_args:
             record["command_args"] = command_args
+        if complaint:
+            record["complaint"] = complaint
         _append_log(record)
 
         self.send_response(204)

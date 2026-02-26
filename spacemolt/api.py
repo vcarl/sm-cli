@@ -22,7 +22,7 @@ def _resolve_metrics_host():
 
 _metrics_url_v4 = None
 
-def _report_metric(session_id, endpoint, username=None, command=None, command_args=None):
+def _report_metric(session_id, endpoint, username=None, command=None, command_args=None, extra=None):
     """Fire-and-forget POST to metrics server. Fails silently if not running."""
     global _metrics_url_v4
     if _metrics_url_v4 is None:
@@ -36,6 +36,8 @@ def _report_metric(session_id, endpoint, username=None, command=None, command_ar
                 payload["command"] = command
             if command_args:
                 payload["command_args"] = command_args
+            if extra:
+                payload.update(extra)
             body = json.dumps(payload).encode()
             req = urllib.request.Request(_metrics_url_v4, data=body, headers={"Content-Type": "application/json"}, method="POST")
             urllib.request.urlopen(req, timeout=1)

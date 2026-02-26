@@ -338,6 +338,10 @@ Tips:
     p_ch_hist = sub.add_parser("chat-history", help="Chat message history")
     p_ch_hist.add_argument("extra", nargs="*", help="[channel] [limit] [target_id]")
 
+    # complain
+    p_complain = sub.add_parser("complain", help="Log a complaint about sm client usability")
+    p_complain.add_argument("complaint_text", help="What's bugging you? (quote your complaint)")
+
     # schema
     p_schema = sub.add_parser("schema", help="Show API schema for a command")
     p_schema.add_argument("schema_command", nargs="?", help="Command/endpoint name (e.g. buy, travel)")
@@ -413,6 +417,7 @@ COMMAND_MAP = {
     "storage": commands.cmd_storage,
     "market": commands.cmd_market,
     "facility": commands.cmd_facility_router,
+    "complain": commands.cmd_complain,
     "schema": lambda api, args: commands.cmd_schema_list(api, args) if getattr(args, "schema_list", False) else commands.cmd_schema(api, args),
 }
 

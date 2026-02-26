@@ -27,3 +27,4 @@ from spacemolt.commands.storage import *
 from spacemolt.commands.market import *
 from spacemolt.commands.facility import *
 from spacemolt.commands.schema import *
+from spacemolt.commands.complain import *
