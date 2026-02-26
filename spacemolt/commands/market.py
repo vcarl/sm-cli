@@ -27,9 +27,9 @@ def cmd_market_orders(api, args):
     if not station:
         try:
             status_resp = api._post("get_status")
-            current_poi = status_resp.get("result", {}).get("player", {}).get("current_poi", "")
-            if current_poi:
-                station = current_poi.replace("_station", "_base")
+            player = status_resp.get("result", {}).get("player", {})
+            # Prefer home_base from status (avoids broken _station→_base string replace)
+            station = player.get("home_base") or player.get("current_poi", "").replace("_station", "_base")
         except Exception:
             pass
 
