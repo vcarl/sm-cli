@@ -74,7 +74,10 @@ class SpaceMoltAPI:
             body["session_id"] = sid
 
         data = json.dumps(body).encode()
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (compatible; SpaceMolt-Client/1.0)",
+        }
         if use_session:
             headers["X-Session-Id"] = sid
 

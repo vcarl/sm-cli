@@ -100,11 +100,11 @@ Tips:
     p_jump = sub.add_parser("jump", help="Jump to adjacent system")
     p_jump.add_argument("target_system", help="System ID to jump to")
 
-    # dock (no-op, kept for backwards compat)
-    sub.add_parser("dock", help="No-op (docking is automatic)")
+    # dock — required before storage/repair/other docked actions
+    sub.add_parser("dock", help="Dock at current station (required before storage, repair, etc.)")
 
-    # undock (no-op, kept for backwards compat)
-    sub.add_parser("undock", help="No-op (undocking is automatic)")
+    # undock
+    sub.add_parser("undock", help="Undock from current station")
 
     # mine
     sub.add_parser("mine", help="Mine once")
