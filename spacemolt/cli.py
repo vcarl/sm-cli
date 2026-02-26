@@ -87,8 +87,6 @@ Tips:
 
     # nearby
     p_nearby = sub.add_parser("nearby", help="Nearby players + threat assessment")
-    p_nearby.add_argument("--scan", action="store_true", help="Scan each player (rate-limited, ~11s per player)")
-    p_nearby.add_argument("--timeout", type=int, metavar="SECONDS", help="Max time for --scan operation (default: no limit)")
 
     # notifications
     sub.add_parser("notifications", help="Pending notifications")
