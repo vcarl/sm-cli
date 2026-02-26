@@ -23,12 +23,20 @@ def cmd_market_orders(api, args):
 
     station = getattr(args, "station", None)
 
-    # Try view_orders endpoint first
+    # view_orders requires docking or a station_id — derive from current location if not given
+    if not station:
+        try:
+            status_resp = api._post("get_status")
+            current_poi = status_resp.get("result", {}).get("player", {}).get("current_poi", "")
+            if current_poi:
+                station = current_poi.replace("_station", "_base")
+        except Exception:
+            pass
+
     try:
         body = {"station_id": station} if station else {}
         resp = api._post("view_orders", body)
     except Exception:
-        # Fallback: might not be implemented
         print("Market orders viewing not available.")
         print("  Hint: sm market buy <item> <qty> <price>  |  sm market sell <item> <qty> <price>")
         return
