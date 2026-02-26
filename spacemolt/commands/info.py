@@ -1,13 +1,178 @@
 import json
-import time
+
+
+def _fmt_poi(r):
+    """Format POI data from a get_poi response result. Returns list of lines."""
+    lines = []
+    p = r.get("poi", r)
+
+    name = p.get("name", "?")
+    ptype = p.get("type", "?")
+    pid = p.get("id", "")
+    header = f"{name} [{ptype}]"
+    if pid:
+        header += f"  id: {pid}"
+    lines.append(header)
+
+    desc = p.get("description")
+    if desc:
+        lines.append(f"  {desc}")
+
+    # Police presence
+    police_drones = r.get("police_drones")
+    police_warning = r.get("police_warning")
+    if police_drones is not None:
+        lines.append(f"  Police drones: {police_drones}")
+    if police_warning:
+        lines.append(f"  Warning: {police_warning}")
+
+    # Resources
+    resources = r.get("resources") or p.get("resources", [])
+    if resources:
+        lines.append("  Resources:")
+        for res in resources:
+            if isinstance(res, dict):
+                rname = res.get("name") or res.get("resource_id", "?")
+                rid = res.get("resource_id") or res.get("id", "")
+                richness = res.get("richness", "")
+                remaining = res.get("remaining_display") or res.get("remaining")
+                line = f"    {rname}"
+                if rid and rid != rname:
+                    line += f" [{rid}]"
+                if richness:
+                    line += f" ({richness})"
+                if remaining is not None:
+                    line += f"  remaining: {remaining}"
+                lines.append(line)
+            else:
+                lines.append(f"    {res}")
+
+    # Base
+    base = r.get("base") or p.get("base") or p.get("base_id")
+    if base:
+        if isinstance(base, dict):
+            btype = base.get("type") or "base"
+            lines.append(f"  Base: {base.get('name', '?')} [{btype}]  id: {base.get('id', '?')}")
+        else:
+            lines.append(f"  Base: {base}")
+
+    return lines
+
+
+def _fmt_nearby_summary(nearby_r, poi_r):
+    """Format a compact nearby summary for sm status. Returns list of lines."""
+    lines = []
+    poi_info = poi_r.get("poi") or poi_r
+    players = nearby_r.get("nearby", [])
+    pirates = nearby_r.get("pirates", [])
+
+    # Counts
+    player_count = nearby_r.get("count", len(players))
+    pirate_count = nearby_r.get("pirate_count", len(pirates))
+    lines.append(f"\U0001f468\u200d\U0001f468\u200d\U0001f467\u200d\U0001f467 {player_count} / \U0001f3f4\u200d\u2620\ufe0f {pirate_count}")
+
+    # Threat table
+    rows = []
+    for p in players:
+        name = p.get("username") or "anonymous"
+        pid = p.get("player_id", "")
+        ship = p.get("ship_class", "?")
+        clan = p.get("clan_tag", "")
+        faction = p.get("faction_tag", "")
+        in_combat = p.get("in_combat", False)
+        anon = p.get("anonymous", False)
+
+        level, _ = _threat_level(p)
+        emoji = _threat_emoji(level)
+        role = _ship_role(ship)
+
+        ship_col = f"{role}({ship})"
+        tags = ""
+        if clan:
+            tags += f"[{clan}]"
+        if faction:
+            tags += f"{{{faction}}}"
+        if tags:
+            tags += " "
+        display_name = "\u2753" if anon else name
+        name_col = f"{tags}`{display_name}`(user:{pid})"
+        if in_combat:
+            name_col += " \u2694\ufe0f"
+        rows.append((level, emoji, ship_col, name_col))
+
+    for p in pirates:
+        name = p.get("name") or p.get("type", "pirate")
+        plevel = p.get("level", "?")
+        pid = p.get("id") or p.get("pirate_id", "")
+        pid_label = pid if pid else "npc"
+        level, _ = _threat_level(p)
+        emoji = _threat_emoji(level)
+        rows.append((level, emoji, f"pirate(L{plevel}:{pid_label})", f"`{name}`"))
+
+    if rows:
+        level_w = max(len(str(r[0])) for r in rows)
+        ship_w = max(len(r[2]) for r in rows)
+        for level, emoji, ship_col, name_col in rows:
+            lvl_str = str(level).rjust(level_w) if level > 0 else " " * level_w
+            lines.append(f" {lvl_str} {emoji} {ship_col:<{ship_w}}  {name_col}")
+
+    lines.append(f"\u2b1c safe  \U0001f7e8  \U0001f7e7  \U0001f7e5  \u2620\ufe0f dangerous")
+
+    return lines
+
+
+def _fmt_wrecks(r):
+    """Format wrecks data from a get_wrecks response result. Returns list of lines."""
+    lines = []
+    wrecks = r.get("wrecks", [])
+    if not wrecks:
+        return lines
+
+    for w in wrecks:
+        wid = w.get("wreck_id") or w.get("id", "?")
+        ship_class = w.get("ship_class", "unknown")
+        cargo_count = w.get("cargo_count", 0)
+        module_count = w.get("module_count", 0)
+        salvage_value = w.get("salvage_value", 0)
+        insured = w.get("insured", False)
+
+        flags = []
+        if insured:
+            flags.append("INSURED")
+        flag_str = f"  [{', '.join(flags)}]" if flags else ""
+
+        line = f"  {ship_class}{flag_str}  (id:{wid})  Cargo: {cargo_count} | Modules: {module_count}"
+        if salvage_value:
+            line += f" | Salvage: {salvage_value:,} cr"
+        lines.append(line)
+
+    return lines
 
 
 def cmd_status(api, args):
     as_json = getattr(args, "json", False)
     resp = api._post("get_status")
+
+    # Fetch situational data, suppressing duplicate notifications
+    orig_print = api._print_notifications
+    api._print_notifications = lambda resp: None
+    try:
+        poi_resp = api._post("get_poi")
+        nearby_resp = api._post("get_nearby")
+        wrecks_resp = api._post("get_wrecks")
+    finally:
+        api._print_notifications = orig_print
+
     if as_json:
-        print(json.dumps(resp, indent=2))
+        combined = {
+            "status": resp,
+            "poi": poi_resp,
+            "nearby": nearby_resp,
+            "wrecks": wrecks_resp,
+        }
+        print(json.dumps(combined, indent=2))
         return
+
     r = resp.get("result", {})
     p = r.get("player", {})
     s = r.get("ship", {})
@@ -72,6 +237,31 @@ def cmd_status(api, args):
             else:
                 mod_names.append(str(m))
         print(f"Modules: {', '.join(mod_names)}")
+
+    # ── POI ──
+    poi_r = poi_resp.get("result", {})
+    poi_lines = _fmt_poi(poi_r)
+    if poi_lines:
+        print(f"\n\u2500\u2500 POI \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")
+        for line in poi_lines:
+            print(line)
+
+    # ── Nearby ──
+    nearby_r = nearby_resp.get("result", {})
+    nearby_players = nearby_r.get("nearby", [])
+    nearby_pirates = nearby_r.get("pirates", [])
+    if nearby_players or nearby_pirates:
+        print(f"\n\u2500\u2500 Nearby \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")
+        for line in _fmt_nearby_summary(nearby_r, poi_r):
+            print(line)
+
+    # ── Wrecks ──
+    wrecks_r = wrecks_resp.get("result", {})
+    wreck_lines = _fmt_wrecks(wrecks_r)
+    if wreck_lines:
+        print(f"\n\u2500\u2500 Wrecks \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")
+        for line in wreck_lines:
+            print(line)
 
 
 def cmd_ship(api, args):
@@ -300,78 +490,38 @@ def cmd_poi(api, args):
         print(json.dumps(resp, indent=2))
         return
     r = resp.get("result", {})
-    p = r.get("poi", r)
+    for line in _fmt_poi(r):
+        print(line)
 
-    print(f"POI: {p.get('name', '?')} [{p.get('type', '?')}]")
-    pid = p.get("id", "")
-    if pid:
-        print(f"  id: {pid}")
-    desc = p.get("description")
-    if desc:
-        print(f"  {desc}")
+    # Extra detail not in the compact formatter: position, full base info
+    p = r.get("poi", r)
     pos = p.get("position")
     if pos:
         print(f"  Position: ({pos.get('x', '?')}, {pos.get('y', '?')})")
 
-    # Police presence
-    police_drones = r.get("police_drones")
-    police_warning = r.get("police_warning")
-    if police_drones is not None or police_warning:
-        print()
-        if police_drones is not None:
-            print(f"Police drones: {police_drones}")
-        if police_warning:
-            print(f"Warning: {police_warning}")
-
-    # Resources (prefer result-level, fall back to poi-level)
-    resources = r.get("resources") or p.get("resources", [])
-    if resources:
-        print("\nResources:")
-        for res in resources:
-            if isinstance(res, dict):
-                name = res.get("name") or res.get("resource_id", "?")
-                rid = res.get("resource_id") or res.get("id", "")
-                richness = res.get("richness", "")
-                remaining = res.get("remaining_display") or res.get("remaining")
-                line = f"  {name}"
-                if rid and rid != name:
-                    line += f" [{rid}]"
-                if richness:
-                    line += f" ({richness})"
-                if remaining is not None:
-                    line += f"  remaining: {remaining}"
-                print(line)
-            else:
-                print(f"  {res}")
-
-    # Base
     base = r.get("base") or p.get("base") or p.get("base_id")
-    if base:
-        if isinstance(base, dict):
-            btype = base.get('type') or 'base'
-            print(f"\nBase: {base.get('name', '?')} [{btype}]")
-            print(f"  id: {base.get('id', '?')}")
-            if base.get("empire"):
-                print(f"  Empire: {base['empire']}")
-            if base.get("faction_id"):
-                print(f"  Faction: {base['faction_id']}")
-            if base.get("owner_id"):
-                print(f"  Owner: {base['owner_id']}")
-            print(f"  Defense: {base.get('defense_level', '?')}  Public: {'yes' if base.get('public_access') else 'no'}")
-            if base.get("has_drones"):
-                print(f"  Has drones: yes")
-            if base.get("description"):
-                print(f"  {base['description']}")
-            services = base.get("services", {})
-            if services:
-                active = [s for s, v in services.items() if v]
-                if active:
-                    print(f"  Services: {', '.join(sorted(active))}")
-            facilities = base.get("facilities", [])
-            if facilities:
-                print(f"  Facilities: {', '.join(facilities)}")
-        else:
-            print(f"\nBase: {base}")
+    if base and isinstance(base, dict):
+        if base.get("empire"):
+            print(f"  Empire: {base['empire']}")
+        if base.get("faction_id"):
+            print(f"  Faction: {base['faction_id']}")
+        if base.get("owner_id"):
+            print(f"  Owner: {base['owner_id']}")
+        print(f"  Defense: {base.get('defense_level', '?')}  Public: {'yes' if base.get('public_access') else 'no'}")
+        if base.get("has_drones"):
+            print(f"  Has drones: yes")
+        if base.get("description"):
+            print(f"  {base['description']}")
+        services = base.get("services", {})
+        if services:
+            active = [s for s, v in services.items() if v]
+            if active:
+                print(f"  Services: {', '.join(sorted(active))}")
+        facilities = base.get("facilities", [])
+        if facilities:
+            print(f"  Facilities: {', '.join(facilities)}")
+
+    print("\n  Note: This info is now included in 'sm status'")
 
 
 def cmd_base(api, args):
@@ -470,30 +620,70 @@ def cmd_cargo(api, args):
     print("\n  Hint: sm sell <item> <qty>  |  sm listings  |  sm storage deposit <item> <qty>")
 
 
-COMBAT_SHIP_CLASSES = {
-    "fighter", "heavy_fighter", "interceptor", "assault", "destroyer",
-    "battlecruiser", "dreadnought", "pirate", "raider",
-    "combat_frigate", "war_barge",
-}
-
-ARMED_SHIP_CLASSES = {
-    "corvette", "frigate", "gunship", "cruiser",
-}
-
-
-def _threat_level(nearby_info, scan_info=None):
-    """Estimate threat from nearby data + optional scan results.
+def _threat_level(nearby_info):
+    """Estimate threat from nearby data.
 
     Returns (level, reasons) where level is 0-20 and reasons is a list of strings.
     Thresholds: 0 safe, 1-5 low, 6-10 medium, 11-15 high, 16+ deadly.
+
+    Works for both player entries (ship_class, in_combat) and pirate entries
+    (tier, is_boss, hull/shield stats).
     """
     level = 0
     reasons = []
 
+    # --- Pirate-specific fields ---
+    tier = nearby_info.get("tier", "")
+    is_boss = nearby_info.get("is_boss", False)
+
+    if tier or is_boss:
+        # This is a pirate entry — use tier/boss/stats instead of ship_class
+        tier_lower = tier.lower() if tier else ""
+        if tier_lower in ("elite", "deadly"):
+            level += 10
+            reasons.append(f"elite pirate (tier:{tier})")
+        elif tier_lower in ("hard", "dangerous"):
+            level += 7
+            reasons.append(f"dangerous pirate (tier:{tier})")
+        elif tier_lower in ("medium", "moderate"):
+            level += 4
+            reasons.append(f"moderate pirate (tier:{tier})")
+        elif tier_lower in ("easy", "weak", "low"):
+            level += 2
+            reasons.append(f"weak pirate (tier:{tier})")
+        elif tier:
+            level += 5
+            reasons.append(f"pirate (tier:{tier})")
+        else:
+            level += 5
+            reasons.append("pirate")
+
+        if is_boss:
+            level += 5
+            reasons.append("BOSS")
+
+        # Use direct hull/shield stats if available
+        hull = nearby_info.get("max_hull") or nearby_info.get("hull", 0)
+        shield = nearby_info.get("max_shield") or nearby_info.get("shield", 0)
+        if hull and hull > 200:
+            level += 3
+            reasons.append(f"heavy hull ({hull})")
+        if shield and shield > 100:
+            level += 3
+            reasons.append(f"strong shields ({shield})")
+
+        status = (nearby_info.get("status") or "").lower()
+        if status == "aggressive" or status == "attacking":
+            level += 2
+            reasons.append(f"status:{status}")
+
+        return level, reasons
+
+    # --- Player entry ---
     ship = (nearby_info.get("ship_class") or "").lower()
     in_combat = nearby_info.get("in_combat", False)
 
-    # Ship class analysis
+    # Ship class analysis (IDs like fighter_scout, freighter_small)
     if any(tag in ship for tag in ("combat", "fighter", "assault", "pirate",
                                     "raider", "destroyer", "interceptor",
                                     "dreadnought", "war", "battlecruiser")):
@@ -513,36 +703,6 @@ def _threat_level(nearby_info, scan_info=None):
     if in_combat:
         level += 3
         reasons.append("currently in combat")
-
-    # Scan data enrichment
-    if scan_info and scan_info.get("success"):
-        revealed = scan_info.get("revealed_info") or {}
-
-        # Weapons
-        weapons = revealed.get("weapons") or revealed.get("weapon_count", 0)
-        if isinstance(weapons, list):
-            weapons = len(weapons)
-        if weapons and weapons > 0:
-            level += min(weapons * 2, 6)
-            reasons.append(f"{weapons} weapon(s)")
-
-        # Hull/shield strength
-        hull = revealed.get("hull") or revealed.get("max_hull", 0)
-        shield = revealed.get("shield") or revealed.get("max_shield", 0)
-        if hull and hull > 200:
-            level += 3
-            reasons.append(f"heavy hull ({hull})")
-        if shield and shield > 100:
-            level += 3
-            reasons.append(f"strong shields ({shield})")
-
-        # Cargo (low cargo on a combat ship = hunting)
-        cargo_used = revealed.get("cargo_used", None)
-        cargo_cap = revealed.get("cargo_capacity", None)
-        if cargo_used is not None and cargo_cap and cargo_cap > 0:
-            if cargo_used / cargo_cap < 0.1 and level >= 5:
-                level += 3
-                reasons.append("empty cargo (likely hunting)")
 
     return level, reasons
 
@@ -586,7 +746,6 @@ def _extract_notifications(resp):
 
 
 def cmd_nearby(api, args):
-    scan = getattr(args, "scan", False)
     as_json = getattr(args, "json", False)
 
     # Suppress auto-printing of notifications so we can parse them
@@ -606,52 +765,7 @@ def cmd_nearby(api, args):
     players = r.get("nearby", [])
     pirates = r.get("pirates", [])
 
-    # Scan each player if requested
-    scan_results = {}
-    has_scanner = None
-    if scan and players:
-        try:
-            ship_resp = api._post("get_ship")
-            modules = ship_resp.get("result", {}).get("modules", [])
-            has_scanner = any(
-                "scan" in (m.get("type") or m.get("type_id") or m.get("name") or "").lower()
-                for m in modules if isinstance(m, dict)
-            )
-        except Exception:
-            has_scanner = None
-
-        timeout = getattr(args, "timeout", None)
-        start_time = time.time() if timeout else None
-
-        try:
-            for i, p in enumerate(players):
-                pid = p.get("player_id", "")
-                if not pid:
-                    continue
-
-                # Check timeout before processing
-                if timeout and start_time:
-                    elapsed = time.time() - start_time
-                    if elapsed >= timeout:
-                        print(f"  Timeout reached ({timeout}s). Scanned {i}/{len(players)} players.", flush=True)
-                        break
-
-                # Show progress
-                print(f"  Scanning player {i+1}/{len(players)}...", flush=True)
-
-                if i > 0:
-                    time.sleep(11)
-                try:
-                    scan_resp = api._post("scan", {"target_id": pid})
-                    sr = scan_resp.get("result", {})
-                    scan_data = sr
-                    scan_results[pid] = scan_data
-                except Exception as e:
-                    scan_results[pid] = {"success": False, "error": str(e)}
-        except KeyboardInterrupt:
-            print(f"\n  Scan interrupted. Scanned {len(scan_results)}/{len(players)} players.", flush=True)
-
-    if as_json and not scan:
+    if as_json:
         print(json.dumps(r, indent=2))
         return
 
@@ -731,8 +845,7 @@ def cmd_nearby(api, args):
         pri_color = p.get("primary_color", "")
         sec_color = p.get("secondary_color", "")
 
-        scan_data = scan_results.get(pid)
-        level, _ = _threat_level(p, scan_data)
+        level, _ = _threat_level(p)
         emoji = _threat_emoji(level)
         role = _ship_role(ship)
 
@@ -809,9 +922,6 @@ def cmd_nearby(api, args):
         for m in movements:
             print(m)
 
-    if as_json:
-        combined = {"nearby": r, "scans": scan_results}
-        print(json.dumps(combined, indent=2))
 
 
 def cmd_notifications(api, args):
@@ -828,36 +938,25 @@ def cmd_wrecks(api, args):
         print(json.dumps(resp, indent=2))
         return
     r = resp.get("result", {})
-    wrecks = r.get("wrecks", [])
-    if not wrecks:
+    wreck_lines = _fmt_wrecks(r)
+    if not wreck_lines:
         print("No wrecks at this location.")
         return
 
-    print(f"Wrecks ({len(wrecks)}):")
-    for w in wrecks:
-        wid = w.get("wreck_id") or w.get("id", "?")
-        ship_class = w.get("ship_class", "unknown")
+    print(f"Wrecks ({len(r.get('wrecks', []))}):")
+    for line in wreck_lines:
+        print(line)
+
+    # Show owner info not in the compact formatter
+    for w in r.get("wrecks", []):
         owner = w.get("owner_id", "")
-        insured = w.get("insured", False)
-        cargo_count = w.get("cargo_count", 0)
-        module_count = w.get("module_count", 0)
-        salvage_value = w.get("salvage_value", 0)
-
-        flags = []
-        if insured:
-            flags.append("INSURED")
-        flag_str = f"  [{', '.join(flags)}]" if flags else ""
-
-        print(f"\n  {ship_class}{flag_str}  (id:{wid})")
         if owner:
-            print(f"    Owner: {owner}")
-        print(f"    Cargo: {cargo_count} items  |  Modules: {module_count}")
-        if salvage_value:
-            print(f"    Salvage value: {salvage_value:,} cr")
+            wid = w.get("wreck_id") or w.get("id", "?")
+            print(f"    {wid} owner: {owner}")
 
     print("\n  Hint: sm loot-wreck <wreck_id> <item_id> <qty>  |  sm salvage-wreck <wreck_id>")
     print("        sm tow-wreck <wreck_id>  |  sm sell-wreck  |  sm scrap-wreck")
-    print("  Note: Wreck commands are in beta. If output looks wrong, fix the formatter in spacemolt/commands/.")
+    print("  Note: This info is now included in 'sm status'")
 
 
 def _fmt_view_market_item(resp):
