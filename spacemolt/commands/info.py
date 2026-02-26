@@ -330,9 +330,12 @@ def cmd_poi(api, args):
         for res in resources:
             if isinstance(res, dict):
                 name = res.get("name") or res.get("resource_id", "?")
+                rid = res.get("resource_id") or res.get("id", "")
                 richness = res.get("richness", "")
                 remaining = res.get("remaining_display") or res.get("remaining")
                 line = f"  {name}"
+                if rid and rid != name:
+                    line += f" [{rid}]"
                 if richness:
                     line += f" ({richness})"
                 if remaining is not None:
@@ -693,9 +696,14 @@ def cmd_nearby(api, args):
         for res in resources:
             if isinstance(res, dict):
                 name = res.get("name") or res.get("resource_id", "?")
+                rid = res.get("resource_id") or res.get("id", "")
                 richness = res.get("richness", "")
                 remaining = res.get("remaining_display") or res.get("remaining", "")
-                part = f"{name}({richness})"
+                part = name
+                if rid and rid != name:
+                    part += f"[{rid}]"
+                if richness:
+                    part += f"({richness})"
                 if remaining and remaining != "unlimited" and remaining != -1:
                     part += f"[{remaining}]"
                 parts.append(part)
