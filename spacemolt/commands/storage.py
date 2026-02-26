@@ -27,10 +27,33 @@ def _storage_view(api, args):
         except Exception:
             print(f"Could not view storage at station '{station}'.")
             return
+    elif target == "self":
+        # view_storage works without docking — derive base_id from current location
+        base_id = None
+        try:
+            status_resp = api._post("get_status")
+            current_poi = status_resp.get("result", {}).get("player", {}).get("current_poi", "")
+            if current_poi:
+                base_id = current_poi.replace("_station", "_base")
+        except Exception:
+            pass
+        if base_id:
+            try:
+                resp = api._post("view_storage", {"station_id": base_id})
+            except Exception:
+                print("Storage viewing not available.")
+                print("  Hint: sm storage deposit <item> <qty>  |  sm storage withdraw <item> <qty>")
+                return
+        else:
+            try:
+                resp = api._post("storage", {"action": "view"})
+            except Exception:
+                print("Storage viewing not available.")
+                print("  Hint: sm storage deposit <item> <qty>  |  sm storage withdraw <item> <qty>")
+                return
     else:
         body = {"action": "view"}
-        if target != "self":
-            body["target"] = target
+        body["target"] = target
         try:
             resp = api._post("storage", body)
         except Exception:
