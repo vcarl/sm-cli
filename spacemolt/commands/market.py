@@ -21,9 +21,12 @@ def cmd_market_orders(api, args):
     """View your active market orders."""
     as_json = getattr(args, "json", False)
 
+    station = getattr(args, "station", None)
+
     # Try view_orders endpoint first
     try:
-        resp = api._post("view_orders")
+        body = {"station_id": station} if station else {}
+        resp = api._post("view_orders", body)
     except Exception:
         # Fallback: might not be implemented
         print("Market orders viewing not available.")

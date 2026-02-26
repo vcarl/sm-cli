@@ -9,6 +9,8 @@ def cmd_insurance(api, args):
 
     if subcommand == "buy":
         cmd_insurance_buy(api, args)
+    elif subcommand == "quote":
+        cmd_insurance_quote(api, args)
     elif subcommand == "claim":
         cmd_insurance_claim(api, args)
     else:
@@ -51,6 +53,47 @@ def cmd_insurance_status(api, args):
     elif ticks_remaining < 10:
         print(f"\n  ⚠️  Insurance expires soon!")
         print("  Hint: sm insurance buy <ticks>")
+
+
+def cmd_insurance_quote(api, args):
+    """Get insurance pricing and risk breakdown."""
+    as_json = getattr(args, "json", False)
+
+    resp = api._post("get_insurance_quote")
+    if as_json:
+        print(json.dumps(resp, indent=2))
+        return
+
+    err = resp.get("error")
+    if err:
+        err_msg = err.get("message", err) if isinstance(err, dict) else err
+        print(f"ERROR: {err_msg}")
+        return
+
+    r = resp.get("result", {})
+    premium = r.get("premium_per_tick", r.get("premium", "?"))
+    coverage = r.get("coverage_amount", r.get("coverage", "?"))
+    rate = r.get("rate")
+
+    print("Insurance Quote:")
+    if coverage != "?":
+        print(f"  Coverage: {coverage:,} cr")
+    print(f"  Premium: {premium} cr/tick")
+    if rate is not None:
+        print(f"  Rate: {rate}")
+
+    factors = r.get("risk_factors") or r.get("factors") or []
+    if factors:
+        print("\n  Risk Factors:")
+        for f in factors:
+            if isinstance(f, dict):
+                name = f.get("name") or f.get("factor", "?")
+                impact = f.get("impact") or f.get("modifier", "")
+                print(f"    {name}: {impact}")
+            else:
+                print(f"    {f}")
+
+    print("\n  Hint: sm insurance buy <ticks>")
 
 
 def cmd_insurance_buy(api, args):

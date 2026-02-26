@@ -357,11 +357,40 @@ def cmd_missions_router(api, args):
         _passthrough_mission_action(api, "accept_mission", args)
     elif subcmd == "complete":
         _passthrough_mission_action(api, "complete_mission", args)
+    elif subcmd == "decline":
+        _decline_mission(api, args)
     elif subcmd == "abandon":
         _passthrough_mission_action(api, "abandon_mission", args)
     else:
         print(f"Unknown missions subcommand: {subcmd}", file=sys.stderr)
         sys.exit(1)
+
+
+def _decline_mission(api, args):
+    """Decline a mission and show the giver's dialog."""
+    as_json = getattr(args, "json", False)
+    mission_id = getattr(args, "mission_id", None)
+    if not mission_id:
+        print("Usage: sm missions decline <template_id>")
+        return
+
+    resp = api._post("decline_mission", {"template_id": mission_id})
+    if as_json:
+        print(json.dumps(resp, indent=2))
+        return
+
+    err = resp.get("error")
+    if err:
+        err_msg = err.get("message", err) if isinstance(err, dict) else err
+        print(f"ERROR: {err_msg}")
+        return
+
+    r = resp.get("result", {})
+    dialog = r.get("dialog") or r.get("message") or r.get("text")
+    if dialog:
+        print(dialog)
+    else:
+        print("Mission declined.")
 
 
 def _passthrough_mission_action(api, endpoint, args):

@@ -18,17 +18,25 @@ def _storage_view(api, args):
     """View base storage contents."""
     as_json = getattr(args, "json", False)
     target = getattr(args, "target", None) or "self"
+    station = getattr(args, "station", None)
 
-    body = {"action": "view"}
-    if target != "self":
-        body["target"] = target
-
-    try:
-        resp = api._post("storage", body)
-    except Exception:
-        print("Storage viewing not available.")
-        print("  Hint: sm storage deposit <item> <qty>  |  sm storage withdraw <item> <qty>")
-        return
+    # Use view_storage endpoint for remote station viewing
+    if station:
+        try:
+            resp = api._post("view_storage", {"station_id": station})
+        except Exception:
+            print(f"Could not view storage at station '{station}'.")
+            return
+    else:
+        body = {"action": "view"}
+        if target != "self":
+            body["target"] = target
+        try:
+            resp = api._post("storage", body)
+        except Exception:
+            print("Storage viewing not available.")
+            print("  Hint: sm storage deposit <item> <qty>  |  sm storage withdraw <item> <qty>")
+            return
 
     if as_json:
         print(json.dumps(resp, indent=2))
@@ -44,7 +52,12 @@ def _storage_view(api, args):
     items = r.get("items", [])
     credits = r.get("credits", 0)
 
-    label = "Faction Storage" if target == "faction" else "Base Storage"
+    if station:
+        label = f"Storage @ {station}"
+    elif target == "faction":
+        label = "Faction Storage"
+    else:
+        label = "Base Storage"
     if not items and credits == 0:
         print(f"{label} is empty.")
         print("  Hint: sm storage deposit <item> <qty>")

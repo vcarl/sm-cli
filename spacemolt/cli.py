@@ -47,7 +47,8 @@ Tips:
     sub.add_parser("ship", help="Detailed ship info + modules")
 
     # pois
-    sub.add_parser("pois", help="POIs in current system")
+    p_pois = sub.add_parser("pois", help="POIs in current system")
+    p_pois.add_argument("--system", default=None, help="System ID to view POIs in a different system")
 
     # system
     sub.add_parser("system", help="System overview + connections")
@@ -202,6 +203,9 @@ Tips:
     p_mc = missions_sub.add_parser("complete", help="Complete mission")
     p_mc.add_argument("mission_id", help="Mission ID")
 
+    p_md = missions_sub.add_parser("decline", help="Decline a mission (see dialog)")
+    p_md.add_argument("mission_id", help="Mission template ID to decline")
+
     p_mab = missions_sub.add_parser("abandon", help="Abandon mission")
     p_mab.add_argument("mission_id", help="Mission ID")
 
@@ -215,11 +219,13 @@ Tips:
     p_ib = insurance_sub.add_parser("buy", help="Purchase insurance coverage")
     p_ib.add_argument("ticks", type=int, help="Number of ticks of insurance coverage")
 
+    insurance_sub.add_parser("quote", help="Get insurance pricing and risk factors")
     insurance_sub.add_parser("claim", help="Claim insurance payout after ship destruction")
 
     # storage group
     p_storage = sub.add_parser("storage", help="Base storage management (shows contents by default)")
     p_storage.add_argument("--target", default="self", help="Target: self (default), faction, or player name")
+    p_storage.add_argument("--station", default=None, help="Station ID to view remotely (without docking)")
     storage_sub = p_storage.add_subparsers(dest="storage_subcommand")
 
     p_sd = storage_sub.add_parser("deposit", help="Deposit items or credits into storage")
@@ -285,6 +291,7 @@ Tips:
 
     # market group
     p_market = sub.add_parser("market", help="Market orders management (shows your orders by default)")
+    p_market.add_argument("--station", default=None, help="Station ID to view orders at remotely")
     market_sub = p_market.add_subparsers(dest="market_subcommand")
 
     p_mb = market_sub.add_parser("buy", help="Create a buy order")
