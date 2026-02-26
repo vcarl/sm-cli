@@ -28,8 +28,8 @@ def cmd_market_orders(api, args):
         try:
             status_resp = api._post("get_status")
             player = status_resp.get("result", {}).get("player", {})
-            # Prefer home_base from status (avoids broken _station→_base string replace)
-            station = player.get("home_base") or player.get("current_poi", "").replace("_station", "_base")
+            # Use docked_at_base first (most reliable when docked), fall back to home_base
+            station = player.get("docked_at_base") or player.get("home_base")
         except Exception:
             pass
 
