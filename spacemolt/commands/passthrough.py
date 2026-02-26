@@ -1342,6 +1342,9 @@ def _print_full_help():
         ]),
         ("Advanced", [
             ("raw <endpoint> [json_body]", "Raw API call (JSON output)"),
+            ("schema [command]", "Show API schema for a command"),
+            ("schema --list", "List all API endpoints"),
+            ("complain <text>", "Log a complaint about sm client usability"),
         ]),
     ]
 
