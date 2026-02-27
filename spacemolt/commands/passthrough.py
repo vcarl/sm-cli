@@ -100,7 +100,7 @@ ENDPOINT_ARGS = {
     "scrap_wreck": [],
     "sell_wreck": [],
     # combat (additional)
-    "reload": ["ammo_item_id", "weapon_instance_id"],
+    "reload": ["weapon_instance_id", "ammo_item_id"],
     # storage — unified endpoint (replaces deposit_items, withdraw_items, etc.)
     "storage": ["action", "item_id?", "quantity?:int", "target?", "message?"],
     "send_gift": ["recipient", "item_id?", "quantity?:int", "credits?:int", "message?"],  # item/qty/credits/message all optional
@@ -856,7 +856,7 @@ def _fmt_catalog(resp):
 
         elif cat_type == "items":
             for label, key in [("Type", "type"), ("Value", "base_value"),
-                               ("Stack", "stack_size"), ("Weight", "weight")]:
+                               ("Size", "size"), ("Stackable", "stackable")]:
                 val = item.get(key)
                 if val is not None:
                     if key == "base_value":
