@@ -330,7 +330,12 @@ def cmd_status(api, args):
     if poi_name:
         location += f" / {poi_name}"
     if base_id:
-        location += f" [docked: {base_id}]"
+        location += " [docked]"
+    elif poi_resp:
+        poi_data = poi_resp.get("result", {})
+        poi_base = poi_data.get("base") or poi_data.get("poi", {}).get("base") or poi_data.get("poi", {}).get("base_id")
+        if poi_base:
+            location += " [undocked]"
 
     print(f"Credits: {p.get('credits', '?')}")
     print(f"Location: {location}")
