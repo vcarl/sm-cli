@@ -464,7 +464,7 @@ def cmd_status(api, args):
 
     # ── Docked context ──
     if base_id and not in_combat:
-        print(f"\n  Hint: sm base  |  sm listings  |  sm missions  |  sm storage")
+        print(f"\n  Hint: sm base  |  sm listings  |  sm missions  |  sm storage  |  sm status --nearby")
 
 
 def cmd_ship(api, args):
@@ -724,7 +724,7 @@ def cmd_poi(api, args):
         if facilities:
             print(f"  Facilities: {', '.join(facilities)}")
 
-    print("\n  Note: This info is now included in 'sm status'")
+    print("\n  Note: This info is now included in 'sm status --nearby'")
 
 
 def cmd_base(api, args):
@@ -938,8 +938,9 @@ def _threat_emoji(level):
 
 
 def cmd_nearby(api, args):
-    """Redirects to sm status which now includes nearby info."""
-    print("Use 'sm status' for nearby info (included automatically).")
+    """Redirects to sm status --nearby."""
+    print("Use 'sm status --nearby' for nearby info.")
+    args.nearby = True
     cmd_status(api, args)
 
 
@@ -976,7 +977,7 @@ def cmd_wrecks(api, args):
 
     print("\n  Hint: sm loot-wreck <wreck_id> <item_id> <qty>  |  sm salvage-wreck <wreck_id>")
     print("        sm tow-wreck <wreck_id>  |  sm sell-wreck  |  sm scrap-wreck")
-    print("  Note: This info is now included in 'sm status'")
+    print("  Note: This info is now included in 'sm status --nearby'")
 
 
 def _fmt_view_market_item(resp):

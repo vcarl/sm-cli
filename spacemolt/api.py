@@ -204,7 +204,7 @@ class SpaceMoltAPI:
                         parts.append(f"for {damage} damage")
                 else:
                     parts.append(msg_type.replace("_", " ").title())
-                parts.append("\n  Hint: sm status  |  sm nearby")
+                parts.append("\n  Hint: sm status --nearby")
                 msg = "  ".join(parts)
             elif msg_type == "pirate_combat":
                 pirate = data.get("pirate_name") or data.get("pirate_id", "pirate")
