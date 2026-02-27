@@ -262,6 +262,7 @@ def _safe_post(api, endpoint, body=None):
 
 def cmd_status(api, args):
     as_json = getattr(args, "json", False)
+    show_nearby = getattr(args, "nearby", False)
     resp = api._post("get_status")
 
     r = resp.get("result", {})
@@ -293,7 +294,7 @@ def cmd_status(api, args):
 
         if in_combat:
             # Combat: nearby is useful (who else is here), wrecks less so
-            nearby_resp = _safe_post(api, "get_nearby")
+            nearby_resp = _safe_post(api, "get_nearby") if show_nearby else None
             wrecks_resp = None
         elif base_id:
             # Docked: no need for nearby/wrecks at a station
@@ -301,8 +302,8 @@ def cmd_status(api, args):
             wrecks_resp = None
         elif poi_name:
             # In space at a POI: full situational awareness
-            nearby_resp = _safe_post(api, "get_nearby")
-            wrecks_resp = _safe_post(api, "get_wrecks")
+            nearby_resp = _safe_post(api, "get_nearby") if show_nearby else None
+            wrecks_resp = _safe_post(api, "get_wrecks") if show_nearby else None
         else:
             # In transit (no POI): nothing to fetch
             nearby_resp = None

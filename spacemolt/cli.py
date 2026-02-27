@@ -41,7 +41,8 @@ Tips:
     p_claim.add_argument("registration_code", help="Registration code from https://spacemolt.com/dashboard")
 
     # status
-    sub.add_parser("status", help="Credits, location, ship, fuel")
+    p_status = sub.add_parser("status", help="Credits, location, ship, fuel")
+    p_status.add_argument("--nearby", action="store_true", help="Include nearby ships and wrecks")
 
     # ship
     sub.add_parser("ship", help="Detailed ship info + modules")
