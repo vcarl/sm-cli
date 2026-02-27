@@ -100,7 +100,7 @@ ENDPOINT_ARGS = {
     "scrap_wreck": [],
     "sell_wreck": [],
     # combat (additional)
-    "reload": ["ammo_item_id", "weapon_instance_id"],
+    "reload": ["weapon_instance_id", "ammo_item_id"],
     # storage — unified endpoint (replaces deposit_items, withdraw_items, etc.)
     "storage": ["action", "item_id?", "quantity?:int", "target?", "message?"],
     "send_gift": ["recipient", "item_id?", "quantity?:int", "credits?:int", "message?"],  # item/qty/credits/message all optional
