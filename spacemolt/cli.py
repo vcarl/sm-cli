@@ -72,12 +72,6 @@ Tips:
     sub.add_parser("cargo", help="Cargo contents")
 
     # buy
-    p_buy = sub.add_parser("buy", help="Buy item from NPC market")
-    p_buy.add_argument("item_id", help="Item ID to buy (e.g. ore_iron)")
-    p_buy.add_argument("quantity", nargs="?", type=int, default=1, help="Quantity to buy (default: 1)")
-    p_buy.add_argument("--auto-list", action="store_true", help="Auto-create buy order for unfilled quantity (1%% listing fee)")
-    p_buy.add_argument("--deliver-to", choices=["cargo", "storage"], default=None, help="Deliver to cargo (default) or storage")
-
     # NOTE: Old flat "skills" parser removed - replaced with hierarchical version below
 
     # nearby
@@ -423,7 +417,6 @@ COMMAND_MAP = {
     "log": commands.cmd_log,
     "log-add": commands.cmd_log_add,
     "cargo": commands.cmd_cargo,
-    "buy": commands.cmd_buy,
     "nearby": commands.cmd_nearby,
     "notifications": commands.cmd_notifications,
     "travel": commands.cmd_travel,

@@ -1031,7 +1031,7 @@ def _fmt_view_market_item(resp):
         elif best_buy:
             print(f"\n  Best bid: {best_buy} cr")
 
-        print(f"\n  Hint: sm buy {item_id} <qty>  |  sm market sell {item_id} <qty> <price>")
+        print(f"\n  Hint: sm market buy {item_id} <qty> <price>  |  sm market sell {item_id} <qty> <price>")
 
 
 def cmd_listings(api, args):

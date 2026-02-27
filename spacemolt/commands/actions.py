@@ -306,28 +306,6 @@ def cmd_repair(api, args):
         print(f"Repaired: {r.get('repaired', '?')} (cost: {r.get('cost', '?')} cr)")
 
 
-def cmd_buy(api, args):
-    api._require_docked()
-    as_json = getattr(args, "json", False)
-    body = {"item_id": args.item_id, "quantity": args.quantity}
-    if getattr(args, "auto_list", False):
-        body["auto_list"] = True
-    deliver_to = getattr(args, "deliver_to", None)
-    if deliver_to:
-        body["deliver_to"] = deliver_to
-    resp = api._post("buy", body)
-    if as_json:
-        print(json.dumps(resp, indent=2))
-        return
-    if resp.get("error"):
-        err = resp["error"]
-        print(f"ERROR: {err.get('message', err) if isinstance(err, dict) else err}")
-    else:
-        r = resp.get("result", {})
-        cost = r.get("total_cost", "?")
-        print(f"Bought {args.item_id} x{args.quantity} (-{cost} cr)")
-
-
 def cmd_chat(api, args):
     first = getattr(args, "target_or_message", "")
     second = getattr(args, "message", None)

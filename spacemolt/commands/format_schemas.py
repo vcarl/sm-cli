@@ -579,7 +579,7 @@ FORMAT_SCHEMAS = {
             ("Average price", "{average_price:.2f} cr per unit"),
             ("Available", "{available} units"),
         ],
-        "hints": ["sm buy <item_id> <quantity>"],
+        "hints": ["sm market buy <item_id> <quantity> <price>"],
     },
     "get_version": {
         "message": "SpaceMolt version: {version}",
