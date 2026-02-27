@@ -4,7 +4,7 @@ import sys
 import os
 
 # Allow importing spacemolt package when run as a script
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 from spacemolt.api import SpaceMoltAPI, APIError
 from spacemolt import commands
@@ -41,7 +41,8 @@ Tips:
     p_claim.add_argument("registration_code", help="Registration code from https://spacemolt.com/dashboard")
 
     # status
-    sub.add_parser("status", help="Credits, location, ship, fuel")
+    p_status = sub.add_parser("status", help="Credits, location, ship, fuel")
+    p_status.add_argument("--nearby", action="store_true", help="Include nearby ships and wrecks")
 
     # ship
     sub.add_parser("ship", help="Detailed ship info + modules")
@@ -71,12 +72,6 @@ Tips:
     sub.add_parser("cargo", help="Cargo contents")
 
     # buy
-    p_buy = sub.add_parser("buy", help="Buy item from NPC market")
-    p_buy.add_argument("item_id", help="Item ID to buy (e.g. ore_iron)")
-    p_buy.add_argument("quantity", nargs="?", type=int, default=1, help="Quantity to buy (default: 1)")
-    p_buy.add_argument("--auto-list", action="store_true", help="Auto-create buy order for unfilled quantity (1%% listing fee)")
-    p_buy.add_argument("--deliver-to", choices=["cargo", "storage"], default=None, help="Deliver to cargo (default) or storage")
-
     # NOTE: Old flat "skills" parser removed - replaced with hierarchical version below
 
     # nearby
@@ -422,7 +417,6 @@ COMMAND_MAP = {
     "log": commands.cmd_log,
     "log-add": commands.cmd_log_add,
     "cargo": commands.cmd_cargo,
-    "buy": commands.cmd_buy,
     "nearby": commands.cmd_nearby,
     "notifications": commands.cmd_notifications,
     "travel": commands.cmd_travel,

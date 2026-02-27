@@ -262,6 +262,7 @@ def _safe_post(api, endpoint, body=None):
 
 def cmd_status(api, args):
     as_json = getattr(args, "json", False)
+    show_nearby = getattr(args, "nearby", False)
     resp = api._post("get_status")
 
     r = resp.get("result", {})
@@ -293,7 +294,7 @@ def cmd_status(api, args):
 
         if in_combat:
             # Combat: nearby is useful (who else is here), wrecks less so
-            nearby_resp = _safe_post(api, "get_nearby")
+            nearby_resp = _safe_post(api, "get_nearby") if show_nearby else None
             wrecks_resp = None
         elif base_id:
             # Docked: no need for nearby/wrecks at a station
@@ -301,8 +302,8 @@ def cmd_status(api, args):
             wrecks_resp = None
         elif poi_name:
             # In space at a POI: full situational awareness
-            nearby_resp = _safe_post(api, "get_nearby")
-            wrecks_resp = _safe_post(api, "get_wrecks")
+            nearby_resp = _safe_post(api, "get_nearby") if show_nearby else None
+            wrecks_resp = _safe_post(api, "get_wrecks") if show_nearby else None
         else:
             # In transit (no POI): nothing to fetch
             nearby_resp = None
@@ -329,7 +330,12 @@ def cmd_status(api, args):
     if poi_name:
         location += f" / {poi_name}"
     if base_id:
-        location += f" [docked: {base_id}]"
+        location += " [docked]"
+    elif poi_resp:
+        poi_data = poi_resp.get("result", {})
+        poi_base = poi_data.get("base") or poi_data.get("poi", {}).get("base") or poi_data.get("poi", {}).get("base_id")
+        if poi_base:
+            location += " [undocked]"
 
     print(f"Credits: {p.get('credits', '?')}")
     print(f"Location: {location}")
@@ -463,7 +469,7 @@ def cmd_status(api, args):
 
     # ── Docked context ──
     if base_id and not in_combat:
-        print(f"\n  Hint: sm base  |  sm listings  |  sm missions  |  sm storage")
+        print(f"\n  Hint: sm base  |  sm listings  |  sm missions  |  sm storage  |  sm status --nearby")
 
 
 def cmd_ship(api, args):
@@ -723,7 +729,7 @@ def cmd_poi(api, args):
         if facilities:
             print(f"  Facilities: {', '.join(facilities)}")
 
-    print("\n  Note: This info is now included in 'sm status'")
+    print("\n  Note: This info is now included in 'sm status --nearby'")
 
 
 def cmd_base(api, args):
@@ -937,8 +943,9 @@ def _threat_emoji(level):
 
 
 def cmd_nearby(api, args):
-    """Redirects to sm status which now includes nearby info."""
-    print("Use 'sm status' for nearby info (included automatically).")
+    """Redirects to sm status --nearby."""
+    print("Use 'sm status --nearby' for nearby info.")
+    args.nearby = True
     cmd_status(api, args)
 
 
@@ -975,7 +982,7 @@ def cmd_wrecks(api, args):
 
     print("\n  Hint: sm loot-wreck <wreck_id> <item_id> <qty>  |  sm salvage-wreck <wreck_id>")
     print("        sm tow-wreck <wreck_id>  |  sm sell-wreck  |  sm scrap-wreck")
-    print("  Note: This info is now included in 'sm status'")
+    print("  Note: This info is now included in 'sm status --nearby'")
 
 
 def _fmt_view_market_item(resp):
@@ -1029,7 +1036,7 @@ def _fmt_view_market_item(resp):
         elif best_buy:
             print(f"\n  Best bid: {best_buy} cr")
 
-        print(f"\n  Hint: sm buy {item_id} <qty>  |  sm market sell {item_id} <qty> <price>")
+        print(f"\n  Hint: sm market buy {item_id} <qty> <price>  |  sm market sell {item_id} <qty> <price>")
 
 
 def cmd_listings(api, args):
