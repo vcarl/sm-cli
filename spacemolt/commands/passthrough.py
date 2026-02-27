@@ -21,7 +21,7 @@ ENDPOINT_ARGS = {
     "jump": ["target_system"],
     "buy": ["item_id", "quantity:int", "auto_list?:bool", "deliver_to?"],
     "scan": ["target_id"],
-    "attack": ["target_id"],
+    "attack": ["target_id", "weapon_idx:int"],
     "travel": ["target_poi"],
     "chat": ["channel", "content", "target_id?"],  # target_id optional per spec
     "craft": ["recipe_id", "count?:int"],  # count is optional batch parameter
@@ -944,9 +944,10 @@ def _print_error_hints(endpoint, err_msg, api=None):
         # Try to find actual weapon modules and suggest the right index
         weapons = _find_weapon_modules(api)
         if weapons:
-            names = ", ".join(f"{name}" for _, name in weapons)
-            print(f"\n  Your weapon modules: {names}")
-            print(f"  Hint: sm attack <target_id>")
+            print("\n  Your weapon modules:")
+            for idx, name, mid in weapons:
+                print(f"    [{idx}] {name} (id:{mid})")
+            print(f"  Hint: sm attack <target_id> <weapon_idx>")
         else:
             print("\n  You have no weapon modules installed.")
             print("  Hint: sm listings  |  sm install-mod <module_id>")
@@ -991,7 +992,7 @@ def _print_error_hints(endpoint, err_msg, api=None):
 
 
 def _find_weapon_modules(api):
-    """Return list of (index, name) for installed weapon modules."""
+    """Return list of (index, name, module_id) for installed weapon modules."""
     if api is None:
         return []
     try:
@@ -1003,9 +1004,10 @@ def _find_weapon_modules(api):
                 continue
             mtype = (m.get("type") or m.get("type_id") or "").lower()
             mname = m.get("name") or m.get("module_id") or f"module_{i}"
+            mid = m.get("id") or m.get("module_id") or ""
             if any(w in mtype for w in ("weapon", "laser", "cannon", "missile",
                                          "turret", "gun", "blaster", "railgun")):
-                weapons.append((i, mname))
+                weapons.append((i, mname, mid))
         return weapons
     except Exception:
         return []
