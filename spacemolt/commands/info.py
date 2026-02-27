@@ -289,8 +289,8 @@ def cmd_status(api, args):
     # Context-dependent secondary calls
     api._print_notifications = lambda resp: None
     try:
-        # Always fetch POI if at one
-        poi_resp = _safe_post(api, "get_poi") if poi_name else None
+        # Fetch POI if at one and --nearby requested
+        poi_resp = _safe_post(api, "get_poi") if (poi_name and show_nearby) else None
 
         if in_combat:
             # Combat: nearby is useful (who else is here), wrecks less so
