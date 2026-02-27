@@ -817,14 +817,22 @@ def cmd_cargo(api, args):
         return
     r = resp.get("result", {})
     items = r.get("cargo", [])
-    print(f"{r.get('used', 0)}/{r.get('capacity', '?')} used")
+    used = r.get("used", 0)
+    capacity = r.get("capacity", "?")
+    print(f"{used}/{capacity} used")
     if not items:
         print("No cargo items.")
     else:
         for item in items:
-            name = item.get("item_id", "?")
+            name = item.get("name") or item.get("item_id", "?")
+            item_id = item.get("item_id", "?")
             qty = item.get("quantity", 1)
-            print(f"  {name} x{qty}")
+            size = item.get("size", 1)
+            weight = qty * size
+            if size > 1:
+                print(f"  {name} [{item_id}] x{qty}  ({weight} cargo, {size}/unit)")
+            else:
+                print(f"  {name} [{item_id}] x{qty}")
     print("\n  Hint: sm market sell <item> <qty> <price>  |  sm listings  |  sm storage deposit <item> <qty>")
 
 
