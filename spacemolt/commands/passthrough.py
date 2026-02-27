@@ -856,7 +856,7 @@ def _fmt_catalog(resp):
 
         elif cat_type == "items":
             for label, key in [("Type", "type"), ("Value", "base_value"),
-                               ("Stack", "stack_size"), ("Weight", "weight")]:
+                               ("Size", "size"), ("Stackable", "stackable")]:
                 val = item.get(key)
                 if val is not None:
                     if key == "base_value":

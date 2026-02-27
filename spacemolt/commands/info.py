@@ -361,7 +361,7 @@ def cmd_status(api, args):
     ship_label = f"{ship_name} ({ship_class})" if ship_name and ship_name != ship_class else ship_class
     print(f"Ship: {ship_label}")
     print(f"Hull: {s.get('hull', '?')}/{s.get('max_hull', '?')} | Shield: {s.get('shield', '?')}/{s.get('max_shield', '?')} | Fuel: {s.get('fuel', '?')}/{s.get('max_fuel', '?')}")
-    print(f"Cargo: {s.get('cargo_used', '?')}/{s.get('cargo_capacity', '?')}")
+    print(f"Cargo: {s.get('cargo_used', '?')}/{s.get('cargo_capacity', '?')} space")
 
     # Situational flags
     flags = []
@@ -506,7 +506,7 @@ def cmd_ship(api, args):
     if extras:
         print(f"{'  |  '.join(extras)}")
     print(f"Fuel: {s.get('fuel', '?')}/{s.get('max_fuel', '?')}")
-    print(f"Cargo: {r.get('cargo_used', s.get('cargo_used', '?'))}/{r.get('cargo_max', s.get('cargo_capacity', '?'))}")
+    print(f"Cargo: {r.get('cargo_used', s.get('cargo_used', '?'))}/{r.get('cargo_max', s.get('cargo_capacity', '?'))} space")
     print(f"CPU: {s.get('cpu_used', '?')}/{s.get('cpu_capacity', '?')} | Power: {s.get('power_used', '?')}/{s.get('power_capacity', '?')}")
 
     # Slot usage
@@ -607,12 +607,18 @@ def cmd_ship(api, args):
     # Cargo / inventory
     cargo = s.get("cargo") or r.get("cargo", [])
     if cargo:
-        print(f"\nCargo ({s.get('cargo_used', '?')}/{s.get('cargo_capacity', '?')}):")
+        print(f"\nCargo ({s.get('cargo_used', '?')}/{s.get('cargo_capacity', '?')} space):")
         for item in cargo:
             if isinstance(item, dict):
-                name = item.get("item_id", "?")
+                name = item.get("name") or item.get("item_id", "?")
                 qty = item.get("quantity", 1)
-                print(f"  {name} x{qty}")
+                size = item.get("size")
+                if size is not None:
+                    total_size = size * qty
+                    size_str = f"  ({total_size} space)" if qty == 1 or size == 1 else f"  ({size}x{qty} = {total_size} space)"
+                else:
+                    size_str = ""
+                print(f"  {name} x{qty}{size_str}")
             else:
                 print(f"  {item}")
 
@@ -817,14 +823,22 @@ def cmd_cargo(api, args):
         return
     r = resp.get("result", {})
     items = r.get("cargo", [])
-    print(f"{r.get('used', 0)}/{r.get('capacity', '?')} used")
+    print(f"Cargo space: {r.get('used', 0)}/{r.get('capacity', '?')}")
     if not items:
         print("No cargo items.")
     else:
         for item in items:
-            name = item.get("item_id", "?")
+            name = item.get("name") or item.get("item_id", "?")
+            item_id = item.get("item_id", "")
             qty = item.get("quantity", 1)
-            print(f"  {name} x{qty}")
+            size = item.get("size")
+            if size is not None:
+                total_size = size * qty
+                size_str = f"  ({total_size} space)" if qty == 1 or size == 1 else f"  ({size}x{qty} = {total_size} space)"
+            else:
+                size_str = ""
+            id_str = f"  [{item_id}]" if item_id and item_id != name else ""
+            print(f"  {name} x{qty}{size_str}{id_str}")
     print("\n  Hint: sm market sell <item> <qty> <price>  |  sm listings  |  sm storage deposit <item> <qty>")
 
 
