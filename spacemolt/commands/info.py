@@ -143,7 +143,8 @@ def _fmt_wrecks(r):
             flags.append("INSURED")
         flag_str = f"  [{', '.join(flags)}]" if flags else ""
 
-        line = f"  {ship_class}{flag_str}  (id:{wid})  Cargo: {cargo_count} | Modules: {module_count}"
+        cargo_str = f"{cargo_count}*" if cargo_count == 0 else str(cargo_count)
+        line = f"  {ship_class}{flag_str}  (id:{wid})  Cargo: {cargo_str} | Modules: {module_count}"
         if salvage_value:
             line += f" | Salvage: {salvage_value:,} cr"
         lines.append(line)
@@ -999,6 +1000,7 @@ def cmd_wrecks(api, args):
             print(f"    {wid} owner: {owner}")
 
     print("\n  Hint: sm loot-wreck <wreck_id> <item_id> <qty>  |  sm salvage-wreck <wreck_id>")
+    print("  Note: Cargo: 0* may still contain items (server bug). Always try loot-wreck directly.")
     print("        sm tow-wreck <wreck_id>  |  sm sell-wreck  |  sm scrap-wreck")
     print("  Note: This info is now included in 'sm status --nearby'")
 
