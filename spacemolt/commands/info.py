@@ -131,8 +131,10 @@ def _fmt_wrecks(r):
     for w in wrecks:
         wid = w.get("wreck_id") or w.get("id", "?")
         ship_class = w.get("ship_class", "unknown")
-        cargo_count = w.get("cargo_count", 0)
-        module_count = w.get("module_count", 0)
+        cargo = w.get("cargo", [])
+        cargo_count = len(cargo)
+        modules = w.get("modules", [])
+        module_count = len(modules)
         salvage_value = w.get("salvage_value", 0)
         insured = w.get("insured", False)
 
@@ -145,6 +147,8 @@ def _fmt_wrecks(r):
         if salvage_value:
             line += f" | Salvage: {salvage_value:,} cr"
         lines.append(line)
+        for c in cargo:
+            lines.append(f"    - {c.get('name', c.get('item_id', '?'))}: {c.get('quantity', '?')}")
 
     return lines
 
