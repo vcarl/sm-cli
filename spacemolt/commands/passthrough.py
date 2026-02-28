@@ -951,6 +951,8 @@ def _print_error_hints(endpoint, err_msg, api=None):
         else:
             print("\n  You have no weapon modules installed.")
             print("  Hint: sm listings  |  sm install-mod <module_id>")
+        print("  Note: NPC combat (pirates, guardians) is AUTO-resolved each tick when")
+        print("        in the same location — you may not need sm attack for NPCs.")
     elif endpoint == "attack" and any(w in err_lower for w in ("equip", "install")):
         print("\n  You need a weapon module installed to attack.")
         print("  Hint: sm listings  |  sm ship  |  sm install-mod <module_id>")
@@ -1005,8 +1007,9 @@ def _find_weapon_modules(api):
             mtype = (m.get("type") or m.get("type_id") or "").lower()
             mname = m.get("name") or m.get("module_id") or f"module_{i}"
             mid = m.get("id") or m.get("module_id") or ""
-            if any(w in mtype for w in ("weapon", "laser", "cannon", "missile",
-                                         "turret", "gun", "blaster", "railgun")):
+            if (mtype.startswith("weapon_") or any(w in mtype for w in
+                                         ("cannon", "missile", "turret",
+                                          "railgun", "blaster", "torpedo"))):
                 weapons.append((i, mname, mid))
         return weapons
     except Exception:
