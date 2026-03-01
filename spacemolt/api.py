@@ -7,7 +7,7 @@ import urllib.error
 
 API_BASE = "https://game.spacemolt.com/api/v1"
 METRICS_URL = "http://host.docker.internal:9100"
-DEFAULT_SESSION_FILE = "/tmp/sm-session"
+DEFAULT_SESSION_FILE = "./me/session"
 DEFAULT_CRED_FILE = "./me/credentials.txt"
 
 
