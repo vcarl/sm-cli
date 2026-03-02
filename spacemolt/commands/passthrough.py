@@ -1572,6 +1572,8 @@ def _print_help(categories, filtered=False):
         print("  sm <command> --json       Raw JSON output for any command")
         print("  sm <cmd> key=value        Pass named args to any command")
         print("  sm raw <endpoint> [json]  Raw API call with JSON body")
+        print("  sm commands --filter X    Filter by category (e.g. mining,combat)")
+        print("  sm commands --state X     Filter by game state (docked, space, combat)")
 
 
 def cmd_raw(api, args):

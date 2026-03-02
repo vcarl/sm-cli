@@ -151,15 +151,19 @@ Tips:
     # commands / help
     p_commands = sub.add_parser("commands", help="Show this help message")
     p_commands.add_argument("--filter", dest="filter_categories", default=None,
+                            metavar="CATEGORIES",
                             help="Show only commands in these categories (comma-separated slugs)")
     p_commands.add_argument("--state", dest="state_filter", default=None,
+                            metavar="STATE",
                             help="Show only commands valid in this game state (docked, space, combat)")
     p_commands.add_argument("--json", dest="json_output", action="store_true",
                             help="Output as JSON array")
     p_help = sub.add_parser("help", help="Show this help message")
     p_help.add_argument("--filter", dest="filter_categories", default=None,
+                        metavar="CATEGORIES",
                         help="Show only commands in these categories (comma-separated slugs)")
     p_help.add_argument("--state", dest="state_filter", default=None,
+                        metavar="STATE",
                         help="Show only commands valid in this game state (docked, space, combat)")
     p_help.add_argument("--json", dest="json_output", action="store_true",
                         help="Output as JSON array")
