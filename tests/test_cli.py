@@ -30,7 +30,6 @@ from spacemolt.commands import (
     cmd_passthrough,
     cmd_status,
     cmd_jump,
-    cmd_buy,
     cmd_ship,
     cmd_base,
     cmd_poi,
@@ -49,7 +48,6 @@ from spacemolt.commands import (
     cmd_query_missions,
     cmd_nearby,
     cmd_cargo,
-    cmd_sell,
     cmd_mine,
     cmd_refuel,
 )
@@ -514,24 +512,6 @@ class TestCmdJump(unittest.TestCase):
         self.assertEqual(json.loads(mock_print.call_args[0][0]), resp)
 
 
-class TestCmdBuy(unittest.TestCase):
-
-    def test_success(self):
-        api = mock_api({"result": {"total_cost": 500}})
-        with patch("builtins.print") as mock_print:
-            cmd_buy(api, make_args(item_id="fuel_cell", quantity=5, json=False))
-        printed = mock_print.call_args[0][0]
-        self.assertIn("fuel_cell", printed)
-        self.assertIn("x5", printed)
-        self.assertIn("500", printed)
-
-    def test_error(self):
-        api = mock_api({"error": {"message": "not enough credits"}})
-        with patch("builtins.print") as mock_print:
-            cmd_buy(api, make_args(item_id="ship", quantity=1, json=False))
-        self.assertIn("not enough credits", mock_print.call_args[0][0])
-
-
 class TestCmdShip(unittest.TestCase):
 
     def test_with_modules(self):
@@ -677,6 +657,66 @@ class TestCmdCommands(unittest.TestCase):
         with patch("sys.stdout") as mock_stdout:
             cmd_commands(api, make_args(json=False))
         mock_stdout.write.assert_called()
+
+    def _run_commands(self, **kwargs):
+        """Run cmd_commands and return the concatenated printed output."""
+        api = mock_api({})
+        lines = []
+        with patch("builtins.print", side_effect=lambda *a, **kw: lines.append(" ".join(str(x) for x in a))):
+            cmd_commands(api, make_args(**kwargs))
+        return "\n".join(lines)
+
+    def test_state_filter_docked(self):
+        output = self._run_commands(json=False, state_filter="docked")
+        self.assertIn("sm repair", output)
+        self.assertIn("sm buy", output)
+        self.assertIn("sm status", output)  # "any" commands included
+        self.assertNotIn("sm mine", output)  # space-only
+        self.assertNotIn("sm travel", output)  # space-only
+
+    def test_state_filter_space(self):
+        output = self._run_commands(json=False, state_filter="space")
+        self.assertIn("sm travel", output)
+        self.assertIn("sm mine", output)
+        self.assertIn("sm status", output)  # "any" commands included
+        self.assertNotIn("sm repair", output)  # docked-only
+        self.assertNotIn("sm listings", output)  # docked-only
+
+    def test_state_filter_combat(self):
+        output = self._run_commands(json=False, state_filter="combat")
+        self.assertIn("sm attack", output)
+        self.assertIn("sm battle-status", output)
+        self.assertIn("sm status", output)  # "any" commands included
+        self.assertNotIn("sm mine", output)  # space-only
+        self.assertNotIn("sm repair", output)  # docked-only
+
+    def test_state_filter_invalid(self):
+        output = self._run_commands(json=False, state_filter="bogus")
+        self.assertIn("Unknown state", output)
+        self.assertIn("docked", output)
+        self.assertIn("space", output)
+        self.assertIn("combat", output)
+
+    def test_state_and_filter_combined(self):
+        output = self._run_commands(json=False, filter_categories="combat", state_filter="space")
+        self.assertIn("sm attack", output)  # space+combat
+        self.assertNotIn("sm battle-status", output)  # combat-only
+
+    def test_json_includes_states(self):
+        import json as json_mod
+        lines = []
+        api = mock_api({})
+        with patch("builtins.print", side_effect=lambda *a, **kw: lines.append(str(a[0]))):
+            cmd_commands(api, make_args(json=True, filter_categories="navigation"))
+        data = json_mod.loads(lines[0])
+        for entry in data:
+            self.assertIn("states", entry)
+        # travel is space-only
+        travel = next(e for e in data if e["name"] == "travel")
+        self.assertEqual(travel["states"], ["space"])
+        # search-systems is "any"
+        search = next(e for e in data if e["name"] == "search-systems")
+        self.assertEqual(search["states"], ["any"])
 
 
 # ---------------------------------------------------------------------------
@@ -1029,15 +1069,6 @@ class TestExistingCommandsRegression(unittest.TestCase):
         output = "\n".join(c[0][0] for c in mock_print.call_args_list)
         self.assertIn("ore_iron x3", output)
         self.assertIn("ore_copper x2", output)
-
-    def test_cmd_sell(self):
-        api = mock_api({"result": {"total_earned": 120}})
-        with patch("builtins.print") as mock_print:
-            from spacemolt.commands import cmd_sell
-            cmd_sell(api, make_args(item_id="ore_iron", quantity=10))
-        printed = mock_print.call_args[0][0]
-        self.assertIn("ore_iron", printed)
-        self.assertIn("120", printed)
 
     def test_cmd_mine_success(self):
         api = mock_api({"result": {"message": "Mined iron ore x3"}})
@@ -1710,24 +1741,6 @@ class TestCmdCargoErrors(unittest.TestCase):
             cmd_cargo(api, make_args())
         output = "\n".join(c[0][0] for c in mock_print.call_args_list)
         self.assertIn("0/", output)
-
-
-class TestCmdSellErrors(unittest.TestCase):
-
-    def test_sell_error(self):
-        api = mock_api({"error": "not_docked"})
-        with patch("builtins.print") as mock_print:
-            cmd_sell(api, make_args(item_id="ore_iron", quantity=5))
-        self.assertIn("ERROR", mock_print.call_args[0][0])
-
-    def test_sell_no_credits_field(self):
-        """Sell response with no recognizable credits field."""
-        api = mock_api({"result": {"status": "ok"}})
-        with patch("builtins.print") as mock_print:
-            cmd_sell(api, make_args(item_id="ore_iron", quantity=1))
-        printed = mock_print.call_args[0][0]
-        self.assertIn("Sold", printed)
-        self.assertIn("ore_iron", printed)
 
 
 class TestCmdMineErrors(unittest.TestCase):
