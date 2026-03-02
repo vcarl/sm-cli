@@ -1131,16 +1131,141 @@ def cmd_passthrough(api, endpoint, extra_args, as_json=False):
 
 def cmd_commands(api, args):
     """Print categorized command reference."""
-    _print_full_help()
+    filter_str = getattr(args, "filter_categories", None)
+    state_filter = getattr(args, "state_filter", None)
+    json_output = getattr(args, "json", False) or getattr(args, "json_output", False)
+
+    if filter_str:
+        slugs = [s.strip() for s in filter_str.split(",")]
+        categories = _get_categories(slugs)
+    else:
+        categories = _get_categories()
+
+    if state_filter:
+        state = state_filter.strip().lower()
+        if state not in _VALID_STATES:
+            print(f"Unknown state '{state}'. Valid states: {', '.join(sorted(_VALID_STATES))}")
+            return
+        categories = _filter_by_state(categories, state)
+
+    if json_output:
+        _print_json(categories)
+    else:
+        _print_help(categories, filtered=bool(filter_str or state_filter))
 
 
-def _print_full_help():
-    """Print all commands organized by category, including passthrough."""
-    # Commands organized by category: (cli_name, description)
-    # cli_name uses hyphens (how the user types it)
-    # (command_with_args, description)
-    # Use <arg> for required, [arg] for optional
-    categories = [
+# Slug → display name mapping for --filter
+_SLUG_MAP = {
+    "getting-started": "Getting Started",
+    "info":            "Info & Status",
+    "navigation":      "Navigation",
+    "combat":          "Combat",
+    "mining":          "Mining & Resources",
+    "trading-npc":     "Trading (NPC)",
+    "market-orders":   "Market Orders (Player)",
+    "trading-player":  "Player Trading",
+    "ship-management": "Ship Management",
+    "shipyard":        "Shipyard",
+    "storage":         "Storage",
+    "crafting":        "Crafting",
+    "missions":        "Missions",
+    "skills":          "Skills",
+    "insurance":       "Insurance",
+    "social":          "Chat & Social",
+    "forum":           "Notes & Forum",
+    "faction":         "Faction",
+    "faction-intel":   "Faction Intel & Rooms",
+    "faction-economy": "Faction Economy",
+    "facilities":      "Base & Facilities",
+    "items":           "Items",
+    "catalog":         "Catalog",
+    "advanced":        "Advanced",
+}
+
+# Composite filters that expand to multiple slugs
+_COMPOSITE_FILTERS = {
+    "base": ["info", "navigation"],
+}
+
+# Reverse lookup: display name → slug
+_NAME_TO_SLUG = {v: k for k, v in _SLUG_MAP.items()}
+
+# Valid game states for --state filtering
+_VALID_STATES = frozenset({"docked", "space", "combat"})
+_ANY_STATE = frozenset({"any"})
+
+# Command name → frozenset of game states where the command is valid.
+# Commands not listed here default to {"any"} (valid in all states).
+_COMMAND_STATES = {
+    # Navigation
+    "travel":            frozenset({"space"}),
+    "jump":              frozenset({"space"}),
+    "find-route":        frozenset({"space", "docked"}),
+    "survey-system":     frozenset({"space"}),
+    # Combat
+    "attack":            frozenset({"space", "combat"}),
+    "battle":            frozenset({"space", "combat"}),
+    "battle-status":     frozenset({"combat"}),
+    "scan":              frozenset({"space", "combat"}),
+    "reload":            frozenset({"space", "combat"}),
+    "cloak":             frozenset({"space", "combat"}),
+    "self-destruct":     frozenset({"space", "combat"}),
+    # Mining & Resources
+    "mine":              frozenset({"space"}),
+    "refuel":            frozenset({"docked", "space"}),
+    "repair":            frozenset({"docked"}),
+    "jettison":          frozenset({"space"}),
+    "tow-wreck":         frozenset({"space"}),
+    "release-tow":       frozenset({"space"}),
+    "scrap-wreck":       frozenset({"space"}),
+    "sell-wreck":        frozenset({"docked"}),
+    # Trading (NPC)
+    "buy":               frozenset({"docked"}),
+    "sell":              frozenset({"docked"}),
+    "listings":          frozenset({"docked"}),
+    "analyze-market":    frozenset({"docked"}),
+    "estimate-purchase": frozenset({"docked"}),
+    # Market Orders (Player)
+    "market":            frozenset({"docked"}),
+    # Player Trading
+    "trade-offer":       frozenset({"space", "docked"}),
+    "trade-accept":      frozenset({"space", "docked"}),
+    "trade-decline":     frozenset({"space", "docked"}),
+    "trade-cancel":      frozenset({"space", "docked"}),
+    "trades":            frozenset({"space", "docked"}),
+    # Ship Management
+    "buy-ship":          frozenset({"docked"}),
+    "sell-ship":         frozenset({"docked"}),
+    "switch-ship":       frozenset({"docked"}),
+    "install-mod":       frozenset({"docked"}),
+    "uninstall-mod":     frozenset({"docked"}),
+    # Shipyard
+    "shipyard":          frozenset({"docked"}),
+    # Storage
+    "storage":           frozenset({"docked"}),
+    "send-gift":         frozenset({"docked"}),
+    # Crafting
+    "craft":             frozenset({"docked"}),
+    # Missions
+    "decline-mission":   frozenset({"docked"}),
+    # Insurance
+    "insurance":         frozenset({"docked"}),
+    # Facilities
+    "facility":          frozenset({"docked"}),
+    "set-home-base":     frozenset({"docked"}),
+    # Items
+    "use-item":          frozenset({"space", "docked"}),
+}
+
+
+def _get_command_states(name):
+    """Return the frozenset of valid game states for a command name."""
+    return _COMMAND_STATES.get(name, _ANY_STATE)
+
+
+def _all_categories():
+    """Return the full category list: [(display_name, [(usage, description), ...]), ...]"""
+    return [
         ("Getting Started", [
             ("register <username> <empire>", "Register a new account"),
             ("login [cred_file]", "Login and save session"),
@@ -1352,6 +1477,81 @@ def _print_full_help():
         ]),
     ]
 
+
+def _get_categories(slugs=None):
+    """Return categories, optionally filtered by slug list.
+
+    If slugs is None, returns all categories.
+    Expands composite filters (e.g. 'base' → ['info', 'navigation']).
+    """
+    all_cats = _all_categories()
+    if slugs is None:
+        return all_cats
+
+    # Expand composite filters
+    expanded = []
+    for s in slugs:
+        if s in _COMPOSITE_FILTERS:
+            expanded.extend(_COMPOSITE_FILTERS[s])
+        else:
+            expanded.append(s)
+
+    # Resolve slug → display name, preserving original category order
+    wanted_names = set()
+    for s in expanded:
+        display = _SLUG_MAP.get(s)
+        if display:
+            wanted_names.add(display)
+
+    return [(name, cmds) for name, cmds in all_cats if name in wanted_names]
+
+
+def _filter_by_state(categories, state):
+    """Filter categories to commands valid in the given game state.
+
+    A command is included if its state set contains the requested state
+    or contains 'any'.
+    """
+    filtered = []
+    for cat_name, cmds in categories:
+        matching = [
+            (usage, desc) for usage, desc in cmds
+            if state in _get_command_states(usage.split()[0])
+            or "any" in _get_command_states(usage.split()[0])
+        ]
+        if matching:
+            filtered.append((cat_name, matching))
+    return filtered
+
+
+def _print_json(categories):
+    """Print categories as a JSON array of command objects."""
+    import json
+    result = []
+    for cat_name, cmds in categories:
+        slug = _NAME_TO_SLUG.get(cat_name, cat_name)
+        for usage, description in cmds:
+            # Extract bare command name (first word before any space/arg)
+            name = usage.split()[0] if usage else usage
+            states = _get_command_states(name)
+            result.append({
+                "name": name,
+                "usage": f"sm {usage}",
+                "description": description,
+                "category": cat_name,
+                "category_slug": slug,
+                "states": sorted(states),
+            })
+    print(json.dumps(result, indent=2))
+
+
+def _print_help(categories, filtered=False):
+    """Print commands organized by category."""
+    if not categories:
+        print("No matching categories found.")
+        print(f"Valid slugs: {', '.join(sorted(_SLUG_MAP.keys()))}")
+        return
+
     print("sm — SpaceMolt CLI\n")
 
     name_w = 0
@@ -1367,10 +1567,11 @@ def _print_full_help():
             print(f"    {full_name:<{name_w}} {desc}")
         print()
 
-    print("Tips:")
-    print("  sm <command> --json       Raw JSON output for any command")
-    print("  sm <cmd> key=value        Pass named args to any command")
-    print("  sm raw <endpoint> [json]  Raw API call with JSON body")
+    if not filtered:
+        print("Tips:")
+        print("  sm <command> --json       Raw JSON output for any command")
+        print("  sm <cmd> key=value        Pass named args to any command")
+        print("  sm raw <endpoint> [json]  Raw API call with JSON body")
 
 
 def cmd_raw(api, args):

@@ -149,8 +149,20 @@ Tips:
     sub.add_parser("query-skills", help="(deprecated) Use: sm catalog skills")
 
     # commands / help
-    sub.add_parser("commands", help="Show this help message")
-    sub.add_parser("help", help="Show this help message")
+    p_commands = sub.add_parser("commands", help="Show this help message")
+    p_commands.add_argument("--filter", dest="filter_categories", default=None,
+                            help="Show only commands in these categories (comma-separated slugs)")
+    p_commands.add_argument("--state", dest="state_filter", default=None,
+                            help="Show only commands valid in this game state (docked, space, combat)")
+    p_commands.add_argument("--json", dest="json_output", action="store_true",
+                            help="Output as JSON array")
+    p_help = sub.add_parser("help", help="Show this help message")
+    p_help.add_argument("--filter", dest="filter_categories", default=None,
+                        help="Show only commands in these categories (comma-separated slugs)")
+    p_help.add_argument("--state", dest="state_filter", default=None,
+                        help="Show only commands valid in this game state (docked, space, combat)")
+    p_help.add_argument("--json", dest="json_output", action="store_true",
+                        help="Output as JSON array")
 
     # chat
     p_chat = sub.add_parser("chat", help="Send chat message")
@@ -479,8 +491,8 @@ def main():
         argv = [a for a in argv if a != "--json"]
 
     if not argv:
-        from spacemolt.commands.passthrough import _print_full_help
-        _print_full_help()
+        from spacemolt.commands.passthrough import _print_help, _all_categories
+        _print_help(_all_categories())
         return
 
     # Check if the first arg (ignoring flags) is a known command or a passthrough
@@ -513,8 +525,8 @@ def main():
     args = parser.parse_args(argv)
 
     if not args.command:
-        from spacemolt.commands.passthrough import _print_full_help
-        _print_full_help()
+        from spacemolt.commands.passthrough import _print_help, _all_categories
+        _print_help(_all_categories())
         return
 
     # Inject --json into args for formatted handlers
