@@ -3,7 +3,7 @@ import json
 
 __all__ = [
     "ENDPOINT_ARGS", "_parse_typed_value", "_arg_name",
-    "cmd_passthrough", "cmd_commands", "cmd_raw",
+    "cmd_passthrough", "cmd_commands", "cmd_raw", "cmd_trade_offer",
     "cmd_notes", "cmd_trades", "cmd_ships",
     "cmd_chat_history", "cmd_faction_list", "cmd_faction_invites",
     "cmd_forum", "cmd_battle_status", "cmd_catalog",
@@ -58,7 +58,7 @@ ENDPOINT_ARGS = {
     "get_status": [],
     "set_status": ["status_message?", "clan_tag?"],  # both optional per spec
     "get_trades": [],
-    "trade_offer": ["target_id", "credits?:int", "items?:items_list"],  # items: item_id:qty,item_id2:qty2 or JSON array
+    "trade_offer": ["target_id", "credits?:int", "offer_items?:items_list"],  # offer_items: item_id:qty,id2:qty2 (must be in cargo)
     "trade_accept": ["trade_id"],
     "trade_decline": ["trade_id"],
     "trade_cancel": ["trade_id"],
@@ -182,14 +182,15 @@ def _parse_typed_value(spec, value):
             raise ValueError(f"Invalid boolean value for '{param_name}': {value!r}")
         return value.lower() in ("true", "1", "yes")
     elif type_name == "items_list":
-        # Parse "item_id:qty,item_id2:qty2" into {item_id: qty} map (API expects object).
-        # Also accepts raw JSON object {"item_id": qty, ...} if value starts with '{'.
-        if value.startswith("{"):
+        # Parse "item_id:qty,item_id2:qty2" into [{item_id, quantity}] array.
+        # API expects JSON array of {item_id, quantity} objects (confirmed via raw API test).
+        # Also accepts raw JSON array if value starts with '['.
+        if value.startswith("["):
             try:
                 return json.loads(value)
             except json.JSONDecodeError as e:
                 raise ValueError(f"Invalid JSON for items: {e}")
-        items = {}
+        items = []
         for part in value.split(","):
             part = part.strip()
             if not part:
@@ -200,9 +201,9 @@ def _parse_typed_value(spec, value):
                     qty = int(qty_str)
                 except ValueError:
                     raise ValueError(f"Invalid quantity in items spec: {part!r}")
-                items[item_id.strip()] = qty
+                items.append({"item_id": item_id.strip(), "quantity": qty})
             else:
-                items[part] = 1
+                items.append({"item_id": part, "quantity": 1})
         return items
     return value
 
@@ -1352,7 +1353,7 @@ def _all_categories():
             ("market cancel <order_id>", "Cancel an order"),
         ]),
         ("Player Trading", [
-            ("trade-offer <target_id> [credits] [items=item_id:qty,...]", "Send trade offer to player"),
+            ("trade-offer <target_id> [credits] [offer_items=item_id:qty,...]", "Send trade offer (items must be in cargo)"),
             ("trade-accept <trade_id>", "Accept a trade offer"),
             ("trade-decline <trade_id>", "Decline a trade offer"),
             ("trade-cancel <trade_id>", "Cancel your trade offer"),
@@ -1597,6 +1598,74 @@ def _print_help(categories, filtered=False):
         print("  sm raw <endpoint> [json]  Raw API call with JSON body")
         print("  sm commands --filter X    Filter by category (e.g. mining,combat)")
         print("  sm commands --state X     Filter by game state (docked, space, combat)")
+
+
+def cmd_trade_offer(api, extra_args, as_json=False):
+    """Send a trade offer. Items must be in cargo. Usage:
+    sm trade-offer <target_id> [offer_items=item_id:qty,...] [credits=N]
+    Example: sm trade-offer abc123 offer_items=ore_crystal:50,refined_steel:10
+    """
+    extra = extra_args if isinstance(extra_args, list) else getattr(extra_args, "extra", [])
+    target_id = None
+    offer_items = []
+    offer_credits = 0
+    positional = []
+    for arg in extra:
+        if "=" in arg and not arg.startswith("="):
+            key, val = arg.split("=", 1)
+            if key == "offer_items":
+                try:
+                    offer_items = _parse_typed_value("offer_items?:items_list", val)
+                except ValueError as e:
+                    print(f"Error: {e}")
+                    return
+            elif key == "credits":
+                try:
+                    offer_credits = int(val)
+                except ValueError:
+                    print(f"Error: invalid credits value: {val!r}")
+                    return
+            else:
+                positional.append(arg)
+        else:
+            positional.append(arg)
+    if positional:
+        target_id = positional[0]
+    if not target_id:
+        print("Usage: sm trade-offer <target_id> [offer_items=item_id:qty,...] [credits=N]")
+        return
+    body = {
+        "target_id": target_id,
+        "offer_items": offer_items,
+        "offer_credits": offer_credits,
+        "request_items": [],
+        "request_credits": 0,
+    }
+    from spacemolt.api import APIError
+    try:
+        resp = api._post("trade_offer", body)
+    except APIError as e:
+        print(f"ERROR: {e}")
+        return
+    if as_json:
+        print(json.dumps(resp, indent=2))
+    else:
+        err = resp.get("error")
+        if err:
+            err_msg = err.get("message", err) if isinstance(err, dict) else err
+            print(f"ERROR: {err_msg}")
+        else:
+            r = resp.get("result", {})
+            trade_id = r.get("trade_id", "?")
+            msg = r.get("message", "Trade offer sent.")
+            print(f"✓ {msg}")
+            print(f"  Trade ID: {trade_id[:8]}")
+            if offer_items:
+                parts = [f"{i['item_id']} x{i['quantity']}" for i in offer_items]
+                print(f"  Offering: {', '.join(parts)}")
+            if offer_credits:
+                print(f"  Credits offered: {offer_credits:,} cr")
+            print(f"\n  Hint: sm trades  |  sm trade-cancel {trade_id[:8]}")
 
 
 def cmd_raw(api, args):

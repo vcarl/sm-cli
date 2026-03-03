@@ -545,7 +545,14 @@ def main():
 
         extra_args = argv[1:]
         api.set_command_context(first_arg, extra_args or None)
-        commands.cmd_passthrough(api, endpoint, extra_args, as_json=json_flag)
+        # Check for endpoint-specific override handlers
+        _PASSTHROUGH_OVERRIDES = {
+            "trade_offer": commands.cmd_trade_offer,
+        }
+        if endpoint in _PASSTHROUGH_OVERRIDES:
+            _PASSTHROUGH_OVERRIDES[endpoint](api, extra_args, as_json=json_flag)
+        else:
+            commands.cmd_passthrough(api, endpoint, extra_args, as_json=json_flag)
         return
 
     # Known command — let argparse handle it
