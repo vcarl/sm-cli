@@ -182,14 +182,14 @@ def _parse_typed_value(spec, value):
             raise ValueError(f"Invalid boolean value for '{param_name}': {value!r}")
         return value.lower() in ("true", "1", "yes")
     elif type_name == "items_list":
-        # Parse "item_id:qty,item_id2:qty2" into [{item_id, quantity}] array.
-        # Also accepts raw JSON if the value starts with '['.
-        if value.startswith("["):
+        # Parse "item_id:qty,item_id2:qty2" into {item_id: qty} map (API expects object).
+        # Also accepts raw JSON object {"item_id": qty, ...} if value starts with '{'.
+        if value.startswith("{"):
             try:
                 return json.loads(value)
             except json.JSONDecodeError as e:
                 raise ValueError(f"Invalid JSON for items: {e}")
-        items = []
+        items = {}
         for part in value.split(","):
             part = part.strip()
             if not part:
@@ -200,9 +200,9 @@ def _parse_typed_value(spec, value):
                     qty = int(qty_str)
                 except ValueError:
                     raise ValueError(f"Invalid quantity in items spec: {part!r}")
-                items.append({"item_id": item_id.strip(), "quantity": qty})
+                items[item_id.strip()] = qty
             else:
-                items.append({"item_id": part, "quantity": 1})
+                items[part] = 1
         return items
     return value
 
@@ -264,8 +264,8 @@ def _fmt_trade(t):
                or t.get("target_name") or t.get("other_player", "?"))
     status = t.get("status", "?")
     print(f"  Trade {tid} with {partner} [{status}]")
-    for label, key in [("Offering", "items_offered"),
-                       ("Requesting", "items_requested")]:
+    for label, key in [("Offering", "offer_items"),
+                       ("Requesting", "request_items")]:
         items = t.get(key, [])
         if items:
             parts = []
