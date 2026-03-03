@@ -58,7 +58,7 @@ ENDPOINT_ARGS = {
     "get_status": [],
     "set_status": ["status_message?", "clan_tag?"],  # both optional per spec
     "get_trades": [],
-    "trade_offer": ["target_id", "credits?:int", "items?"],  # items is object (JSON string), credits optional
+    "trade_offer": ["target_id", "credits?:int", "items?:items_list"],  # items: item_id:qty,item_id2:qty2 or JSON array
     "trade_accept": ["trade_id"],
     "trade_decline": ["trade_id"],
     "trade_cancel": ["trade_id"],
@@ -181,6 +181,29 @@ def _parse_typed_value(spec, value):
             param_name = _arg_name(spec)
             raise ValueError(f"Invalid boolean value for '{param_name}': {value!r}")
         return value.lower() in ("true", "1", "yes")
+    elif type_name == "items_list":
+        # Parse "item_id:qty,item_id2:qty2" into [{item_id, quantity}] array.
+        # Also accepts raw JSON if the value starts with '['.
+        if value.startswith("["):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON for items: {e}")
+        items = []
+        for part in value.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            if ":" in part:
+                item_id, qty_str = part.rsplit(":", 1)
+                try:
+                    qty = int(qty_str)
+                except ValueError:
+                    raise ValueError(f"Invalid quantity in items spec: {part!r}")
+                items.append({"item_id": item_id.strip(), "quantity": qty})
+            else:
+                items.append({"item_id": part, "quantity": 1})
+        return items
     return value
 
 
@@ -1329,7 +1352,7 @@ def _all_categories():
             ("market cancel <order_id>", "Cancel an order"),
         ]),
         ("Player Trading", [
-            ("trade-offer <target_id> [credits]", "Send trade offer to player"),
+            ("trade-offer <target_id> [credits] [items=item_id:qty,...]", "Send trade offer to player"),
             ("trade-accept <trade_id>", "Accept a trade offer"),
             ("trade-decline <trade_id>", "Decline a trade offer"),
             ("trade-cancel <trade_id>", "Cancel your trade offer"),
