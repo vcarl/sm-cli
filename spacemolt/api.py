@@ -53,7 +53,11 @@ class APIError(Exception):
 
 
 class SpaceMoltAPI:
-    def __init__(self, session_file=DEFAULT_SESSION_FILE, cred_file=DEFAULT_CRED_FILE, timeout=30):
+    def __init__(self, session_file=DEFAULT_SESSION_FILE, cred_file=DEFAULT_CRED_FILE, timeout=80):
+        # Jump duration formula: 70 - (10 × ship_speed) seconds.
+        # Speed-1 ships (e.g. Titan Excavator) take 60s per jump.
+        # Old default of 30s caused spurious timeouts on every jump for slow ships.
+        # 80s covers speed-1 (60s) with margin for network variance.
         self.session_file = session_file
         self.cred_file = cred_file
         self.timeout = timeout
