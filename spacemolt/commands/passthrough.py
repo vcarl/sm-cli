@@ -1103,12 +1103,22 @@ def cmd_passthrough(api, endpoint, extra_args, as_json=False):
         return
 
     from spacemolt.api import APIError
+    # Battle commands wait for tick processing (tick duration can be 26s+).
+    # Use a longer timeout so the server has time to process the action.
+    _LONG_TIMEOUT_ENDPOINTS = {"battle", "cloak", "self_destruct"}
+    _saved_timeout = None
+    if endpoint in _LONG_TIMEOUT_ENDPOINTS:
+        _saved_timeout = api.timeout
+        api.timeout = 180  # covers 3+ slow ticks
     try:
         resp = api._post(endpoint, body)
     except APIError as e:
         print(f"ERROR: {e}")
         _print_error_hints(endpoint, str(e), api)
         return
+    finally:
+        if _saved_timeout is not None:
+            api.timeout = _saved_timeout
 
     if as_json:
         print(json.dumps(resp, indent=2))
