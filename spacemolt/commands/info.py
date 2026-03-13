@@ -495,8 +495,7 @@ def cmd_ship(api, args):
     if class_id and class_id != ship_name:
         header += f" ({class_id})"
     if ship_id:
-        sid = ship_id[:12]
-        header += f"  id:{sid}"
+        header += f"  id:{ship_id}"
     print(header)
 
     # Stats
