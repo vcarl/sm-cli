@@ -26,7 +26,7 @@ ENDPOINT_ARGS = {
     "chat": ["channel", "content", "target_id?"],  # target_id optional per spec
     "craft": ["recipe_id", "count?:int"],  # count is optional batch parameter
     "forum_reply": ["thread_id", "content"],
-    "forum_get_thread": ["thread_id"],
+    "forum_get_thread": ["thread_id", "page?:int"],
     "forum_create_thread": ["title", "content", "category?"],  # category is custom extension
     "loot_wreck": ["wreck_id", "item_id", "quantity:int"],
     "salvage_wreck": ["wreck_id"],
@@ -459,8 +459,16 @@ def _fmt_forum_get_thread(resp):
         print(content)
     replies = thread.get("replies", [])
     if replies:
-        print(f"\n--- Replies ({len(replies)}) ---")
-        for reply in replies:
+        per_page = 5
+        total = len(replies)
+        # extract page from the original args if passed through
+        page = r.get("_page", 1)
+        total_pages = (total + per_page - 1) // per_page
+        page = max(1, min(page, total_pages))
+        start = (page - 1) * per_page
+        page_replies = replies[start:start + per_page]
+        print(f"\n--- Replies ({total} total, page {page}/{total_pages}) ---")
+        for reply in page_replies:
             rauthor = reply.get("author_name") or reply.get("author") or reply.get("username", "?")
             rauthor_id = reply.get("author_id", "")
             rfaction_tag = reply.get("author_faction_tag", "")
@@ -479,6 +487,8 @@ def _fmt_forum_get_thread(resp):
             if rcontent:
                 for line in rcontent.split("\n"):
                     print(f"    {line}")
+        if total_pages > 1:
+            print(f"\n  Page {page}/{total_pages}. Use: sm forum-get-thread <thread_id> <page>")
 
 
 def _fmt_attack(resp):
@@ -1120,6 +1130,9 @@ def cmd_passthrough(api, endpoint, extra_args, as_json=False):
         if _saved_timeout is not None:
             api.timeout = _saved_timeout
 
+    # Stash client-side pagination param for forum_get_thread (replies paginated locally)
+    _client_page = body.pop("page", None) if endpoint == "forum_get_thread" else None
+
     if as_json:
         print(json.dumps(resp, indent=2))
     else:
@@ -1129,6 +1142,9 @@ def cmd_passthrough(api, endpoint, extra_args, as_json=False):
             print(f"ERROR: {err_msg}")
             _print_error_hints(endpoint, str(err_msg), api)
         else:
+            # Inject client-side page into result for formatters that paginate locally
+            if _client_page is not None and isinstance(resp.get("result"), dict):
+                resp["result"]["_page"] = _client_page
             from spacemolt.commands.format_schemas import FORMAT_SCHEMAS, render_schema
             formatter = _FORMATTERS.get(endpoint)
             if formatter:
@@ -1437,7 +1453,7 @@ def _all_categories():
             ("write-note [note_id] [content]", "Edit a note"),
             ("read-note [note_id]", "Read a note"),
             ("forum-list [page] [category]", "List forum threads"),
-            ("forum-get-thread <thread_id>", "Read a forum thread"),
+            ("forum-get-thread <thread_id> [page]", "Read a forum thread (5 replies/page)"),
             ("forum-create-thread <title> <content>", "Create a forum thread"),
             ("forum-reply <thread_id> <content>", "Reply to a thread"),
             ("forum-upvote <thread_id> [reply_id]", "Upvote thread or reply"),
