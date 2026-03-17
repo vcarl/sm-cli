@@ -294,7 +294,7 @@ def _fmt_status(r):
     print(f"Active Commissions ({len(commissions)}):\n")
     for c in commissions:
         cid = c.get("commission_id") or c.get("id", "?")
-        ship_class = c.get("ship_class") or c.get("class", "?")
+        ship_class = c.get("ship_class") or c.get("ship_class_id") or c.get("class", "?")
         status = c.get("status", "?")
         progress = c.get("progress")
         base = c.get("base_id") or c.get("base", "")
@@ -306,7 +306,7 @@ def _fmt_status(r):
             line += f"  @ {base}"
         print(line)
 
-        # Show missing materials if any
+        # Show missing materials if any (supports both legacy list format and required_materials dict)
         missing = c.get("missing_materials") or c.get("materials_needed", [])
         if missing:
             for m in missing:
@@ -315,5 +315,13 @@ def _fmt_status(r):
                     qty = m.get("quantity", 0)
                     supplied = m.get("supplied", 0)
                     print(f"    need {mid}: {supplied}/{qty}")
+        else:
+            required = c.get("required_materials", {})
+            gathered = c.get("materials_gathered", {})
+            if required:
+                for item_id, qty in required.items():
+                    have = gathered.get(item_id, 0)
+                    if have < qty:
+                        print(f"    need {item_id}: {have}/{qty}")
 
     print(f"\n  Hint: sm shipyard supply <id> <item> <qty>  |  sm shipyard claim <id>")
