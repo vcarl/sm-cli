@@ -1,9 +1,24 @@
 import json
 import os
+import socket
 import threading
 import time
 import urllib.request
 import urllib.error
+
+# Commands that mutate server state. Timeouts on these are ambiguous — the
+# server may have already processed the request, so retrying risks double-
+# execution (double-jump, double-mine, double-buy, etc.).
+MUTATION_COMMANDS = {
+    "jump", "travel", "dock", "undock", "mine", "sell", "buy", "craft",
+    "install-mod", "uninstall-mod", "buy-ship", "switch-ship", "refuel",
+    "chat", "attack", "trade-offer", "trade-accept", "trade-decline",
+    "trade-cancel", "log-add", "forum-create-thread", "forum-reply",
+    "forum-upvote", "market", "tow", "self-destruct", "escape-pod",
+    "faction-invite", "faction-kick", "faction-promote", "faction-declare-war",
+    "faction-propose-peace", "create-faction", "join-faction", "leave-faction",
+    "storage",
+}
 
 API_BASE = "https://game.spacemolt.com/api/v1"
 METRICS_URL = "http://host.docker.internal:9100"
@@ -137,7 +152,17 @@ class SpaceMoltAPI:
 
             raise APIError(f"HTTP {e.code}: {msg}", status_code=e.code)
         except urllib.error.URLError as e:
-            # Network errors (connection refused, DNS failure, timeout)
+            # Network errors: connection refused and DNS failures are safe to
+            # retry (connection never reached the server). Socket timeouts are
+            # ambiguous — the server may have already processed the request —
+            # so never retry mutations on socket timeout.
+            is_socket_timeout = isinstance(e.reason, socket.timeout)
+            is_mutation = self._command in MUTATION_COMMANDS
+            if is_socket_timeout and is_mutation:
+                raise APIError(
+                    f"Request timed out. {self._command} may have executed — "
+                    "check status before retrying."
+                )
             if _retry_count < 2:
                 delay = 2 ** _retry_count  # Exponential backoff: 1s, 2s
                 print(f"Network error, retrying in {delay}s...", flush=True)
@@ -145,7 +170,14 @@ class SpaceMoltAPI:
                 return self._post(endpoint, body, use_session, _retried, _retry_count + 1)
             raise APIError(f"Network error: {e.reason}")
         except TimeoutError as e:
-            # SSL/socket-level timeout not wrapped by urllib (TimeoutError is OSError subclass)
+            # SSL/socket-level timeout not wrapped by urllib (TimeoutError is
+            # OSError subclass). Never retry mutations — server may have
+            # already processed the request.
+            if self._command in MUTATION_COMMANDS:
+                raise APIError(
+                    f"Request timed out. {self._command} may have executed — "
+                    "check status before retrying."
+                )
             if _retry_count < 2:
                 delay = 2 ** _retry_count
                 print(f"Timeout, retrying in {delay}s...", flush=True)
