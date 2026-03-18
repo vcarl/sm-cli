@@ -1341,7 +1341,7 @@ def _all_categories():
         ]),
         ("Navigation", [
             ("travel <poi_id>", "Travel to POI in current system"),
-            ("jump <target_system>", "Jump to adjacent system"),
+            ("jump <target_system>", "Jump to adjacent system (or use wormhole_entrance_id to traverse wormhole)"),
             ("find-route <target_system>", "Find route to a system"),
             ("search-systems <query>", "Search systems by name"),
             ("survey-system", "Survey current system (astrometrics)"),
