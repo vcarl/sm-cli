@@ -906,7 +906,7 @@ def _fmt_catalog(resp):
                     print(f"    {label}: {val}")
 
         elif cat_type == "recipes":
-            ingredients = item.get("ingredients", [])
+            ingredients = item.get("ingredients", []) or item.get("inputs", [])
             outputs = item.get("outputs", []) or item.get("output", [])
             skill_req = item.get("required_skill") or item.get("skill_requirement")
             if skill_req:
