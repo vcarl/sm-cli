@@ -96,6 +96,9 @@ def cmd_register(api, args):
 def cmd_login(api, args):
     cred_file = args.cred_file if args.cred_file else None
     as_json = getattr(args, "json", False)
+    if api.validate_session():
+        print("Session still valid — skipping login")
+        return
     resp = api.login(cred_file)
     if not resp:
         return
@@ -414,3 +417,26 @@ def cmd_buy(api, args):
     msg = r.get("message")
     if msg and bought == 0:
         print(msg)
+
+
+def cmd_use_item(api, args):
+    """Consume an item from cargo (fuel cells, repair kits, shield cells, etc.)."""
+    as_json = getattr(args, "json", False)
+    payload = {"item_id": args.item_id, "quantity": args.quantity}
+    resp = api._post("use_item", payload)
+    if as_json:
+        print(json.dumps(resp, indent=2))
+        return
+    if resp.get("error"):
+        err = resp["error"]
+        if isinstance(err, dict):
+            print(f"ERROR: {err.get('message', err)}")
+        else:
+            print(f"ERROR: {err}")
+        return
+    r = resp.get("result", {})
+    msg = r.get("message")
+    if msg:
+        print(msg)
+    else:
+        print(f"Used {args.quantity}x {args.item_id}")

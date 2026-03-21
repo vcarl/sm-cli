@@ -115,6 +115,11 @@ Tips:
     p_refuel.add_argument("item_id", nargs="?", default=None, help="Fuel cell item ID (e.g. fuel_cell) — works in space!")
     p_refuel.add_argument("quantity", nargs="?", type=int, default=None, help="Number of fuel cells to burn")
 
+    # use-item
+    p_use_item = sub.add_parser("use-item", help="Consume item from cargo (fuel cells, repair kits, shield cells)")
+    p_use_item.add_argument("item_id", help="Item ID to consume (e.g. fuel_cell, repair_kit, shield_cell)")
+    p_use_item.add_argument("quantity", nargs="?", type=int, default=1, help="Quantity to consume (default: 1)")
+
     # repair
     sub.add_parser("repair", help="Repair ship")
 
@@ -495,6 +500,7 @@ COMMAND_MAP = {
     "shipyard": commands.cmd_shipyard_router,
     "complain": commands.cmd_complain,
     "schema": lambda api, args: commands.cmd_schema_list(api, args) if getattr(args, "schema_list", False) else commands.cmd_schema(api, args),
+    "use-item": commands.cmd_use_item,
 }
 
 
