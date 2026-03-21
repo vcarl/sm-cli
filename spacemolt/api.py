@@ -5,6 +5,26 @@ import time
 import urllib.request
 import urllib.error
 
+
+# Commands that mutate server state. On network timeout/URLError, retrying these
+# is unsafe — the server may have already processed the request, causing
+# double-execution (double-jump, double-mine, etc.).
+MUTATION_COMMANDS = {
+    "jump", "travel", "dock", "undock", "mine", "refuel", "repair",
+    "repair_module", "buy", "sell", "craft", "install_mod", "uninstall_mod",
+    "jettison", "loot_wreck", "salvage_wreck", "scrap_wreck", "tow_wreck",
+    "sell_wreck", "attack", "use_item", "send_gift", "claim",
+    "accept_mission", "decline_mission", "complete_mission", "abandon_mission",
+    "trade_offer", "trade_accept", "trade_decline", "trade_cancel",
+    "deposit_items", "withdraw_items",
+    "faction_deposit_items", "faction_withdraw_items",
+    "faction_deposit_credits", "faction_withdraw_credits",
+    "create_sell_order", "create_buy_order", "cancel_order",
+    "commission_ship", "buy_listed_ship", "cancel_commission",
+    "buy_insurance", "claim_insurance",
+    "set_home_base", "name_ship", "switch_ship", "sell_ship",
+    "self_destruct", "distress_signal", "cloak",
+}
 API_BASE = "https://game.spacemolt.com/api/v1"
 METRICS_URL = "http://host.docker.internal:9100"
 DEFAULT_SESSION_FILE = "./me/session"
@@ -137,7 +157,11 @@ class SpaceMoltAPI:
 
             raise APIError(f"HTTP {e.code}: {msg}", status_code=e.code)
         except urllib.error.URLError as e:
-            # Network errors (connection refused, DNS failure, timeout)
+            # Network errors (connection refused, DNS failure, timeout).
+            # Mutations are NOT safe to retry — server may have already processed the
+            # request. Raise immediately so the caller gets a clear ambiguous-result error.
+            if endpoint in MUTATION_COMMANDS:
+                raise APIError(f"Network error on mutation '{endpoint}' — result ambiguous, not retrying: {e.reason}")
             if _retry_count < 2:
                 delay = 2 ** _retry_count  # Exponential backoff: 1s, 2s
                 print(f"Network error, retrying in {delay}s...", flush=True)
@@ -145,7 +169,10 @@ class SpaceMoltAPI:
                 return self._post(endpoint, body, use_session, _retried, _retry_count + 1)
             raise APIError(f"Network error: {e.reason}")
         except TimeoutError as e:
-            # SSL/socket-level timeout not wrapped by urllib (TimeoutError is OSError subclass)
+            # SSL/socket-level timeout not wrapped by urllib (TimeoutError is OSError subclass).
+            # Mutations are NOT safe to retry on timeout — ambiguous whether server processed.
+            if endpoint in MUTATION_COMMANDS:
+                raise APIError(f"Timeout on mutation '{endpoint}' — result ambiguous, not retrying")
             if _retry_count < 2:
                 delay = 2 ** _retry_count
                 print(f"Timeout, retrying in {delay}s...", flush=True)
@@ -439,6 +466,62 @@ class SpaceMoltAPI:
             raise APIError("Not logged in. Run: sm login")
         return sid
 
+    def _read_cred_session(self):
+        """Read Session: line from credentials file, return session_id or None."""
+        try:
+            with open(self.cred_file) as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("Session:"):
+                        return line.split(":", 1)[1].strip() or None
+        except OSError:
+            pass
+        return None
+
+    def _write_cred_session(self, session_id):
+        """Write or update Session: line in credentials file."""
+        if not os.path.exists(self.cred_file):
+            return
+        try:
+            with open(self.cred_file) as f:
+                lines = f.readlines()
+            lines = [l for l in lines if not l.strip().startswith("Session:")]
+            if lines and not lines[-1].endswith("\n"):
+                lines[-1] += "\n"
+            lines.append(f"Session: {session_id}\n")
+            with open(self.cred_file, "w") as f:
+                f.writelines(lines)
+        except OSError:
+            pass
+
+    def validate_session(self):
+        """Return True if the saved session is still valid and ready to use.
+
+        Checks credentials.txt Session: field first (persistent across restarts),
+        then falls back to the session file. Writes the session to the session file
+        so _post() can read it. Returns False if no session or session is expired.
+        """
+        sid = self._read_cred_session()
+        if not sid and os.path.exists(self.session_file):
+            try:
+                with open(self.session_file) as f:
+                    sid = f.read().strip()
+            except OSError:
+                pass
+        if not sid:
+            return False
+        # Ensure session file is current so _post() can read it
+        try:
+            with open(self.session_file, "w") as f:
+                f.write(sid)
+        except OSError:
+            pass
+        try:
+            self._post("get_status")
+            return True
+        except APIError:
+            return False
+
     def login(self, cred_file=None):
         cred_file = cred_file or self.cred_file
         if not os.path.exists(cred_file):
@@ -487,6 +570,7 @@ class SpaceMoltAPI:
             raise APIError(f"Login failed: {err}")
 
         self.username = username
+        self._write_cred_session(sid)
         print(f"Logged in as {username} (session: {sid[:12]}...)")
         return result
 
