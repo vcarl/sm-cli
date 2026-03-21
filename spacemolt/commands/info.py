@@ -302,8 +302,8 @@ def cmd_status(api, args):
             nearby_resp = _safe_post(api, "get_nearby") if show_nearby else None
             wrecks_resp = None
         elif base_id:
-            # Docked: no need for nearby/wrecks at a station
-            nearby_resp = None
+            # Docked: still fetch nearby — knowing who's at the station is useful
+            nearby_resp = _safe_post(api, "get_nearby") if show_nearby else None
             wrecks_resp = None
         elif poi_name:
             # In space at a POI: full situational awareness
