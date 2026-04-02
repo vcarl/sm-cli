@@ -258,7 +258,7 @@ Tips:
     p_sd.add_argument("item_id", nargs="?", help="Item ID to deposit")
     p_sd.add_argument("quantity", nargs="?", type=int, help="Quantity to deposit")
     p_sd.add_argument("--credits", type=int, metavar="AMOUNT", help="Deposit credits instead of items")
-    p_sd.add_argument("--target", default="self", help="Target: self (default), faction, or player name")
+    p_sd.add_argument("--target", default="self", help="Target: self (default), faction, or player name. IMPORTANT: must come AFTER 'deposit', not before — e.g., 'sm storage deposit --target <player> <item> <qty>'")
     p_sd.add_argument("--message", help="Optional message (for gifting to a player)")
 
     p_sw = storage_sub.add_parser("withdraw", help="Withdraw items or credits from storage")

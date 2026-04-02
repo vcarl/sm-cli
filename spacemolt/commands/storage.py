@@ -126,6 +126,8 @@ def _storage_transfer(api, args, action):
     item_id = getattr(args, "item_id", None)
     quantity = getattr(args, "quantity", None)
     credits_amt = getattr(args, "credits", None)
+    # Note: --target must come AFTER the subcommand (e.g., `sm storage deposit --target player item qty`)
+    # If placed before subcommand, argparse overwrites it with the subparser's default.
     target = getattr(args, "target", None) or "self"
     message = getattr(args, "message", None)
 
