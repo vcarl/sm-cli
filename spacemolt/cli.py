@@ -112,9 +112,10 @@ Tips:
     p_buy.add_argument("--deliver-to", choices=["cargo", "storage"], default=None, help="Delivery destination (default: cargo)")
 
     # refuel
-    p_refuel = sub.add_parser("refuel", help="Refuel ship (docked=station credits; item_id=burn fuel cell from cargo anywhere)")
+    p_refuel = sub.add_parser("refuel", help="Refuel ship (docked=station credits; item_id=burn fuel cell from cargo; --target=transfer to another ship via Refueling Pump)")
     p_refuel.add_argument("item_id", nargs="?", default=None, help="Fuel cell item ID (e.g. fuel_cell) — works in space!")
-    p_refuel.add_argument("quantity", nargs="?", type=int, default=None, help="Number of fuel cells to burn")
+    p_refuel.add_argument("quantity", nargs="?", type=int, default=None, help="Number of fuel cells to burn or units to transfer")
+    p_refuel.add_argument("--target", default=None, help="Player ID to transfer fuel to (requires Refueling Pump module, target must be at same POI)")
 
     # use-item
     p_use_item = sub.add_parser("use-item", help="Consume item from cargo (fuel cells, repair kits, shield cells)")

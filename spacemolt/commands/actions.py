@@ -289,6 +289,26 @@ def cmd_refuel(api, args):
     payload = {}
     item_id = getattr(args, "item_id", None)
     quantity = getattr(args, "quantity", None)
+    target = getattr(args, "target", None)
+    if target:
+        # Ship-to-ship fuel transfer via Refueling Pump module
+        # Requires Refueling Pump installed and target at same POI
+        payload["target"] = target
+        if quantity:
+            payload["quantity"] = quantity
+        resp = api._post("refuel", payload)
+        if resp.get("error"):
+            print(f"ERROR: {resp['error']}")
+        else:
+            r = resp.get("result", {})
+            target_name = r.get("target_player_name", target)
+            target_fuel = r.get("target_fuel_now", "?")
+            target_max = r.get("target_fuel_max", "?")
+            fuel_given = abs(r.get("fuel", 0))
+            print(f"Transferred {fuel_given} fuel to {target_name}. Their fuel: {target_fuel}/{target_max}")
+            if r.get("rescue_completed"):
+                print("Rescue completed!")
+        return
     if item_id:
         payload["item_id"] = item_id
     if quantity:
