@@ -96,6 +96,7 @@ Tips:
     # mine
     p_mine = sub.add_parser("mine", help="Mine once (server picks resource by richness weight)")
     p_mine.add_argument("resource_id", nargs="?", help="NOTE: server ignores this — mine picks by richness probability, not target")
+    p_mine.add_argument("--json", action="store_true", help="Output raw JSON instead of formatted text")
 
     # sell (NPC/player market: fills against best buy orders)
     p_sell = sub.add_parser("sell", help="Sell item to market (fills against best buy orders)")

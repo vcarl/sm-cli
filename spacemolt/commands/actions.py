@@ -266,6 +266,10 @@ def cmd_mine(api, args):
     if resource_id:
         payload["resource_id"] = resource_id
     resp = api._post("mine", payload if payload else None)
+    as_json = getattr(args, "json", False)
+    if as_json:
+        print(json.dumps(resp, indent=2))
+        return
     if resp.get("error"):
         print(f"ERROR: {resp['error']}")
         return
