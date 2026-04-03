@@ -590,6 +590,15 @@ def _fmt_craft(resp):
         else:
             print("  Level up!")
 
+    from_cargo = r.get("from_cargo", [])
+    if from_cargo:
+        print("\n  Used from cargo:")
+        for item in from_cargo:
+            if isinstance(item, dict):
+                print(f"    - {item.get('item_id', '?')} x{item.get('quantity', 1)}")
+            else:
+                print(f"    - {item}")
+
     from_storage = r.get("from_storage", [])
     if from_storage:
         print("\n  Used from storage:")
